@@ -1,0 +1,3 @@
+# One link per venue, guests pick their table, and the waiter's acceptance is the check
+
+Every table in a venue carries the same Venue Link, and the guest tells us which table they are at. We rejected a unique link per table because one link is simpler to set up and replace, even though it lets a guest pick the wrong table or anyone pick any table. We also rejected codes on the table and having waiters open tables first, because both add friction to every visit for a rare problem. Instead, nothing counts towards a bill until a waiter accepts the order at the table. A wrong or fake order costs the waiter a glance and a decline, or a move to the right table.

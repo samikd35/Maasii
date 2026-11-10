@@ -1,0 +1,3 @@
+# Start on Supabase Cloud in Frankfurt, keep the path to Addis open
+
+We build on Supabase (Postgres, Auth, Realtime, Storage) hosted in Frankfurt, the nearest Supabase region, because a solo builder gets to a working pilot much faster on a managed service. Ethiopia's Personal Data Protection Proclamation 1321/2024, Article 22, requires personal data collected locally to be stored in the country, and Supabase has no African region. We therefore keep personal data minimal (guests are anonymous; staff have a name and phone number), get local legal advice before charging venues, and avoid Supabase features that could not run on a self-hosted Supabase in an Addis data centre such as AletCloud's in Ethio Telecom's Bole facility.

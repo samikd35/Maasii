@@ -1,0 +1,3 @@
+# The official receipt amount is typed in by hand, not checked against our bill
+
+The venue's registered cash register is the legal and financial record, so a visit's paid amount comes from its Official Receipt, not from our bill. When confirming payment, the waiter types the receipt total into an empty box. We deliberately do not pre-fill our own total, because a pre-filled box gets confirmed without anyone looking at the receipt. We also do not ask for a reason or force our bill to match. Any Receipt Difference is stored and flagged to the manager, which keeps payment fast during service and still makes differences visible.

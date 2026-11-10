@@ -1,0 +1,3 @@
+# One web app for guests, waiters and owners
+
+Guests open a mobile web page from the Table Card with no install or account, so the guest side has to be web. We decided that waiters and owners use the same web app, installed to the home screen, rather than a native Android app. One codebase is what a solo builder can maintain, and the features we need (live order updates, notifications, camera upload) work in mobile browsers. Revisit this only if we need something the browser cannot do, such as writing NFC tags in bulk from staff phones or reliable notifications on iPhones that haven't installed the app.
