@@ -46,6 +46,7 @@ const sectionInput = z.object({
 const menuInput = z.object({ sections: z.array(sectionInput) });
 
 export type MenuInput = z.input<typeof menuInput>;
+export type OptionGroupInput = z.input<typeof optionGroupInput>;
 
 export type PublishedMenuVersion = {
   menuVersionId: string;
