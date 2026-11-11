@@ -4,7 +4,7 @@ import { createTranslator, useLocale } from "next-intl";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Bill, DraftLine, getGuestVisit, Table } from "@/core";
 import { watchOrders, type LiveOrder, type OrderFeed } from "@/lib/supabase/order-feed";
-import { Price } from "@/ui/price";
+import { formatBirr, Price } from "@/ui/price";
 import am from "../../../../messages/orders.am.json";
 import en from "../../../../messages/orders.en.json";
 
@@ -217,7 +217,9 @@ export default function OrderService({
                       )}
                       {line.note && <p className="text-ink-muted italic">“{line.note}”</p>}
                     </div>
-                    {line.dropReason === "sold_out"
+                    {visit?.removedLines.includes(`${order.id}:${index}`)
+                      ? <span className="shrink-0 font-medium">{t("removedFromBill")}</span>
+                      : line.dropReason === "sold_out"
                       ? <span className="shrink-0 font-medium">{t("soldOut")}</span>
                       : order.state !== "declined" && <Price santim={line.unitPriceSantim * line.quantity} />}
                   </li>
@@ -227,6 +229,7 @@ export default function OrderService({
           ))}
         </ol>
       </section>
+      {!!visit?.discountSantim && <p className="text-sm">{t("billDiscount", { amount: formatBirr(visit.discountSantim) })}</p>}
       {visit?.bill ? (
         <GuestBill bill={visit.bill} paid={!!visit.closedAt} options={visit.paymentOptions} />
       ) : visit && !visit.closedAt && <BillTotal totalSantim={visit.totalSantim} label={t("billTotal")} />}

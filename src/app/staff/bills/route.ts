@@ -4,7 +4,7 @@ import { getSessionActor, waiterUnlockToken } from "@/lib/session";
 export async function POST(request: Request) {
   const actor = await getSessionActor();
   const unlockToken = await waiterUnlockToken();
-  if (!actor || !unlockToken) return new Response(null, { status: 403 });
+  if (!actor) return new Response(null, { status: 403 });
   const body = await request.json().catch(() => null);
   const target = { venueId: body?.venueId, visitId: body?.visitId, unlockToken };
   try {

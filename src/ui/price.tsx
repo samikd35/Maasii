@@ -17,3 +17,10 @@ export function Price({ santim }: { santim: number }) {
     </data>
   );
 }
+
+export function parseBirr(input: string): number | null {
+  if (!/^(?:\d+|\d*\.\d{1,2})$/.test(input)) return null;
+  const [birr, fraction = ""] = input.split(".");
+  const santim = Number(birr + fraction.padEnd(2, "0"));
+  return Number.isSafeInteger(santim) ? santim : null;
+}
