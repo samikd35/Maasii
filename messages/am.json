@@ -411,7 +411,15 @@
     "acceptError": "መቀበል አልተቻለም። እንደገና ይሞክሩ።",
     "accepted": "{name} ተቀብለዋል",
     "waiting": "የቆየበት ጊዜ {time}",
-    "refreshError": "ትዕዛዞችን ማደስ አልተቻለም። በድጋሚ በመገናኘት ላይ…"
+    "refreshError": "ትዕዛዞችን ማደስ አልተቻለም። በድጋሚ በመገናኘት ላይ…",
+    "newOrder": "አዲስ ትዕዛዝ",
+    "escalatedOrder": "ለፈረቃው የተላከ ትዕዛዝ",
+    "installHint": "Maasiiን ከአሳሽዎ ምናሌ ይጫኑ።",
+    "enableNotifications": "ማሳወቂያዎችን ያብሩ",
+    "notificationEnabled": "በዚህ ስልክ ላይ ማሳወቂያዎች በርተዋል።",
+    "notificationDenied": "በአሳሽዎ ቅንብሮች ውስጥ ለMaasii ማሳወቂያዎችን ይፍቀዱ።",
+    "notificationUnsupported": "በiPhone ላይ ማሳወቂያዎችን ለማብራት Maasiiን ከመነሻ ገጽዎ ይክፈቱ።",
+    "notificationError": "ማሳወቂያዎችን ማብራት አልተቻለም። እንደገና ይሞክሩ።"
   },
   "Bills": {
     "heading": "የተዘጋጁ ሂሳቦች",

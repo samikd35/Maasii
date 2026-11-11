@@ -181,11 +181,12 @@ type WaiterDevice = {
   attempts: number | null;
   unlockHash: string | null;
   unlockedUntil: Date | null;
+  hasPush: boolean;
 };
 
 export type WaiterSession =
   | { status: "locked" | "rejoin" }
-  | { status: "unlocked"; name: string; venue: { id: string; name: string }; dishes: ({ id: string } & Bilingual)[] };
+  | { status: "unlocked"; name: string; venue: { id: string; name: string }; hasPush: boolean; dishes: ({ id: string } & Bilingual)[] };
 
 /** Reads the enrolled device for this verified Auth session, before or after PIN unlock. */
 export async function getWaiterSession(
@@ -198,7 +199,8 @@ export async function getWaiterSession(
     const { rows } = await tx.query<WaiterDevice>(
       `select m.active, d.session_id as "sessionId", m.name,
               v.id as "venueId", v.name as "venueName",
-              d.failed_attempts as attempts, d.unlock_hash as "unlockHash", d.unlocked_until as "unlockedUntil"
+              d.failed_attempts as attempts, d.unlock_hash as "unlockHash", d.unlocked_until as "unlockedUntil",
+              exists (select 1 from app.waiter_push_subscriptions p where p.session_id = d.session_id) as "hasPush"
        from app.memberships m
        join app.venues v on v.id = m.venue_id
        left join app.waiter_devices d on d.waiter_id = m.id and d.session_id = $2
@@ -221,7 +223,7 @@ export async function getWaiterSession(
        where v.id = $1 order by s.position, d.position`,
       [device.venueId],
     );
-    return { status: "unlocked", name: device.name, venue: { id: device.venueId, name: device.venueName }, dishes: dishes.rows };
+    return { status: "unlocked", name: device.name, venue: { id: device.venueId, name: device.venueName }, hasPush: device.hasPush, dishes: dishes.rows };
   });
 }
 

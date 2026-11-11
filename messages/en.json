@@ -411,7 +411,15 @@
     "acceptError": "Could not accept. Try again.",
     "accepted": "Accepted by {name}",
     "waiting": "Waiting {time}",
-    "refreshError": "Could not refresh orders. Reconnecting…"
+    "refreshError": "Could not refresh orders. Reconnecting…",
+    "newOrder": "New Order",
+    "escalatedOrder": "Escalated Order",
+    "installHint": "Install Maasii from your browser menu.",
+    "enableNotifications": "Enable notifications",
+    "notificationEnabled": "Notifications enabled on this device.",
+    "notificationDenied": "Allow notifications for Maasii in your browser settings.",
+    "notificationUnsupported": "On iPhone, open Maasii from your Home Screen to enable notifications.",
+    "notificationError": "Could not enable notifications. Try again."
   },
   "Bills": {
     "heading": "Prepared Bills",

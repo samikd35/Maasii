@@ -1,17 +1,19 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import type { getMyTableOrders, PreparedBill } from "@/core";
 import { watchOrders, type LiveOrder, type OrderFeed } from "@/lib/supabase/order-feed";
 import { BillControls } from "./bill-controls";
+import { playOrderChime } from "./order-chime";
 
 type StaffOrderFeed = OrderFeed & Omit<Awaited<ReturnType<typeof getMyTableOrders>>, "orders" | "topic" | "bills"> & {
   bills: (Omit<PreparedBill, "preparedAt"> & { preparedAt: string })[];
 };
 
-export function MyTables() {
+export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumber: number } | { tableId?: never; tableNumber?: never }) {
   const t = useTranslations("StaffOrders");
   const locale = useLocale();
   const other = locale === "am" ? "en" : "am";
@@ -26,9 +28,15 @@ export function MyTables() {
   const [refreshError, setRefreshError] = useState(false);
 
   useEffect(() => {
+    let previous: Map<string, string | null> | undefined;
     const watcher = watchOrders<StaffOrderFeed>("/staff/orders", (data) => {
+      const { orders } = data;
+      const pending = orders.filter(({ state }) => state === "sent");
+      const seen = previous;
+      if (seen && pending.some(({ id, escalatedAt }) => seen.get(id) !== escalatedAt)) playOrderChime();
+      previous = new Map(pending.map(({ id, escalatedAt }) => [id, escalatedAt]));
       setFeed(data);
-      setOrders(data.orders);
+      setOrders(orders);
       setRefreshError(false);
     }, (status) => {
       if (status === 403) {
@@ -72,28 +80,42 @@ export function MyTables() {
     }
   }
 
+  const visibleOrders = tableId ? orders.filter((order) => order.tableId === tableId) : orders;
   const bills = new Map(feed?.bills.map((bill) => [bill.visitId, bill]));
-  const firstAccepted = new Map(orders.filter(({ state }) => state === "accepted").reverse()
+  const billVisitIds = new Set(feed?.billVisitIds);
+  const firstAccepted = new Map(visibleOrders.filter(({ state, visitId }) => state === "accepted" && billVisitIds.has(visitId)).reverse()
     .map((order) => [order.visitId, order.id]));
 
   return (
     <section className="mt-8" aria-labelledby={heading}>
-      <h2 id={heading} className="border-b border-ink/70 pb-1.5 text-sm font-semibold uppercase">{t("heading")}</h2>
+      {tableId
+        ? <h1 id={heading} className="font-display text-3xl">{t("table", { number: tableNumber })}</h1>
+        : <h2 id={heading} className="border-b border-ink/70 pb-1.5 text-sm font-semibold uppercase">{t("heading")}</h2>}
       {refreshError && <p role="status" className="mt-3 text-sm">{t("refreshError")}</p>}
-      {orders.length === 0 && <p className="mt-3 text-sm text-ink-muted">{t("empty")}</p>}
+      {visibleOrders.length === 0 && <p className="mt-3 text-sm text-ink-muted">{t("empty")}</p>}
       <ul className="divide-y divide-rule">
-        {orders.map((order) => {
+        {visibleOrders.map((order) => {
           const bill = bills.get(order.visitId);
           const seconds = Math.max(0, Math.floor((now - Date.parse(order.sentAt)) / 1000));
           const waiting = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
           return (
-            <li key={order.id} className="space-y-2 py-4">
+            <li key={order.id} className="space-y-2 py-4"
+              style={order.state === "sent" ? { background: "var(--color-paper-deep)", borderInlineStart: "3px solid var(--color-ink)", paddingInline: "1rem" } : undefined}>
               <div className="flex items-center justify-between gap-3">
-                <h3 className="font-display text-2xl">{t("table", { number: order.tableNumber })}</h3>
+                {!tableId && (
+                  <h3 className="font-display text-2xl">
+                    <Link className="inline-flex min-h-11 items-center underline" href={`/staff/tables/${order.tableId}`}>
+                      {t("table", { number: order.tableNumber })}
+                    </Link>
+                  </h3>
+                )}
                 {order.state === "sent" && (
                   <p role="timer" className="text-sm tabular-nums text-ink-muted">{t("waiting", { time: waiting })}</p>
                 )}
               </div>
+              {order.state === "sent" && (
+                <p role="status" className="text-sm font-semibold">{t(order.escalatedAt ? "escalatedOrder" : "newOrder")}</p>
+              )}
               <ul className="space-y-2">
                 {order.lines.map((line, index) => (
                   <li key={index} className="flex gap-2">
