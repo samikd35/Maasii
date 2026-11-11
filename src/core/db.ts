@@ -22,6 +22,12 @@ function pool(): pg.Pool {
   return globalForPool.maasiiPool;
 }
 
+/** Serialize Shift and Table changes with Send and Accept at this Venue. */
+export async function lockVenueShifts(tx: Tx, venueId: string): Promise<void> {
+  // ponytail: one lock per Venue, finer table locks if simultaneous reassignments become frequent.
+  await tx.query("select pg_advisory_xact_lock(hashtextextended($1::uuid::text, 0))", [venueId]);
+}
+
 /** Runs `work` in one database transaction, acting as `actor` for every statement. */
 export async function inTransaction<T>(actor: Actor, work: (tx: Tx) => Promise<T>): Promise<T> {
   requireOutsideBrandSupport(actor);
@@ -46,8 +52,14 @@ async function actAs(tx: Tx, actor: Exclude<Actor, { kind: "support" }>): Promis
       await tx.query("select set_config('role', 'anon', true)");
       return;
     case "staff":
-    case "admin": {
-      const claims = { sub: actor.userId, role: "authenticated", is_anonymous: false };
+    case "admin":
+    case "guest": {
+      const claims = {
+        sub: actor.userId,
+        role: "authenticated",
+        is_anonymous: actor.kind === "guest",
+        session_id: actor.kind === "staff" ? actor.sessionId : undefined,
+      };
       await tx.query(
         "select set_config('request.jwt.claims', $1, true), set_config('role', 'authenticated', true)",
         [JSON.stringify(claims)],

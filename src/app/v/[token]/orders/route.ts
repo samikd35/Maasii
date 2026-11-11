@@ -1,0 +1,58 @@
+import { getGuestOrders, getOrderService, guestActor, MaasiiError, publicActor, sendOrder } from "@/core";
+import { createSessionClient } from "@/lib/supabase/server";
+
+async function guestSession() {
+  const supabase = await createSessionClient({ guest: true });
+  const { data } = await supabase.auth.getClaims();
+  const claims = data?.claims;
+  const actor = claims?.is_anonymous && claims.sub ? guestActor(claims.sub) : null;
+  return { supabase, actor, expiresAt: claims?.exp ?? 0 };
+}
+
+export async function GET(_request: Request, { params }: RouteContext<"/v/[token]/orders">) {
+  const { token: venueLinkToken } = await params;
+  try {
+    const service = await getOrderService(publicActor, { venueLinkToken });
+    const { supabase, actor, expiresAt } = await guestSession();
+    if (!actor) return Response.json({ ...service, orders: [], live: null }, { headers: { "Cache-Control": "private, no-store" } });
+
+    const [orders, { data }] = await Promise.all([
+      getGuestOrders(actor, { venueLinkToken }),
+      supabase.auth.getSession(),
+    ]);
+    const live = data.session ? {
+      topic: `guest-orders:${actor.userId}`,
+      accessToken: data.session.access_token,
+      expiresAt,
+    } : null;
+    return Response.json({ ...service, orders, live }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch (error) {
+    if (error instanceof MaasiiError) return new Response(null, { status: 404 });
+    throw error;
+  }
+}
+
+// Complete the anonymous sign-in first. A lost acknowledgement after Send can then be retried
+// with both the same Auth cookie and the same request ID.
+export async function PUT() {
+  const { supabase, actor } = await guestSession();
+  if (!actor) {
+    const { error } = await supabase.auth.signInAnonymously();
+    if (error) return new Response(null, { status: error.status === 429 ? 429 : 503 });
+  }
+  return new Response(null, { status: 204 });
+}
+
+export async function POST(request: Request, { params }: RouteContext<"/v/[token]/orders">) {
+  const { actor } = await guestSession();
+  if (!actor) return new Response(null, { status: 401 });
+  const body = await request.json().catch(() => null);
+  const { token: venueLinkToken } = await params;
+  try {
+    const order = await sendOrder(actor, { ...body, venueLinkToken });
+    return Response.json(order, { headers: { "Cache-Control": "private, no-store" } });
+  } catch (error) {
+    if (error instanceof MaasiiError) return Response.json({ reason: error.reason }, { status: 409 });
+    throw error;
+  }
+}

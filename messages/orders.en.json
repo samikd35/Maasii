@@ -1,0 +1,15 @@
+{
+  "send": "Send",
+  "choose": "Which table are you at?",
+  "table": "Table {number}",
+  "sending": "Sending…",
+  "sent": "Sent",
+  "accepted": "Accepted by {name}",
+  "retry": "Not sent - tap to retry",
+  "unavailable": "Ordering is unavailable until a Shift starts.",
+  "chooseAgain": "This table is no longer available. Choose another table.",
+  "draftChanged": "The menu has changed. Refresh and review your Draft before sending.",
+  "serviceUnavailable": "Could not load tables. Try again.",
+  "orders": "Orders",
+  "requestConflict": "This Send could not be verified. Ask your waiter before sending again."
+}
