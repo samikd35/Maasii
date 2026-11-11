@@ -19,6 +19,11 @@ create policy "platform admin support reads Brand Payment Options" on app.paymen
   for select to authenticated using (
     app.can_read_brand_support((select v.brand_id from app.venues v where v.id = venue_id))
   );
+create index visits_venue_opened_at on app.visits (venue_id, opened_at desc, id);
+create policy "platform admin support reads Brand Visits" on app.visits
+  for select to authenticated using (
+    app.can_read_brand_support((select v.brand_id from app.venues v where v.id = venue_id))
+  );
 
 create table app.brand_support_openings (
   id bigint generated always as identity primary key,

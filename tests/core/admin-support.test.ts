@@ -6,16 +6,20 @@ import {
   adminSupportActor,
   createVenue,
   createWaiterJoinCode,
+  guestActor,
   inviteOwner,
   joinWaiter,
   listBrandSupportOpenings,
   openBrandSupport,
   publicActor,
+  sendOrder,
   setVenueDishSoldOut,
+  startShift,
   systemActor,
   updatePaymentOption,
 } from "@/core";
-import { scenario } from "../support/scenario";
+import { createPublicAuthClient } from "@/lib/supabase/public";
+import { scenario, type Scenario } from "../support/scenario";
 import { createPlatformAdmin, uniqueEmail } from "../support/users";
 
 test("each authorized opening reads one Brand's support data and leaves an audit entry", async () => {
@@ -75,4 +79,37 @@ test("support access refuses Brand writes even for an admin who also owns the Br
     .rejects.toMatchObject({ code: "not_allowed" });
   await expect(joinWaiter(support, { token: join.token, name: "Liya", pin: "0427" }))
     .rejects.toMatchObject({ code: "not_allowed" });
+});
+
+test("support shows actual Visits at the Venue where the guest sent the Order", async () => {
+  const admin = await createPlatformAdmin();
+  const support = adminSupportActor(admin.userId);
+  const s = await scenario().venue("Bole", { tables: 2 }).venue("Lancha").publishedMenu().build();
+  const other = await scenario().publishedMenu().build();
+  const { data, error } = await createPublicAuthClient().auth.signInAnonymously();
+  if (error) throw error;
+  const guest = guestActor(data.user!.id);
+  const now = new Date("2026-11-11T10:00:00Z");
+
+  async function sendAt({ venue, owner, dishId }: Scenario, tableIndex: number) {
+    await startShift(owner.actor, { venueId: venue.id, assignments: [] }, { now });
+    return sendOrder(guest, {
+      venueLinkToken: venue.linkToken,
+      tableId: venue.tables[tableIndex].id,
+      requestId: crypto.randomUUID(),
+      lines: [{ dishId: dishId("Omelette"), choiceIds: [], quantity: 1, note: "" }],
+    }, { now });
+  }
+
+  const order = await sendAt(s, 1);
+  const otherOrder = await sendAt(other, 0);
+  const view = await openBrandSupport(support, { brandId: s.brand.id });
+  expect(view.venues.map(({ name, visits }) => ({ name, visits }))).toEqual([
+    { name: "Bole", visits: [{ id: order.visitId, tableNumber: 2, openedAt: now, closedAt: null }] },
+    { name: "Lancha", visits: [] },
+  ]);
+  const otherView = await openBrandSupport(support, { brandId: other.brand.id });
+  expect(otherView.venues[0].visits).toEqual([
+    { id: otherOrder.visitId, tableNumber: 1, openedAt: now, closedAt: null },
+  ]);
 });

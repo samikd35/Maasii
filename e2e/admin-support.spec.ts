@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
-import { addPaymentOption, listBrandSupportOpenings } from "@/core";
+import { addPaymentOption, guestActor, listBrandSupportOpenings, sendOrder, startShift } from "@/core";
+import { createPublicAuthClient } from "@/lib/supabase/public";
 import { LANCHA_LINK_TOKEN } from "../scripts/seed/bilos";
 import { scenario } from "../tests/support/scenario";
 import { createPlatformAdmin } from "../tests/support/users";
@@ -23,6 +24,16 @@ test("the admin can open a Brand for support without getting Brand edit controls
     venueId: s.venue.id, kind: "bank_transfer", provider: "Support Bank",
     recipientName: "Saba House", accountOrMerchantCode: "0012345", displayOrder: 1,
   });
+  const now = new Date("2026-11-11T10:00:00Z");
+  await startShift(s.owner.actor, { venueId: s.venue.id, assignments: [] }, { now });
+  const { data, error } = await createPublicAuthClient().auth.signInAnonymously();
+  if (error) throw error;
+  await sendOrder(guestActor(data.user!.id), {
+    venueLinkToken: s.venue.linkToken,
+    tableId: s.venue.tables[0].id,
+    requestId: crypto.randomUUID(),
+    lines: [{ dishId: s.dishId("Omelette"), choiceIds: [], quantity: 1, note: "" }],
+  }, { now });
 
   await openAdmin(page, admin);
   await page.getByRole("link", { name: `${brandName} 1 venue` }).click();
@@ -37,6 +48,9 @@ test("the admin can open a Brand for support without getting Brand edit controls
   await expect(main.getByText("Hana", { exact: true })).toBeVisible();
   await expect(main.getByText("Sam", { exact: true })).toBeVisible();
   await expect(main.getByText("0012345", { exact: false })).toBeVisible();
+  const visits = main.getByRole("region", { name: "Visits" });
+  await expect(visits.getByText("Table 1", { exact: true })).toBeVisible();
+  await expect(visits.locator("time")).toHaveAttribute("datetime", now.toISOString());
   await expect(main.locator("form")).toHaveCount(0);
   expect(await listBrandSupportOpenings(admin.actor, { brandId: s.brand.id })).toHaveLength(1);
 

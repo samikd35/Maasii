@@ -58,7 +58,14 @@ async function readVenueSupport(tx: Tx, venue: Venue) {
     [venue.id],
   );
   const paymentOptions = await readVenuePaymentOptions(tx, venue.id);
-  return { ...venue, tables, staff, paymentOptions };
+  // ponytail: all Visits per Venue. Paginate once closed Visit history grows.
+  const { rows: visits } = await tx.query<{ id: string; tableNumber: number; openedAt: Date; closedAt: Date | null }>(
+    `select v.id, t.number as "tableNumber", v.opened_at as "openedAt", v.closed_at as "closedAt"
+     from app.visits v join app.tables t on (t.venue_id, t.id) = (v.venue_id, v.table_id)
+     where v.venue_id = $1 order by v.opened_at desc, v.id`,
+    [venue.id],
+  );
+  return { ...venue, tables, staff, paymentOptions, visits };
 }
 
 export async function listBrandSupportOpenings(actor: Actor, input: z.input<typeof brandInput>) {

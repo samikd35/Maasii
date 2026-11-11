@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { getFormatter, getTranslations } from "next-intl/server";
 import { MaasiiError, openBrandSupport } from "@/core";
 import { requireAdmin } from "@/lib/session";
 import { PaymentOptionValues } from "@/ui/payment-option-values";
@@ -17,14 +17,16 @@ async function load(brandId: string) {
 
 export default async function BrandSupportPage({ params }: PageProps<"/admin/brands/[brandId]/support">) {
   const { brandId } = await params;
-  const [{ brand, owners, venues }, t, staff, manage, waiter, payment] = await Promise.all([
+  const [{ brand, owners, venues }, t, staff, manage, waiter, payment, format] = await Promise.all([
     load(brandId),
     getTranslations("StaffAdmin"),
     getTranslations("Staff"),
     getTranslations("StaffManage"),
     getTranslations("StaffWaiter"),
     getTranslations("PaymentOptions"),
+    getFormatter(),
   ]);
+  const visitTime = (date: Date) => format.dateTime(date, { dateStyle: "medium", timeStyle: "short" });
 
   return (
     <>
@@ -88,6 +90,26 @@ export default async function BrandSupportPage({ params }: PageProps<"/admin/bra
               </article>
             ))}
           </div>
+          <section aria-labelledby={`visits-${venue.id}`}>
+            <h3 id={`visits-${venue.id}`} className="font-semibold">{t("supportVisits")}</h3>
+            {venue.visits.length === 0 ? <p className="text-sm text-ink-muted">{t("noSupportVisits")}</p> : (
+              <ul className="mt-1 divide-y divide-rule text-sm">
+                {venue.visits.map((visit) => (
+                  <li key={visit.id} className="py-2">
+                    <p className="font-medium">{manage("table", { number: visit.tableNumber })}</p>
+                    <p>
+                      {t("visitOpened")} <time dateTime={visit.openedAt.toISOString()}>{visitTime(visit.openedAt)}</time>
+                    </p>
+                    {visit.closedAt && (
+                      <p>
+                        {t("visitClosed")} <time dateTime={visit.closedAt.toISOString()}>{visitTime(visit.closedAt)}</time>
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </section>
       ))}
     </>
