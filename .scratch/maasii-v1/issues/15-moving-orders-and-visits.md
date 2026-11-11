@@ -4,7 +4,7 @@
 
 **Blocked by:** 11 (Guest sends an Order and the waiter accepts it live)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] A waiter can move a single Order to another table before that Visit's Bill is prepared. The Order joins the target table's open Visit, or creates one, and goes to that table's waiter.
 - [x] The guest device that sent the moved Order switches its Table Choice to the new table and sees the new Visit.

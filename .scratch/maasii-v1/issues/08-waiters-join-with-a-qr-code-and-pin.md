@@ -4,7 +4,7 @@
 
 **Blocked by:** 07 (Staff sign-in, brands, venues and tables), 02 (Amharic and English everywhere)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] A manager can display a short-lived join QR for their venue. An expired or reused code is refused with a clear message.
 - [x] Scanning it lets a waiter enter their name and set a 4-digit PIN, creating a Waiter membership at that venue only.

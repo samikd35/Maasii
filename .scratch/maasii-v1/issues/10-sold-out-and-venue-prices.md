@@ -4,7 +4,7 @@
 
 **Blocked by:** 07 (Staff sign-in, brands, venues and tables)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] Each venue has a per-dish setting for Sold Out and an optional venue price.
 - [x] Managers (for their venue) and owners (for any venue of their brand) can toggle Sold Out from an inline switch in a dish list.

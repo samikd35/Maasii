@@ -4,7 +4,7 @@
 
 **Blocked by:** 11 (Guest sends an Order and the waiter accepts it live)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] Two or more phones that choose the same table during an open Visit all see that Visit's sent Orders and their statuses, live.
 - [x] Each phone's Draft is visible only on that phone until sent.

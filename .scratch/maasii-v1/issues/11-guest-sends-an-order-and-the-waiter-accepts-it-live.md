@@ -4,7 +4,7 @@
 
 **Blocked by:** 05 (Dish details, Option Groups and the Draft), 09 (Shifts, Usual Tables and Table Assignments)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] At the first Send, the guest picks a table from a grid of the venue's active tables. The Table Choice is remembered on the phone until the Visit closes.
 - [x] The guest device gets an anonymous Supabase session on first Send, used by row-level security to scope what it can read.

@@ -4,7 +4,7 @@
 
 **Blocked by:** 07 (Staff sign-in, brands, venues and tables), 04 (Fasting days and the House favourite)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] The admin can list brands and open any brand's venues, Menu, staff, Visits and Payment Options in a read-only view.
 - [x] No command that changes brand data is available from the support view, and the core refuses such commands from the admin's support session.

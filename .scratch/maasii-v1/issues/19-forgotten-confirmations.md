@@ -4,7 +4,7 @@
 
 **Blocked by:** 18 (Bill, payment and closing a Visit), 14 (Notifications and escalation)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] The every-minute job flags prepared Bills without a Payment Confirmation after 20 minutes. They appear as "Paid?" rows in the waiter's list and notify the waiter.
 - [x] An Order from a phone that has not sent an Order in the current Visit, at a table whose Bill is prepared, is accepted by the core and shown to the waiter as "New party at Table N?".

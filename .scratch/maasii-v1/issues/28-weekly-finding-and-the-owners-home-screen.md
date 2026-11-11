@@ -4,7 +4,7 @@
 
 **Blocked by:** 27 (Service Periods and dish insights), 21 (Live floor and exceptions)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] Rule 1: a dish with at least 5 Dish Reviews in the week where one topic chip appears in at least 25% of them. For example: "Croissant: 5 of 16 reviews said temperature".
 - [x] Rule 2: the largest week-over-week drop in accepted quantity for a dish within a Service Period, from a base of at least 10.

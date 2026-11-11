@@ -4,7 +4,7 @@
 
 **Blocked by:** 13 (Several phones share one Visit), 17 (Owner manages Payment Options)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] Prepare bill locks the Bill. Every phone at the table switches to the Bill view: each accepted dish with its price, one total, and the label "Not a tax receipt".
 - [x] Below the Bill, guests see the venue's active Payment Options in order: provider, recipient name, a copy button for the account number or merchant code, and the QR image if provided.

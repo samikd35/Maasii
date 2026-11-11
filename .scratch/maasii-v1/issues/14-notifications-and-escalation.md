@@ -4,7 +4,7 @@
 
 **Blocked by:** 11 (Guest sends an Order and the waiter accepts it live)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] The staff area is an installable progressive web app with a service worker.
 - [x] A waiter can allow notifications. Their push subscription is stored for their device and removed when they are removed or sign out.

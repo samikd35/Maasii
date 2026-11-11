@@ -4,7 +4,7 @@
 
 **Blocked by:** 26 (Reviews after payment)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] Owners can set each venue's service hours and named Service Periods in Addis Ababa time. Periods cannot overlap.
 - [x] For a chosen venue and week, each dish shows its accepted quantity per Service Period (Accepted Orders minus Dropped Dishes and removed lines), and the same figures for the previous week.

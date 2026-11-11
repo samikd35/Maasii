@@ -21,7 +21,6 @@ next-env.d.ts
 /playwright/.cache/
 
 # env files: generated per worktree by `pnpm db:env`, never committed
-.env*
 !.env.example
 
 # misc
@@ -29,3 +28,4 @@ next-env.d.ts
 npm-debug.log*
 .pnpm-debug.log*
 .vercel
+config.bat

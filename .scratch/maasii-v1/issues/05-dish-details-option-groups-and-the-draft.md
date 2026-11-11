@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (Guest sees Bilo's published menu)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] Published dishes can carry Option Groups of two kinds: "choose one", which may be required, and "add extras", with an optional price change per choice. The seed adds realistic Bilo's examples such as bagel type and omelette extras.
 - [x] Tapping a dish opens a bottom sheet with photo (if any), description, fasting label, Option Groups, a note field, quantity and "Add to order".

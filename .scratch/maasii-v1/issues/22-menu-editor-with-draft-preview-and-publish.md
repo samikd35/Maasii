@@ -4,7 +4,7 @@
 
 **Blocked by:** 07 (Staff sign-in, brands, venues and tables), 05 (Dish details, Option Groups and the Draft)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] Owners can create, rename, reorder and remove sections, and create, edit and reorder dishes, in a draft that guests cannot see.
 - [x] The dish form shows the Amharic and English name and description side by side, plus base price, fasting label and House favourite.

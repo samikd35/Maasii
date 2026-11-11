@@ -4,7 +4,7 @@
 
 **Blocked by:** 05 (Dish details, Option Groups and the Draft)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] Opening a Venue Link records one menu-opened event, and opening a dish sheet records one dish-opened event for that dish.
 - [x] Events carry only Venue, kind, dish, time and a page-load identifier that is regenerated on every page load and never stored on the phone.

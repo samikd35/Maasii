@@ -4,7 +4,7 @@
 
 **Blocked by:** 18 (Bill, payment and closing a Visit)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] After a Visit closes, each phone that took part sees the review section in its slip. Phones that never chose the table do not.
 - [x] The Visit Review offers Great, Okay or Needs work, with optional chips (food overall, service, wait time, paying) and a comment.
