@@ -8,11 +8,14 @@ export {
   addTables,
   createBrand,
   createVenue,
+  getVenueSetup,
   listBrands,
   type Brand,
   type BrandSummary,
   type Table,
   type Venue,
+  type VenueSetup,
+  type VenueTable,
 } from "./brands";
 export { parseStaffContact, type StaffContact } from "./contact";
 export {

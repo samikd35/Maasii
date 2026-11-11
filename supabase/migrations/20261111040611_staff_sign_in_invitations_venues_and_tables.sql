@@ -29,6 +29,36 @@ create unique index memberships_one_active_per_role on app.memberships (user_id,
 create index on app.memberships (brand_id) where active;
 create index on app.memberships (venue_id) where active;
 
+-- Owners have a Manager's powers at every Venue of their Brand.
+create function app.can_manage_venue(p_venue_id uuid) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select exists (
+    select 1 from app.memberships m
+    left join app.venues v on v.id = p_venue_id
+    where m.user_id = (select auth.uid())
+      and m.active
+      and ((m.role = 'manager' and m.venue_id = p_venue_id)
+        or (m.role = 'owner' and m.brand_id = v.brand_id))
+  )
+$$;
+revoke execute on function app.can_manage_venue (uuid) from public;
+grant execute on function app.can_manage_venue (uuid) to anon, authenticated;
+
+-- Venues and Tables ----------------------------------------------------------------------------
+-- Brand, venue and table basics stay readable by anyone: the Venue Link opens them for guests.
+
+create policy "owners create venues" on app.venues
+  for insert to authenticated with check (app.is_brand_owner (brand_id));
+grant insert (brand_id, name, link_token) on app.venues to authenticated;
+
+create policy "venue managers add tables" on app.tables
+  for insert to authenticated with check (app.can_manage_venue (venue_id));
+create policy "venue managers change tables" on app.tables
+  for update to authenticated
+  using (app.can_manage_venue (venue_id)) with check (app.can_manage_venue (venue_id));
+grant insert (venue_id, number) on app.tables to authenticated;
+grant update (number, active) on app.tables to authenticated;
+
 -- Invitations ----------------------------------------------------------------------------------
 -- The inviter shares the invitation link (/invite/<token>) themselves. Only a hash of the token
 -- is stored, so the link cannot be recovered from the database: inviting again replaces it.
