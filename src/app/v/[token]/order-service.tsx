@@ -219,7 +219,7 @@ export default function OrderService({
                       )}
                       {line.note && <p className="text-ink-muted italic">“{line.note}”</p>}
                     </div>
-                    {visit?.removedLines.includes(`${order.id}:${index}`)
+                    {line.dropReason === "waiter_removed" || visit?.removedLines.includes(`${order.id}:${index}`)
                       ? <span className="shrink-0 font-medium">{t("removedFromBill")}</span>
                       : line.dropReason === "sold_out"
                       ? <span className="shrink-0 font-medium">{t("soldOut")}</span>

@@ -117,3 +117,5 @@ export { getGuestReviewForm, getWaiterRatings, submitGuestReview, type GuestRevi
 
 export { getLiveFloor } from "./floor";
 export { getVenueInsights, updateVenueService, type ServicePeriod } from "./insights";
+
+export { addWaiterOrder, correctWaiterOrderLine, getOrderCorrections, getWaiterQuickAdd } from "./waiter-orders";

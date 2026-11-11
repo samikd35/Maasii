@@ -19,16 +19,13 @@ const acceptInput = decisionTarget.extend({
 });
 const undoInput = decisionTarget.extend({ decisionId: id });
 const venueLink = z.object({ venueLinkToken: z.string().min(1).max(200) });
-const sendInput = venueLink.extend({
-  tableId: id,
-  requestId: id,
-  lines: z.array(z.object({
-    dishId: id,
-    choiceIds: z.array(id).max(100),
-    quantity: z.number().int().min(1).max(MAX_QUANTITY),
-    note: z.string().max(MAX_NOTE_LENGTH),
-  })).min(1).max(100),
-});
+export const orderLines = z.array(z.object({
+  dishId: id,
+  choiceIds: z.array(id).max(100),
+  quantity: z.number().int().min(1).max(MAX_QUANTITY),
+  note: z.string().max(MAX_NOTE_LENGTH),
+})).min(1).max(100);
+const sendInput = venueLink.extend({ tableId: id, requestId: id, lines: orderLines });
 
 type OrderLine = {
   dishId: string;
@@ -48,6 +45,7 @@ export type Order = {
   tableNumber: number;
   state: "sent" | "accepted" | "declined";
   partyPending: boolean;
+  source: "guest" | "waiter";
   carriedFrom?: string | null;
   carriedOver?: boolean;
   sentAt: Date;
@@ -75,11 +73,11 @@ type GuestVisit = {
   paymentOptions: Awaited<ReturnType<typeof readGuestBillOptions>>;
 };
 
-const orderDetails = `id, visit_id as "visitId", table_id as "tableId", table_number as "tableNumber",
+const orderDetails = `case when entered_by is null then 'guest' else 'waiter' end as source, id, visit_id as "visitId", table_id as "tableId", table_number as "tableNumber",
   state, party_pending as "partyPending", sent_at as "sentAt", escalated_at as "escalatedAt",
   waiter_id as "waiterId", waiter_name as "waiterName",
   accepted_by_name as "acceptedByName", accepted_at as "acceptedAt", declined_at as "declinedAt", lines`;
-const orderFields = `${orderDetails}, request_id as "requestId"`;
+export const orderFields = `${orderDetails}, request_id as "requestId"`;
 
 async function orderVenue(tx: Tx, token: string): Promise<string> {
   const { rows: [venue] } = await tx.query<{ id: string }>("select id from app.venues where link_token = $1", [token]);
@@ -99,6 +97,28 @@ export async function getOrderService(
       "select id, number from app.tables where venue_id = $1 and active order by number", [venueId],
     );
     return { available: shift !== null && tables.length > 0, tables };
+  });
+}
+
+export function snapshotOrderLines(
+  published: NonNullable<Awaited<ReturnType<typeof readPublishedMenu>>>,
+  lines: z.output<typeof orderLines>,
+): OrderLine[] {
+  return lines.map((line): OrderLine => {
+    const choices = [...new Set(line.choiceIds)].map((choiceId) => ({ choiceId, name: "" }));
+    const priced = priceDraftLine(published.menu, { ...line, dishName: "", choices });
+    if (priced.problems.length || priced.unitPriceSantim === null) {
+      throw new MaasiiError("invalid_input", "The Draft needs attention.", "orderDraftChanged");
+    }
+    const dish = published.dishes.find((dish) => dish.id === line.dishId)!;
+    return {
+      dishId: line.dishId, name: { en: dish.name_en, am: dish.name_am },
+      unitPriceSantim: priced.unitPriceSantim, quantity: line.quantity, note: line.note,
+      choices: choices.map(({ choiceId }) => {
+        const choice = published.choices.find(({ id }) => id === choiceId)!;
+        return { id: choiceId, name: { en: choice.name_en, am: choice.name_am }, priceChangeSantim: choice.price_change_santim };
+      }),
+    };
   });
 }
 
@@ -130,22 +150,7 @@ export async function sendOrder(
     );
     if (!table) throw new MaasiiError("invalid_input", "Choose an active Table at this Venue.", "orderTableUnavailable");
     const published = (await readPublishedMenu(tx, { venueLinkToken }, at))!;
-    const snapshots = lines.map((line): OrderLine => {
-      const choices = [...new Set(line.choiceIds)].map((choiceId) => ({ choiceId, name: "" }));
-      const priced = priceDraftLine(published.menu, { ...line, dishName: "", choices });
-      if (priced.problems.length || priced.unitPriceSantim === null) {
-        throw new MaasiiError("invalid_input", "The Draft needs attention.", "orderDraftChanged");
-      }
-      const dish = published.dishes.find((dish) => dish.id === line.dishId)!;
-      return {
-        dishId: line.dishId, name: { en: dish.name_en, am: dish.name_am },
-        unitPriceSantim: priced.unitPriceSantim, quantity: line.quantity, note: line.note,
-        choices: choices.map(({ choiceId }) => {
-          const choice = published.choices.find(({ id }) => id === choiceId)!;
-          return { id: choiceId, name: { en: choice.name_en, am: choice.name_am }, priceChangeSantim: choice.price_change_santim };
-        }),
-      };
-    });
+    const snapshots = snapshotOrderLines(published, lines);
     const waiter = await findResponsibleWaiter(tx, venueId, tableId, at);
     const { rows: [open] } = await tx.query<{ id: string; prepared: boolean }>(
       "select id, bill_prepared_at is not null as prepared from app.visits where venue_id = $1 and table_id = $2 and closed_at is null", [venueId, tableId],
@@ -242,13 +247,14 @@ export async function getMyTableOrders(
   const table = parseInput(id.optional(), tableId);
   return inTransaction(actor, async (tx) => {
     const waiter = await requireOrderWaiter(tx, actor, unlockToken, now);
-    const { rows } = await tx.query<Order & { servesTable: boolean }>(
+    const { rows } = await tx.query<Order & { servesTable: boolean; canCorrect: boolean }>(
       `select ${orderFields}, app.waiter_serves_order_table(venue_id, table_id) as "servesTable",
+         coalesce(state = 'accepted' and accepted_by = $3 and app.waiter_serves_order_table(venue_id, table_id), false) as "canCorrect",
          (select carried_from from app.visits where id = orders.visit_id) as "carriedFrom",
          coalesce((select carried_over_at is not null from app.visits where id = orders.visit_id), false) as "carriedOver"
        from app.orders where venue_id = $1 and state <> 'declined' and ($2::uuid is null or table_id = $2)
         and app.waiter_order_visit_is_open(visit_id) order by (state <> 'sent'), sent_at, id`,
-      [waiter.venueId, table ?? null],
+      [waiter.venueId, table ?? null, waiter.id],
     );
     let tableNumber: number | undefined;
     if (table) {
@@ -263,12 +269,24 @@ export async function getMyTableOrders(
       if (servesTable) billVisitIds.add(order.visitId);
       return carriedOver ? { ...order, carriedFrom, carriedOver } : order;
     });
+    const { rows: assignedTables } = await tx.query<Table>(
+      `select id, number from app.tables where venue_id = $1 and active
+       and app.waiter_serves_order_table(venue_id, id) order by number`, [waiter.venueId],
+    );
+    const { rows: visits } = await tx.query<BillVisit>(
+      `select ${billVisitFields} from app.visits where id = any($1::uuid[]) and closed_at is null`, [[...billVisitIds]],
+    );
+    const ordersByVisit = Map.groupBy(orders, ({ visitId }) => visitId);
+    const tableBills = visits.map((visit) => ({
+      tableId: visit.tableId, visitId: visit.id, removedLines: visit.removedLines,
+      totalSantim: visit.preparedAt ? Number(visit.totalSantim) : billFromOrders(ordersByVisit.get(visit.id) ?? [], visit).totalSantim,
+    }));
     const bills = await readPreparedBills(tx, waiter.venueId, table);
     const paymentOptions = bills.length
       ? (await readVenuePaymentOptions(tx, waiter.venueId, { activeOnly: true }))
         .map(({ id, kind, provider, accountOrMerchantCode }) => ({ id, kind, provider, accountOrMerchantCode }))
       : [];
-    return { orders, topic: waiter.topic, venueId: waiter.venueId, tableNumber, billVisitIds: [...billVisitIds], bills, paymentOptions };
+    return { orders, assignedTables, tableBills, topic: waiter.topic, venueId: waiter.venueId, tableNumber, billVisitIds: [...billVisitIds], bills, paymentOptions };
   });
 }
 

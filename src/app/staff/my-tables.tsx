@@ -4,29 +4,35 @@ import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
+import { MAX_QUANTITY } from "@/core/browser";
 import type { getMyTableOrders, PreparedBill } from "@/core";
 import type { Messages } from "@/i18n/messages";
 import { watchOrders, type LiveOrder, type OrderFeed } from "@/lib/supabase/order-feed";
+import { formatBirr } from "@/ui/price";
 import { BillControls } from "./bill-controls";
 import { playOrderChime } from "./order-chime";
 
+type StaffLiveOrder = LiveOrder & { canCorrect: boolean };
 type StaffOrderFeed = OrderFeed & Omit<Awaited<ReturnType<typeof getMyTableOrders>>, "orders" | "topic" | "bills"> & {
+  orders: StaffLiveOrder[];
   bills: (Omit<PreparedBill, "preparedAt"> & { preparedAt: string })[];
 };
 type Action = { action: "accept"; soldOutLineIndices: number[] }
   | { action: "decline" }
-  | { action: "undo"; decisionId: string };
+  | { action: "undo"; decisionId: string }
+  | { action: "correct"; lineIndex: number; quantity: number | null; reason: string };
 type UndoableOrder = LiveOrder & { decisionId: string; undoUntil: string };
 type ErrorReason = keyof Messages["StaffErrors"];
 
 export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumber: number } | { tableId?: never; tableNumber?: never }) {
   const t = useTranslations("StaffOrders");
   const errors = useTranslations("StaffErrors");
+  const billing = useTranslations("Bills");
   const locale = useLocale();
   const other = locale === "am" ? "en" : "am";
   const router = useRouter();
   const heading = useId();
-  const [orders, setOrders] = useState<LiveOrder[]>([]);
+  const [orders, setOrders] = useState<StaffLiveOrder[]>([]);
   const [feed, setFeed] = useState<StaffOrderFeed>();
   const refresh = useRef<() => Promise<void>>(async () => {});
   const [now, setNow] = useState(Date.now);
@@ -94,7 +100,7 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
       if (!response.ok) {
         const { reason }: { reason?: ErrorReason } = await response.json();
         setDecisionError(reason ?? "decisionError");
-      } else {
+      } else if (response.status !== 204) {
         const decision: UndoableOrder | LiveOrder = await response.json();
         setUndoable((current) => {
           const rest = current.filter(({ id }) => id !== orderId);
@@ -115,6 +121,10 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
   }
 
   const visibleOrders = tableId ? orders.filter((order) => order.tableId === tableId) : orders;
+  const activeVisit = feed?.tableBills.find((visit) => visit.tableId === tableId);
+  const showQuickAdd = tableId && feed?.assignedTables.some((table) => table.id === tableId)
+    && !feed.bills.some((bill) => bill.tableId === tableId);
+  const emptyAssigned = tableId ? [] : feed?.assignedTables.filter((table) => !orders.some((order) => order.tableId === table.id)) ?? [];
   const bills = new Map(feed?.bills.map((bill) => [bill.visitId, bill]));
   const billVisitIds = new Set(feed?.billVisitIds);
   const partyVisitIds = new Set(visibleOrders.filter(({ partyPending }) => partyPending).map(({ visitId }) => visitId));
@@ -126,6 +136,16 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
       {tableId
         ? <h1 id={heading} className="font-display text-3xl">{t("table", { number: tableNumber })}</h1>
         : <h2 id={heading} className="border-b border-ink/70 pb-1.5 text-sm font-semibold uppercase">{t("heading")}</h2>}
+      {tableId && feed && (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3">
+          <p className="font-semibold">{billing("total", { amount: formatBirr(activeVisit?.totalSantim ?? 0) })}</p>
+          {showQuickAdd && (
+            <Link href={`/staff/tables/${tableId}/quick-add`} className="inline-flex min-h-11 items-center rounded-md bg-ink px-4 text-sm font-semibold text-paper">
+              {t("quickAdd")}
+            </Link>
+          )}
+        </div>
+      )}
       {refreshError && <p role="status" className="mt-3 text-sm">{t("refreshError")}</p>}
       {decisionError && (
         <p role="alert" className="mt-3 text-sm font-medium">
@@ -167,6 +187,7 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
                   <p role="timer" className="text-sm tabular-nums text-ink-muted">{t("waiting", { time: waiting })}</p>
                 )}
               </div>
+              {tableId && <p className="text-sm font-semibold">{t(order.source === "waiter" ? "waiterSource" : "guestSource")}</p>}
               {order.carriedOver && <p className="text-sm font-semibold">
                 {order.carriedFrom ? t("carriedFrom", { name: order.carriedFrom }) : t("carriedOver")}
               </p>}
@@ -189,6 +210,12 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
                       ))}
                       {line.note && <p className="text-sm italic">“{line.note}”</p>}
                       {line.dropReason === "sold_out" && <p className="text-sm font-medium">{t("soldOut")}</p>}
+                      {(line.dropReason === "waiter_removed" || activeVisit?.removedLines.includes(`${order.id}:${index}`))
+                        && <p className="text-sm font-medium">{t("removedLine")}</p>}
+                      {tableId && order.canCorrect && !bill && !line.dropReason && !activeVisit?.removedLines.includes(`${order.id}:${index}`) && (
+                        <CorrectionForm key={line.quantity} quantity={line.quantity} disabled={!!working}
+                          submit={(quantity, reason) => void decide(order.id, { action: "correct", lineIndex: index, quantity, reason })} />
+                      )}
                     </div>
                   </li>
                 ))}
@@ -249,6 +276,47 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
           );
         })}
       </ul>
+      {emptyAssigned.length > 0 && (
+        <ul className="divide-y divide-rule border-t border-rule">
+          {emptyAssigned.map((table) => (
+            <li key={table.id}>
+              <Link href={`/staff/tables/${table.id}`} className="inline-flex min-h-11 items-center font-semibold underline">
+                {t("table", { number: table.number })}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
+  );
+}
+
+function CorrectionForm({ quantity, disabled, submit }: {
+  quantity: number;
+  disabled: boolean;
+  submit: (quantity: number | null, reason: string) => void;
+}) {
+  const t = useTranslations("StaffOrders");
+  const field = "mt-1 block min-h-11 w-full rounded-md border border-rule bg-white px-3 text-base";
+  return (
+    <details>
+      <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold">{t("correctLine")}</summary>
+      <form className="space-y-2 pb-3" onSubmit={(event) => {
+        event.preventDefault();
+        const form = new FormData(event.currentTarget, (event.nativeEvent as SubmitEvent).submitter);
+        submit(form.get("correction") === "remove" ? null : Number(form.get("quantity")), String(form.get("reason")));
+      }}>
+        <label className="block text-sm">{t("quantity")}
+          <input className={field} type="number" name="quantity" min="1" max={MAX_QUANTITY} defaultValue={quantity} required />
+        </label>
+        <label className="block text-sm">{t("correctionReason")}
+          <input className={field} name="reason" maxLength={300} required />
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <button name="correction" value="save" disabled={disabled} className="min-h-11 rounded-md border border-rule px-3 text-sm font-semibold disabled:opacity-50">{t("saveQuantity")}</button>
+          <button name="correction" value="remove" disabled={disabled} className="min-h-11 rounded-md border border-rule px-3 text-sm font-semibold disabled:opacity-50">{t("removeLine")}</button>
+        </div>
+      </form>
+    </details>
   );
 }
