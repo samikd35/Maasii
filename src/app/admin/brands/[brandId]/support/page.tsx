@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getFormatter, getTranslations } from "next-intl/server";
+import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { MaasiiError, openBrandSupport } from "@/core";
+import { localizeMenuSections, type GuestMenuSection } from "@/core/browser";
 import { requireAdmin } from "@/lib/session";
 import { PaymentOptionValues } from "@/ui/payment-option-values";
+import { formatBirr } from "@/ui/price";
 
 async function load(brandId: string) {
   const actor = await requireAdmin("support");
@@ -17,8 +19,9 @@ async function load(brandId: string) {
 
 export default async function BrandSupportPage({ params }: PageProps<"/admin/brands/[brandId]/support">) {
   const { brandId } = await params;
-  const [{ brand, owners, venues }, t, staff, manage, waiter, payment, format] = await Promise.all([
+  const [{ brand, menu, owners, venues }, locale, t, staff, manage, waiter, payment, format] = await Promise.all([
     load(brandId),
+    getLocale(),
     getTranslations("StaffAdmin"),
     getTranslations("Staff"),
     getTranslations("StaffManage"),
@@ -35,6 +38,16 @@ export default async function BrandSupportPage({ params }: PageProps<"/admin/bra
       </Link>
       <p className="mt-2 text-sm text-ink-muted">{t("supportHeading")}</p>
       <h1 className="font-display text-3xl break-words">{brand.name}</h1>
+
+      <section aria-labelledby="support-menu" className="mt-6">
+        <h2 id="support-menu" className="font-semibold">{t("publishedMenu")}</h2>
+        {menu ? (
+          <>
+            <p className="text-sm text-ink-muted">{t("publishedVersion", { number: menu.number })}</p>
+            <PublishedMenu sections={localizeMenuSections(menu.sections, locale)} />
+          </>
+        ) : <p className="text-sm text-ink-muted">{t("noSupportMenu")}</p>}
+      </section>
 
       <section aria-labelledby="support-owners" className="mt-6">
         <h2 id="support-owners" className="font-semibold">{t("owners")}</h2>
@@ -114,4 +127,38 @@ export default async function BrandSupportPage({ params }: PageProps<"/admin/bra
       ))}
     </>
   );
+}
+
+async function PublishedMenu({ sections }: { sections: GuestMenuSection[] }) {
+  const [ordering, price] = await Promise.all([getTranslations("Ordering"), getTranslations("Price")]);
+  return sections.map((section) => (
+    <details key={section.id} className="mt-2 border-b border-rule">
+      <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">{section.name}</summary>
+      <ul className="divide-y divide-rule">
+        {section.dishes.map((dish) => (
+          <li key={dish.id} className="space-y-1 py-2 text-sm">
+            <div className="flex items-start justify-between gap-4">
+              <span className="font-medium break-words">{dish.name}</span>
+              <span className="shrink-0">{formatBirr(dish.priceSantim)} {price("currency")}</span>
+            </div>
+            {dish.fasting && <p className="text-ink-muted">{ordering("fasting")}</p>}
+            {dish.description && <p className="break-words">{dish.description}</p>}
+            {dish.optionGroups.map((group) => (
+              <div key={group.id} className="ml-3">
+                <p className="font-medium break-words">{group.name}</p>
+                <ul className="ml-3">
+                  {group.choices.map((choice) => (
+                    <li key={choice.id} className="break-words">
+                      {choice.name}
+                      {choice.priceChangeSantim > 0 && <> · +{formatBirr(choice.priceChangeSantim)} {price("currency")}</>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </li>
+        ))}
+      </ul>
+    </details>
+  ));
 }

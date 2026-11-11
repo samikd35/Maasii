@@ -44,6 +44,9 @@ test("the admin can open a Brand for support without getting Brand edit controls
 
   const main = page.getByRole("main");
   await expect(main.getByRole("heading", { name: brandName, level: 1 })).toBeVisible();
+  const menu = main.getByRole("region", { name: "Published Menu" });
+  await menu.getByText("Breakfast", { exact: true }).click();
+  await expect(menu.getByText("Omelette", { exact: true })).toBeVisible();
   await expect(main.getByRole("heading", { name: "Bole" })).toBeVisible();
   await expect(main.getByText("Hana", { exact: true })).toBeVisible();
   await expect(main.getByText("Sam", { exact: true })).toBeVisible();

@@ -24,6 +24,9 @@ create policy "platform admin support reads Brand Visits" on app.visits
   for select to authenticated using (
     app.can_read_brand_support((select v.brand_id from app.venues v where v.id = venue_id))
   );
+-- Keep an immutable Menu version readable if the Brand publishes again during a support opening.
+create policy "platform admin support reads Brand Menu versions" on app.menu_versions
+  for select to authenticated using (app.can_read_brand_support(brand_id));
 
 create table app.brand_support_openings (
   id bigint generated always as identity primary key,

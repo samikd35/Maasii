@@ -4,6 +4,7 @@ import { adminActor, type Actor } from "./actor";
 import type { Venue, VenueTable } from "./brands";
 import { inTransaction, type Tx } from "./db";
 import { MaasiiError } from "./errors";
+import { readMenuSections } from "./menu";
 import { readVenuePaymentOptions } from "./payment-options";
 import { parseInput } from "./validation";
 
@@ -27,6 +28,12 @@ export async function openBrandSupport(
     if (!brand) throw new MaasiiError("not_found", "Brand not found.");
     await tx.query("select set_config('app.brand_support_id', $1, true)", [brand.id]);
 
+    const { rows: [version] } = await tx.query<{ id: string; number: number }>(
+      `select m.id, m.number from app.brands b
+       join app.menu_versions m on m.id = b.published_menu_version_id where b.id = $1`,
+      [brand.id],
+    );
+    const menu = version ? { number: version.number, sections: await readMenuSections(tx, version.id, null) } : null;
     const { rows: owners } = await tx.query<{ userId: string; name: string | null }>(
       `select user_id as "userId", name from app.memberships
        where brand_id = $1 and role = 'owner' and active order by name, id`,
@@ -44,7 +51,7 @@ export async function openBrandSupport(
       "insert into app.brand_support_openings (brand_id, admin_user_id, opened_at) values ($1, $2, $3)",
       [brand.id, actor.userId, now],
     );
-    return { brand, owners, venues: venueSupport };
+    return { brand, menu, owners, venues: venueSupport };
   });
 }
 

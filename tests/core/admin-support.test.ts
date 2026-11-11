@@ -53,6 +53,9 @@ test("each authorized opening reads one Brand's support data and leaves an audit
     staff: [{ name: "Hana", role: "manager" }, { name: "Sam", role: "waiter" }],
     paymentOptions: [{ id: cash.id, kind: "cash", active: false }],
   });
+  expect(view.menu?.sections[0].dishes[0]).toMatchObject({
+    name: { en: "Omelette", am: "ኦምሌት" }, priceSantim: 22_000,
+  });
   await openBrandSupport(support, { brandId: s.brand.id }, { now: second });
   expect(await listBrandSupportOpenings(admin.actor, { brandId: s.brand.id })).toEqual([
     { brandId: s.brand.id, adminUserId: admin.userId, openedAt: second },
