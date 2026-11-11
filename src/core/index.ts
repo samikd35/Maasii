@@ -114,3 +114,4 @@ export { acceptOrder, declineOrder, escalateOrders, getGuestOrders, getGuestPend
 export { consumeOrderNotificationWake, removeWaiterPushSubscription, sendOrderNotifications, setWaiterPushSubscription, type OrderNotification } from "./order-notifications";
 export { confirmPayment, flagUnconfirmedBills, getPreparedBills, prepareBill, reopenBill, type Bill, type PreparedBill, type PaymentConfirmation } from "./bills";
 export { getGuestReviewForm, getWaiterRatings, submitGuestReview, type GuestReviewForm } from "./reviews";
+export { getVenueInsights, updateVenueService, type ServicePeriod } from "./insights";
