@@ -8,8 +8,6 @@ create index on app.orders (entered_by, accepted_at desc) where entered_by is no
 
 create policy "unlocked Waiters read their Venue Shifts" on app.shifts
   for select to authenticated using (venue_id = (select w.venue_id from app.order_waiter() w));
-create policy "Waiters read their assigned Tables" on app.tables
-  for select to authenticated using (app.waiter_serves_order_table(venue_id, id));
 create policy "Waiters open Visits at their assigned Tables" on app.visits
   for insert to authenticated with check (app.waiter_serves_order_table(venue_id, table_id));
 

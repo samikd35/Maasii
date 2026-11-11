@@ -3,6 +3,8 @@
   "billDiscount": "Discount: {amount} ETB",
   "waitingForWaiter": "Order sent. Your waiter will check the Table.",
   "send": "Send",
+  "changeTable": "Change Table",
+  "tableChoiceLocked": "Ask your Waiter to change your Table.",
   "choose": "Which table are you at?",
   "table": "Table {number}",
   "sending": "Sending…",

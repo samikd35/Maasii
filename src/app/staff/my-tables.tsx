@@ -20,7 +20,9 @@ type StaffOrderFeed = OrderFeed & Omit<Awaited<ReturnType<typeof getMyTableOrder
 type Action = { action: "accept"; soldOutLineIndices: number[] }
   | { action: "decline" }
   | { action: "undo"; decisionId: string }
-  | { action: "correct"; lineIndex: number; quantity: number | null; reason: string };
+  | { action: "correct"; lineIndex: number; quantity: number | null; reason: string }
+  | { action: "moveOrder"; tableId: string }
+  | { action: "moveVisit"; visitId: string; tableId: string };
 type UndoableOrder = LiveOrder & { decisionId: string; undoUntil: string };
 type ErrorReason = keyof Messages["StaffErrors"];
 
@@ -127,6 +129,7 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
   const emptyAssigned = tableId ? [] : feed?.assignedTables.filter((table) => !orders.some((order) => order.tableId === table.id)) ?? [];
   const bills = new Map(feed?.bills.map((bill) => [bill.visitId, bill]));
   const billVisitIds = new Set(feed?.billVisitIds);
+  const firstOrder = new Map([...visibleOrders].reverse().map(({ visitId, id }) => [visitId, id]));
   const partyVisitIds = new Set(visibleOrders.filter(({ partyPending }) => partyPending).map(({ visitId }) => visitId));
   const firstAccepted = new Map(visibleOrders.filter(({ state, visitId }) => state === "accepted" && billVisitIds.has(visitId)).reverse()
     .map((order) => [order.visitId, order.id]));
@@ -169,6 +172,7 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
       <ul className="divide-y divide-rule">
         {visibleOrders.map((order) => {
           const bill = bills.get(order.visitId);
+          const destinations = feed?.moveTables.filter(({ id }) => id !== order.tableId) ?? [];
           const drops = soldOut[order.id] ?? [];
           const seconds = Math.max(0, Math.floor((now - Date.parse(order.sentAt)) / 1000));
           const waiting = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
@@ -262,6 +266,14 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
               ) : (
                 <p role="status" className="text-sm font-semibold">{t("accepted", { name: order.acceptedByName ?? "" })}</p>
               )}
+              {destinations.length > 0 && !bill && !order.partyPending && (
+                <MoveControl label={t("moveOrder")} tables={destinations} disabled={!!working}
+                  submit={(tableId) => void decide(order.id, { action: "moveOrder", tableId })} />
+              )}
+              {destinations.length > 0 && billVisitIds.has(order.visitId) && firstOrder.get(order.visitId) === order.id && (
+                <MoveControl label={t("moveVisit")} tables={destinations} disabled={!!working}
+                  submit={(tableId) => void decide(order.id, { action: "moveVisit", visitId: order.visitId, tableId })} />
+              )}
               {feed && firstAccepted.get(order.visitId) === order.id && (
                 <BillControls
                   key={bill?.preparedAt ?? order.visitId}
@@ -316,6 +328,33 @@ function CorrectionForm({ quantity, disabled, submit }: {
           <button name="correction" value="save" disabled={disabled} className="min-h-11 rounded-md border border-rule px-3 text-sm font-semibold disabled:opacity-50">{t("saveQuantity")}</button>
           <button name="correction" value="remove" disabled={disabled} className="min-h-11 rounded-md border border-rule px-3 text-sm font-semibold disabled:opacity-50">{t("removeLine")}</button>
         </div>
+      </form>
+    </details>
+  );
+}
+
+function MoveControl({ label, tables, disabled, submit }: {
+  label: string;
+  tables: { id: string; number: number }[];
+  disabled: boolean;
+  submit: (tableId: string) => void;
+}) {
+  const t = useTranslations("StaffOrders");
+  return (
+    <details>
+      <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold">{label}</summary>
+      <form className="flex flex-wrap gap-2" onSubmit={(event) => {
+        event.preventDefault();
+        submit(String(new FormData(event.currentTarget).get("tableId")));
+      }}>
+        <select name="tableId" aria-label={label} defaultValue="" required disabled={disabled}
+          className="min-h-11 rounded-md border border-rule bg-white px-3 text-base">
+          <option value="" disabled>{t("chooseTable")}</option>
+          {tables.map(({ id, number }) => <option key={id} value={id}>{t("table", { number })}</option>)}
+        </select>
+        <button type="submit" disabled={disabled} className="min-h-11 rounded-md border border-rule px-3 text-sm font-semibold disabled:opacity-50">
+          {t("move")}
+        </button>
       </form>
     </details>
   );

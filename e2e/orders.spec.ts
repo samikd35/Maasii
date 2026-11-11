@@ -378,3 +378,27 @@ test("a Waiter quick-adds a spoken Order with options and corrects its running B
     await context.close();
   }
 });
+
+test("a Waiter can move a Sent Order, and its guest can change Table before Accept", async ({ page, browser, baseURL }) => {
+  const { waiter, context, url } = await service(browser, baseURL!, test.info().project.use);
+  try {
+    await pickDishAndSend(page, url);
+    await page.getByRole("button", { name: "Table 1", exact: true }).click();
+    const slip = page.getByRole("dialog");
+    await expect(slip.getByRole("button", { name: "Change Table" })).toBeVisible();
+    const queue = waiter.getByRole("region", { name: "My tables" });
+    await queue.getByText("Move Order to Table…", { exact: true }).click();
+    await queue.getByLabel("Move Order to Table…").selectOption({ label: "Table 2" });
+    await queue.getByRole("button", { name: "Move", exact: true }).click();
+    await expect(slip.getByRole("heading", { name: /Your table.*Table 2/ })).toBeVisible();
+    await slip.getByRole("button", { name: "Change Table" }).click();
+    await slip.getByRole("button", { name: "Table 1", exact: true }).click();
+    await expect(slip.getByRole("heading", { name: /Your table.*Table 1/ })).toBeVisible();
+    await expect(queue.getByRole("link", { name: "Table 1", exact: true })).toBeVisible();
+    await queue.getByRole("button", { name: "Accept", exact: true }).click();
+    await expect(slip.getByText("Accepted by Sam", { exact: true })).toBeVisible();
+    await expect(slip.getByRole("button", { name: "Change Table" })).toHaveCount(0);
+  } finally {
+    await context.close();
+  }
+});

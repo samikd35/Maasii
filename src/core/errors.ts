@@ -44,6 +44,7 @@ type RefusalReason =
   | "orderUndoNotYours"
   | "orderTableOccupied"
   | "orderVisitClosed"
+  | "tableChoiceLocked"
   | "serviceHours"
   | "servicePeriods"
   | "billPrepared"
