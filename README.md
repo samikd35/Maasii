@@ -110,3 +110,17 @@ In a Venue's **Waiters** section, show a QR for a new Waiter or select an existi
 Staff language choices follow their account between phones. Amharic is the default.
 
 Set `MAASII_SITE_URL` on the server to the public origin when deploying so the Venue Links, QR images and invitation links use the same address.
+
+## Staff notifications
+
+Waiters install Maasii from the browser menu at `/staff`, then select **Enable notifications** on each enrolled phone. Android is the supported staff platform. On iPhone, open Maasii from the Home Screen before enabling notifications. The staff worker stays inside `/staff` and uses the network for live Orders. A tap or key press on the staff screen enables the foreground chime.
+
+The current Table Assignments identify the Waiters on duty. An Order at an unassigned Table reaches those Waiters immediately. The minute job marks still-Sent Orders once they are at least two minutes old, then alerts the current Shift. A Shift with no Table Assignments has no push recipients until Waiters are assigned.
+
+To enable delivery on a deployment:
+
+1. Run `pnpm exec web-push generate-vapid-keys --json`. Set `MAASII_VAPID_PUBLIC_KEY`, `MAASII_VAPID_PRIVATE_KEY` and `MAASII_VAPID_SUBJECT` in the Next.js server environment. Use a real `mailto:` contact or HTTPS URL for the subject.
+2. With the migration applied, create the Vault secret named `maasii_order_notify_url` with the full URL for `/api/jobs/notify`. Use an address reachable from Postgres. For local Docker that is `http://host.docker.internal:<app-port>/api/jobs/notify`. For self-hosted Supabase use a Postgres instance with `pg_cron` and `pg_net` preloaded and the database named `postgres`.
+3. Check the `maasii-order-notifications` job in `cron.job_run_details`. Postgres issues a one-use authorization token for each request. Delivery rows survive transient failures and become eligible for retry on the next minute. Invalid or expired provider subscriptions are cleared.
+
+The deployed staff origin must use HTTPS. Local browser tests use a fixture at the browser push boundary. Core tests supply the delivery transport and control the escalation clock.
