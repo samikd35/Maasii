@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "db:start": "supabase start && node scripts/write-env.mjs",
     "db:stop": "supabase stop",
     "db:env": "node scripts/write-env.mjs",
