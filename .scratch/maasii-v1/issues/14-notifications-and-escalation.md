@@ -6,11 +6,11 @@
 
 **Status:** ready-for-agent
 
-- [ ] The staff area is an installable progressive web app with a service worker.
-- [ ] A waiter can allow notifications. Their push subscription is stored for their device and removed when they are removed or sign out.
-- [ ] A new Order at a waiter's table sends a push notification. If the app is open, it plays a sound and highlights the row.
-- [ ] Orders at tables with no assigned waiter go to every waiter on the Shift.
-- [ ] A scheduled job runs every minute. Orders still Sent after 2 minutes then appear for and notify every waiter on the Shift, and are marked as escalated.
-- [ ] Tapping a notification opens that table's detail.
-- [ ] The scheduled job uses only features that also run on self-hosted Supabase.
-- [ ] Core tests with controlled time cover routing for unassigned tables, the 2-minute escalation, and that accepted Orders never escalate.
+- [x] The staff area is an installable progressive web app with a service worker.
+- [x] A waiter can allow notifications. Their push subscription is stored for their device and removed when they are removed or sign out.
+- [x] A new Order at a waiter's table sends a push notification. If the app is open, it plays a sound and highlights the row.
+- [x] Orders at tables with no assigned waiter go to every waiter on the Shift.
+- [x] A scheduled job runs every minute. Orders still Sent after 2 minutes then appear for and notify every waiter on the Shift, and are marked as escalated.
+- [x] Tapping a notification opens that table's detail.
+- [x] The scheduled job uses only features that also run on self-hosted Supabase.
+- [x] Core tests with controlled time cover routing for unassigned tables, the 2-minute escalation, and that accepted Orders never escalate.

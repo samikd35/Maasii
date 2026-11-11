@@ -1,8 +1,9 @@
-import { createHash } from "node:crypto";
+import { createECDH, createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
 
 if (existsSync(".env.local")) process.loadEnvFile(".env.local");
+process.env.MAASII_VAPID_PUBLIC_KEY ??= createECDH("prime256v1").generateKeys("base64url");
 
 // Each worktree gets its own stable port (4000-4999) so parallel worktrees never share a server.
 const defaultPort = 4000 + (parseInt(createHash("sha1").update(process.cwd()).digest("hex").slice(0, 6), 16) % 1000);

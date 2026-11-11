@@ -43,6 +43,7 @@ export type Order = {
   tableNumber: number;
   state: "sent" | "accepted";
   sentAt: Date;
+  escalatedAt: Date | null;
   waiterId: string | null;
   waiterName: string | null;
   acceptedByName: string | null;
@@ -62,7 +63,7 @@ type GuestVisit = {
 };
 
 const orderDetails = `id, visit_id as "visitId", table_id as "tableId", table_number as "tableNumber",
-  state, sent_at as "sentAt",
+  state, sent_at as "sentAt", escalated_at as "escalatedAt",
   waiter_id as "waiterId", waiter_name as "waiterName",
   accepted_by_name as "acceptedByName", accepted_at as "acceptedAt", lines`;
 const orderFields = `${orderDetails}, request_id as "requestId"`;
@@ -207,21 +208,37 @@ function throwPreparedBillError(error: unknown): never {
 }
 
 export async function getMyTableOrders(
-  actor: Actor, { unlockToken }: { unlockToken?: string } = {}, { now = new Date() }: { now?: Date } = {},
+  actor: Actor, { unlockToken, tableId }: { unlockToken?: string; tableId?: string } = {},
+  { now = new Date() }: { now?: Date } = {},
 ) {
+  const table = parseInput(id.optional(), tableId);
   return inTransaction(actor, async (tx) => {
     const waiter = await requireOrderWaiter(tx, actor, unlockToken, now);
-    const { rows } = await tx.query<Order>(
-      `select ${orderFields} from app.orders where venue_id = $1
-        and visit_id in (select id from app.visits where closed_at is null) order by (state <> 'sent'), sent_at, id`,
-      [waiter.venueId],
+    const { rows } = await tx.query<Order & { servesTable: boolean }>(
+      `select ${orderFields}, app.waiter_serves_order_table(venue_id, table_id) as "servesTable"
+       from app.orders where venue_id = $1 and ($2::uuid is null or table_id = $2)
+        and app.waiter_order_visit_is_open(visit_id) order by (state <> 'sent'), sent_at, id`,
+      [waiter.venueId, table ?? null],
     );
-    const bills = await readPreparedBills(tx, waiter.venueId);
+    let tableNumber: number | undefined;
+    if (table) {
+      tableNumber = rows[0]?.tableNumber ?? (await tx.query<{ number: number }>(
+        "select number from app.tables where id = $1 and venue_id = $2 and app.waiter_serves_order_table(venue_id, id)",
+        [table, waiter.venueId],
+      )).rows[0]?.number;
+      if (tableNumber === undefined) throw new MaasiiError("not_found", "That Table is outside your My tables list.");
+    }
+    const billVisitIds = new Set<string>();
+    const orders = rows.map(({ servesTable, ...order }) => {
+      if (servesTable) billVisitIds.add(order.visitId);
+      return order;
+    });
+    const bills = await readPreparedBills(tx, waiter.venueId, table);
     const paymentOptions = bills.length
       ? (await readVenuePaymentOptions(tx, waiter.venueId, { activeOnly: true }))
         .map(({ id, kind, provider, accountOrMerchantCode }) => ({ id, kind, provider, accountOrMerchantCode }))
       : [];
-    return { orders: rows, topic: waiter.topic, venueId: waiter.venueId, bills, paymentOptions };
+    return { orders, topic: waiter.topic, venueId: waiter.venueId, tableNumber, billVisitIds: [...billVisitIds], bills, paymentOptions };
   });
 }
 
@@ -237,7 +254,7 @@ export async function acceptOrder(
     const { rows: [accepted] } = await tx.query<Order>(
       `update app.orders set state = 'accepted', accepted_by = $3, accepted_by_name = $4, accepted_at = $5
        where venue_id = $1 and id = $2 and state = 'sent'
-         and visit_id in (select id from app.visits where closed_at is null) returning ${orderFields}`,
+         and app.waiter_order_visit_is_open(visit_id) returning ${orderFields}`,
       [waiter.venueId, orderId, waiter.id, waiter.name, at],
     ).catch(throwPreparedBillError);
     if (accepted) return accepted;
@@ -246,6 +263,17 @@ export async function acceptOrder(
       [waiter.venueId, orderId],
     );
     if (prior) return prior;
-    throw new MaasiiError("not_found", "That Order is outside your assigned Tables.");
+    throw new MaasiiError("not_found", "That Order is outside your My tables list.");
+  });
+}
+
+/** The database scheduler uses the same command with its current time. */
+export async function escalateOrders(
+  actor: Actor, { now = new Date(), venueId }: { now?: Date; venueId?: string } = {},
+): Promise<void> {
+  if (actor.kind !== "system") throw new MaasiiError("not_allowed", "Only the notification job escalates Orders.");
+  const venue = parseInput(id.optional(), venueId);
+  await inTransaction(actor, async (tx) => {
+    await tx.query("select app.escalate_orders($1, $2)", [now, venue ?? null]);
   });
 }
