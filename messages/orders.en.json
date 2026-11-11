@@ -1,4 +1,6 @@
 {
+  "removedFromBill": "Removed from the Bill",
+  "billDiscount": "Discount: {amount} ETB",
   "waitingForWaiter": "Order sent. Your waiter will check the Table.",
   "send": "Send",
   "choose": "Which table are you at?",

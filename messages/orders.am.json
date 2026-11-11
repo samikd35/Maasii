@@ -1,4 +1,6 @@
 {
+  "removedFromBill": "ከሂሳቡ ተወግዷል",
+  "billDiscount": "ቅናሽ፦ {amount} ብር",
   "waitingForWaiter": "ትዕዛዝዎ ተልኳል። አስተናጋጅዎ ጠረጴዛውን ያረጋግጣሉ።",
   "send": "ይላኩ",
   "choose": "የትኛው ጠረጴዛ ላይ ነዎት?",

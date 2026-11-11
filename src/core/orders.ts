@@ -48,6 +48,8 @@ export type Order = {
   tableNumber: number;
   state: "sent" | "accepted" | "declined";
   partyPending: boolean;
+  carriedFrom?: string | null;
+  carriedOver?: boolean;
   sentAt: Date;
   escalatedAt: Date | null;
   waiterId: string | null;
@@ -66,6 +68,8 @@ type GuestVisit = {
   table: Table;
   orders: GuestOrder[];
   totalSantim: number;
+  discountSantim: number;
+  removedLines: string[];
   bill: Bill | null;
   closedAt: Date | null;
   paymentOptions: Awaited<ReturnType<typeof readGuestBillOptions>>;
@@ -192,10 +196,12 @@ export async function getGuestVisit(actor: Actor, input: z.input<typeof venueLin
     const bill = visit.preparedAt && {
       lines: visit.lines ?? [], totalSantim: Number(visit.totalSantim), preparedAt: visit.preparedAt,
     };
+    const running = billFromOrders(orders, visit);
     return {
       id: visit.id, table: { id: latest.tableId, number: latest.tableNumber }, orders,
       closedAt: visit.closedAt, bill,
-      totalSantim: bill?.totalSantim ?? billFromOrders(orders).totalSantim,
+      totalSantim: bill?.totalSantim ?? running.totalSantim,
+      discountSantim: running.discountSantim, removedLines: visit.removedLines,
       paymentOptions: bill && !visit.closedAt ? await readGuestBillOptions(tx, visit.venueId) : [],
     };
   });
@@ -237,7 +243,9 @@ export async function getMyTableOrders(
   return inTransaction(actor, async (tx) => {
     const waiter = await requireOrderWaiter(tx, actor, unlockToken, now);
     const { rows } = await tx.query<Order & { servesTable: boolean }>(
-      `select ${orderFields}, app.waiter_serves_order_table(venue_id, table_id) as "servesTable"
+      `select ${orderFields}, app.waiter_serves_order_table(venue_id, table_id) as "servesTable",
+         (select carried_from from app.visits where id = orders.visit_id) as "carriedFrom",
+         coalesce((select carried_over_at is not null from app.visits where id = orders.visit_id), false) as "carriedOver"
        from app.orders where venue_id = $1 and state <> 'declined' and ($2::uuid is null or table_id = $2)
         and app.waiter_order_visit_is_open(visit_id) order by (state <> 'sent'), sent_at, id`,
       [waiter.venueId, table ?? null],
@@ -251,9 +259,9 @@ export async function getMyTableOrders(
       if (tableNumber === undefined) throw new MaasiiError("not_found", "That Table is outside your My tables list.");
     }
     const billVisitIds = new Set<string>();
-    const orders = rows.map(({ servesTable, ...order }) => {
+    const orders = rows.map(({ servesTable, carriedFrom, carriedOver, ...order }) => {
       if (servesTable) billVisitIds.add(order.visitId);
-      return order;
+      return carriedOver ? { ...order, carriedFrom, carriedOver } : order;
     });
     const bills = await readPreparedBills(tx, waiter.venueId, table);
     const paymentOptions = bills.length

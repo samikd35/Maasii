@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import type { getMyTableOrders, PreparedBill } from "@/core";
-import { formatBirr } from "@/ui/price";
+import { formatBirr, parseBirr } from "@/ui/price";
 
 type Method = Awaited<ReturnType<typeof getMyTableOrders>>["paymentOptions"][number];
 type Target = { venueId: string; visitId: string };
@@ -14,12 +14,6 @@ const primary = "min-h-11 rounded-lg bg-ink px-4 text-sm font-semibold text-pape
 const secondary = "min-h-11 rounded-lg border border-ink/30 px-4 text-sm font-semibold disabled:opacity-50";
 const field = "mt-1 block min-h-11 w-full rounded-md border border-ink/30 bg-white px-3 text-base";
 
-function toSantim(input: string): number | null {
-  if (!/^(?:\d+|\d*\.\d{1,2})$/.test(input)) return null;
-  const [birr, fraction = ""] = input.split(".");
-  const santim = Number(birr + fraction.padEnd(2, "0"));
-  return Number.isSafeInteger(santim) ? santim : null;
-}
 
 export function BillControls({
   target, bill, methods, refresh, partyPending = false,
@@ -36,7 +30,7 @@ export function BillControls({
   const [amount, setAmount] = useState("");
   const [working, setWorking] = useState(false);
   const [failed, setFailed] = useState(false);
-  const receiptAmountSantim = toSantim(amount);
+  const receiptAmountSantim = parseBirr(amount);
   const difference = bill && receiptAmountSantim !== null ? receiptAmountSantim - bill.totalSantim : 0;
 
   async function change(command: Action) {
