@@ -463,7 +463,21 @@
     "noPending": "የሚጠብቅ ትዕዛዝ የለም",
     "oldest": "ረጅም ጊዜ የጠበቀ ትዕዛዝ {minutes} ደቂቃ"
   },
+  "WeeklyFinding": {
+    "title": "ሳምንታዊ ግኝት",
+    "venue": "ቅርንጫፍ",
+    "show": "ግኝቱን ያሳዩ",
+    "week": "የ{week} ሳምንት",
+    "topic": "{dish}፡ ከ{total} የምግብ ግምገማዎች {count} ስለ{topic} ጠቅሰዋል።",
+    "quantity": "{dish} በ{period}፡ ከቀዳሚው ሳምንት {previous} ወደ {current} የተቀበሉ ምግቦች ቀንሷል።",
+    "visits": "መሻሻል ይፈልጋል ያሉት ከ{previous} ({previousTotal} ግምገማዎች) ወደ {current} ({currentTotal} ግምገማዎች) አድጓል።",
+    "insufficient": "ለግኝት በቂ መረጃ ገና የለም። ለአንድ ምግብ ከፍተኛው ግምገማ {dishReviews}። በአንድ ክፍል የቀድሞ ከፍተኛ መጠን {previousQuantity}። የጉብኝት ግምገማዎች በዚህ ሳምንት {currentVisits}፣ በቀድሞው {previousVisits}።",
+    "evidence": "ማስረጃ ይመልከቱ"
+  },
   "Insights": {
+    "evidence": "የሳምንታዊ ግኝት ማስረጃ",
+    "evidenceEmpty": "የሚዛመድ መዝገብ የለም።",
+    "orderEvidence": "ትዕዛዝ {order} · ጠረጴዛ {table} · {quantity} ተቀብሏል",
     "title": "የምግብ ግንዛቤዎች",
     "settings": "የአገልግሎት ሰዓትና ክፍሎች",
     "opens": "የመክፈቻ ሰዓት (አዲስ አበባ)",

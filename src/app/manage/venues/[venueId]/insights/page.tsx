@@ -72,6 +72,8 @@ export default async function InsightsPage({ params, searchParams }: PageProps<"
       </form>
       <p className="text-sm">{t("dates", { week: report.week, previous: report.previousWeek })}</p>
 
+      <FindingEvidence report={report} query={query} />
+
       <section aria-labelledby="dish-insights" className="mt-6">
         <h2 id="dish-insights" className="text-xl font-semibold">{t("dishes")}</h2>
         {report.dishes.length === 0 && <p className="py-3 text-ink-muted">{t("noDishes")}</p>}
@@ -135,4 +137,43 @@ function topicLabel(topic: string, t: Awaited<ReturnType<typeof getTranslations<
     case "taste": case "portion": case "temperature": case "value": return t(topic);
     default: return topic;
   }
+}
+
+async function FindingEvidence({ report, query }: {
+  report: Awaited<ReturnType<typeof getVenueInsights>>;
+  query: Record<string, string | string[] | undefined>;
+}) {
+  const kind = query.evidence;
+  if (kind !== "dish" && kind !== "orders" && kind !== "visits") return null;
+  const [t, locale, format] = await Promise.all([getTranslations("Insights"), getLocale(), getFormatter()]);
+  const dish = report.dishes.find(({ id }) => id === query.dish);
+  const period = typeof query.period === "string" && /^\d+$/.test(query.period) ? Number(query.period) : -1;
+  const title = dish && kind !== "visits" ? dish.name[locale] || dish.name[locale === "am" ? "en" : "am"] : null;
+  const orders = kind === "orders" && dish && dish.periods[period]
+    ? report.orders.filter((line) => line.id === dish.id && line.period === period) : [];
+  const reviews = kind === "visits" ? report.visitReviews : kind === "dish" && dish
+    ? report.dishReviewEvidence.filter((review) => review.dishId === dish.id && review.current) : [];
+  const dateTime = (date: Date) => format.dateTime(date, { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Addis_Ababa" });
+  return (
+    <section id="finding-evidence" aria-labelledby="evidence-title" className="mt-6 rounded-md border border-rule px-4 py-3">
+      <h2 id="evidence-title" className="text-xl font-semibold">{t("evidence")}</h2>
+      {title && <p className="font-semibold">{title}{kind === "orders" && dish?.periods[period] ? ` · ${dish.periods[period].name}` : ""}</p>}
+      {orders.length + reviews.length === 0 && <p className="py-3 text-ink-muted">{t("evidenceEmpty")}</p>}
+      <ul className="divide-y divide-rule">
+        {orders.map((line, index) => (
+          <li key={`${line.orderId}:${index}`} className="py-2 text-sm">
+            <p>{t("orderEvidence", { order: line.orderId.slice(0, 8), table: line.tableNumber, quantity: line.quantity })}</p>
+            <p className="text-ink-muted">{t(line.current ? "current" : "previous")} · {dateTime(line.acceptedAt)}</p>
+          </li>
+        ))}
+        {reviews.map((review) => (
+          <li key={review.id} className="py-2 text-sm">
+            <p>{t(review.rating)}{review.topics.map((topic) => ` · ${topicLabel(topic, t)}`)}</p>
+            {review.comment && <p lang={review.language}>{review.comment}</p>}
+            <p className="text-ink-muted">{t(review.current ? "current" : "previous")} · {dateTime(review.createdAt)}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
