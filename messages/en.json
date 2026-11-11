@@ -468,7 +468,21 @@
     "noPending": "No Orders waiting",
     "oldest": "Oldest unaccepted Order {minutes, plural, one {# minute} other {# minutes}}"
   },
+  "WeeklyFinding": {
+    "title": "Weekly Finding",
+    "venue": "Venue",
+    "show": "Show finding",
+    "week": "Week of {week}",
+    "topic": "{dish}: {count} of {total} Dish Reviews mentioned {topic}.",
+    "quantity": "{dish} at {period}: {current} accepted, down from {previous} the week before.",
+    "visits": "Needs work rose to {current} ({currentTotal} Visit Reviews) from {previous} ({previousTotal} Visit Reviews).",
+    "insufficient": "Not enough data for a finding yet. Most Dish Reviews for one Dish: {dishReviews}. Highest previous quantity in one Service Period: {previousQuantity}. Visit Reviews: {currentVisits} this week and {previousVisits} the week before.",
+    "evidence": "View evidence"
+  },
   "Insights": {
+    "evidence": "Weekly Finding evidence",
+    "evidenceEmpty": "No matching records.",
+    "orderEvidence": "Order {order} · Table {table} · {quantity} accepted",
     "title": "Dish insights",
     "settings": "Service hours and periods",
     "opens": "Opens at (Addis Ababa)",
