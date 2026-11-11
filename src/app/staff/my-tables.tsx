@@ -167,6 +167,9 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
                   <p role="timer" className="text-sm tabular-nums text-ink-muted">{t("waiting", { time: waiting })}</p>
                 )}
               </div>
+              {order.carriedOver && <p className="text-sm font-semibold">
+                {order.carriedFrom ? t("carriedFrom", { name: order.carriedFrom }) : t("carriedOver")}
+              </p>}
               {order.state === "sent" && (
                 <p role="status" className="text-sm font-semibold">
                   {order.partyPending ? t("newParty", { number: order.tableNumber }) : t(order.escalatedAt ? "escalatedOrder" : "newOrder")}
