@@ -113,3 +113,4 @@ export { getVenueMenuSettings, listVenueDishChanges, setVenueDishPrice, setVenue
 export { acceptOrder, declineOrder, escalateOrders, getGuestOrders, getGuestPendingOrders, getGuestVisit, getMyTableOrders, getOrderService, sendOrder, undoOrderDecision, type Order } from "./orders";
 export { consumeOrderNotificationWake, removeWaiterPushSubscription, sendOrderNotifications, setWaiterPushSubscription, type OrderNotification } from "./order-notifications";
 export { adjustVisitBill, closeVisitUnpaid, confirmPayment, flagUnconfirmedBills, getClosingReport, getPreparedBills, prepareBill, reopenBill, type Bill, type PreparedBill, type PaymentConfirmation } from "./bills";
+export { getGuestReviewForm, getWaiterRatings, submitGuestReview, type GuestReviewForm } from "./reviews";

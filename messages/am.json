@@ -468,6 +468,10 @@
     "dayTotal": "የዕለቱ ድምር",
     "amounts": "ደረሰኞች {receipt} ብር · ሂሳቦች {bill} ብር · ልዩነት {difference} ብር"
   },
+  "Reviews": {
+    "waiterRatings": "የአስተናጋጅ ግምገማዎች",
+    "ratingsSummary": "{count} ምላሾች · {great} በጣም ጥሩ · {okay} መካከለኛ · {needsWork} መሻሻል ይፈልጋል"
+  },
   "Bills": {
     "paidQuestion": "ተከፍሏል?",
     "previousPartyPaid": "የቀድሞዎቹ እንግዶች ከፍለዋል",

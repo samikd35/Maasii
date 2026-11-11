@@ -468,6 +468,10 @@
     "dayTotal": "Day totals",
     "amounts": "Official Receipts {receipt} ETB · Bills {bill} ETB · Receipt Difference {difference} ETB"
   },
+  "Reviews": {
+    "waiterRatings": "Waiter Ratings",
+    "ratingsSummary": "{count} responses · {great} Great · {okay} Okay · {needsWork} Needs work"
+  },
   "Bills": {
     "paidQuestion": "Paid?",
     "previousPartyPaid": "Previous party paid",
