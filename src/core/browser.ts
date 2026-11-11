@@ -20,3 +20,5 @@ export type {
   GuestOptionGroup,
 } from "./menu";
 export { deriveBrandTheme, displayFonts, type DisplayFont } from "./brand-theme";
+
+export { localizeMenuSections } from "./menu-display";

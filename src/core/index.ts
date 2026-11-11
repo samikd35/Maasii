@@ -75,13 +75,18 @@ export {
   type PricedDraftLine,
 } from "./draft";
 export {
+  getMenuDraft,
   getPublishedMenu,
   publishMenu,
+  publishMenuDraft,
+  saveMenuDraft,
   type GuestMenu,
   type GuestMenuDish,
   type GuestMenuSection,
   type GuestOptionChoice,
   type GuestOptionGroup,
+  type MenuDraft,
+  type MenuDraftContent,
   type MenuInput,
   type OptionGroupInput,
   type PublishedMenuVersion,
