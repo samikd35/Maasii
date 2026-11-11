@@ -65,3 +65,16 @@ export {
   type OptionGroupInput,
   type PublishedMenuVersion,
 } from "./menu";
+export {
+  addPaymentOption,
+  listPaymentOptionChanges,
+  listPaymentOptions,
+  MAX_PAYMENT_QR_BYTES,
+  paymentOptionKinds,
+  paymentQrMimeTypes,
+  removePaymentOption,
+  updatePaymentOption,
+  type PaymentOption,
+  type PaymentOptionChange,
+  type PaymentOptionKind,
+} from "./payment-options";

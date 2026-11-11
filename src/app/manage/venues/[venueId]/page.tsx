@@ -34,6 +34,7 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
   const { venue, brand, tables, isOwner } = setup;
   const t = await getTranslations("StaffManage");
   const common = await getTranslations("Staff");
+  const paymentOptions = await getTranslations("PaymentOptions");
 
   return (
     <>
@@ -42,6 +43,12 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
       </Link>
       <p className="mt-2 text-sm text-ink-muted">{brand.name}</p>
       <h1 className="font-display text-3xl">{venue.name}</h1>
+      <Link
+        href={`/manage/venues/${venue.id}/payment-options`}
+        className="mt-2 inline-flex min-h-11 items-center text-sm font-medium underline"
+      >
+        {paymentOptions("title")}
+      </Link>
 
       <section aria-labelledby="venue-link" className="mt-8">
         <SectionHeading id="venue-link">{t("venueLink")}</SectionHeading>
