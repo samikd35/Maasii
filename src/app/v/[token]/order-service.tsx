@@ -2,7 +2,8 @@
 
 import { createTranslator, useLocale } from "next-intl";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import type { Bill, DraftLine, getGuestVisit, Table } from "@/core";
+import { GuestReviews } from "./guest-reviews";
+import type { Bill, DraftLine, GuestReviewForm, getGuestVisit, Table } from "@/core";
 import { watchOrders, type LiveOrder, type OrderFeed } from "@/lib/supabase/order-feed";
 import { Price } from "@/ui/price";
 import am from "../../../../messages/orders.am.json";
@@ -14,6 +15,7 @@ type Device = { table?: Table; pending?: Pending };
 type GuestVisit = NonNullable<Awaited<ReturnType<typeof getGuestVisit>>>;
 type LiveBill = Omit<Bill, "preparedAt"> & { preparedAt: string };
 type VenueFeed = OrderFeed & {
+  review?: GuestReviewForm | null;
   available: boolean;
   tables: Table[];
   visit: (Omit<GuestVisit, "orders" | "bill" | "closedAt"> & { bill: LiveBill | null; closedAt: string | null }) | null;
@@ -227,6 +229,9 @@ export default function OrderService({
       {visit?.bill ? (
         <GuestBill bill={visit.bill} paid={!!visit.closedAt} options={visit.paymentOptions} />
       ) : visit && !visit.closedAt && <BillTotal totalSantim={visit.totalSantim} label={t("billTotal")} />}
+      {feed?.review && feed.review.visitId === visit?.id && (
+        <GuestReviews key={feed.review.visitId} form={feed.review} url={`/v/${encodeURIComponent(venueLinkToken)}/reviews`} />
+      )}
     </>),
   });
 }

@@ -93,6 +93,19 @@ test("a guest chooses a Table, the assigned Waiter sees the Order live and the g
     await expect(paymentOptions).toHaveCount(0);
     await expect(queue.getByText("No orders at your tables.")).toBeVisible();
 
+    const reviews = sheet.getByRole("region", { name: "Reviews" });
+    const visitReview = reviews.locator("form").filter({ has: page.getByRole("group", { name: "How was your visit?" }) });
+    await expect(visitReview.getByText("Shared privately with Test Brand")).toBeVisible();
+    await visitReview.getByRole("radio", { name: "Great" }).check();
+    await visitReview.getByRole("checkbox", { name: "Food overall" }).check();
+    await visitReview.getByLabel("Comment (optional)").fill("Great breakfast.");
+    await visitReview.getByRole("button", { name: "Submit review" }).click();
+    await expect(reviews.getByText("Review sent. How was your visit?")).toBeVisible();
+    const dishReview = reviews.locator("form").filter({ has: page.getByRole("group", { name: "Would you order Omelette again?" }) });
+    await dishReview.getByRole("button", { name: "Skip" }).click();
+    await expect(dishReview).toHaveCount(0);
+    await expect(reviews.getByRole("group", { name: "How was the service from Sam?" })).toBeVisible();
+
   } finally {
     await context.close();
   }
