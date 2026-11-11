@@ -7,6 +7,7 @@ import { deriveBrandTheme } from "./brand-theme";
 import type { Brand } from "./brands";
 import { inTransaction, type Tx } from "./db";
 import { MaasiiError } from "./errors";
+import { extractedMenu, missingMenuTranslation, runMenuDraftModel, translatedFields } from "./menu-ai";
 import { localizeMenuSections } from "./menu-display";
 import { parseInput } from "./validation";
 import { languages, type Bilingual, type Language } from "./language";
@@ -55,6 +56,9 @@ const optionGroupInput = draftOptionGroupInput.safeExtend({
 const draftDishInput = z.object({
   /** Omit for a new dish. Pass the id of a previously published dish to keep its identity. */
   dishId: z.uuid().optional(),
+  imported: z.enum(["review", "missing_price"]).optional(),
+  suggestedName: z.enum(languages).optional(),
+  suggestedDescription: z.enum(languages).optional(),
   name: bilingualInput,
   description: bilingualInput.default({ am: "", en: "" }),
   priceSantim: santim,
@@ -64,7 +68,8 @@ const draftDishInput = z.object({
   optionGroups: z.array(draftOptionGroupInput).default([]),
 });
 
-const dishInput = draftDishInput.extend({ name: bilingualNameInput, optionGroups: z.array(optionGroupInput).default([]) })
+const dishInput = draftDishInput.omit({ imported: true, suggestedName: true, suggestedDescription: true })
+  .extend({ name: bilingualNameInput, optionGroups: z.array(optionGroupInput).default([]) })
   .refine((dish) => !dish.houseFavourite || dish.photoUrl !== undefined, { message: "The House favourite needs a photo." });
 
 const sectionInput = z.object({
@@ -78,8 +83,15 @@ const menuInput = z.object({ sections: z.array(sectionInput) }).refine(
   { message: "The Menu can have only one House favourite." },
 );
 
+const draftSectionInput = sectionInput.extend({
+  name: bilingualInput,
+  dishes: z.array(draftDishInput),
+  imported: z.literal(true).optional(),
+  suggestedName: z.enum(languages).optional(),
+});
+
 const draftMenuInput = z.object({
-  sections: z.array(sectionInput.extend({ name: bilingualInput, dishes: z.array(draftDishInput) })),
+  sections: z.array(draftSectionInput),
   archivedDishes: z.array(z.object({ sectionId: z.uuid(), sectionName: bilingualInput, dish: draftDishInput })).optional(),
 });
 
@@ -164,7 +176,7 @@ function assignIdentities(menu: z.output<typeof draftMenuInput>): MenuDraftConte
 
 type DraftDish = ReturnType<typeof assignDishIdentities>;
 export type MenuDraftContent = {
-  sections: { sectionId: string; name: Bilingual; dishes: DraftDish[] }[];
+  sections: (Omit<z.output<typeof draftSectionInput>, "sectionId" | "dishes"> & { sectionId: string; dishes: DraftDish[] })[];
   archivedDishes: { sectionId: string; sectionName: Bilingual; dish: DraftDish }[];
 };
 
@@ -416,10 +428,82 @@ export async function getMenuDraft(
 
 const draftEditInput = z.object({ brandId: z.uuid(), revision: z.uuid().nullable(), menu: draftMenuInput.optional() });
 
+function menuDraftChanged() {
+  return new MaasiiError("invalid_input", "The Menu changed since it was opened. Reload it to see the latest changes.", "menuDraftChanged");
+}
+
 function checkDraftRevision(context: MenuDraftContext, revision: string | null) {
-  if ((context.draftRevision ?? context.versionId) !== revision) {
-    throw new MaasiiError("invalid_input", "The Menu changed since it was opened. Reload it to see the latest changes.", "menuDraftChanged");
+  if ((context.draftRevision ?? context.versionId) !== revision) throw menuDraftChanged();
+}
+
+export const MAX_MENU_IMPORT_PHOTOS = 2;
+
+export async function importMenuPhotos(
+  actor: Actor,
+  input: { brandId: string; revision: string | null; menu?: DraftMenuInput; photos: File[] },
+  options: Parameters<typeof runMenuDraftModel>[2] = {},
+): Promise<void> {
+  const { brandId, revision, menu, photos } = parseInput(
+    draftEditInput.extend({ photos: z.array(z.file()).min(1).max(MAX_MENU_IMPORT_PHOTOS) }), input, "menuAiPhotos",
+  );
+  const draft = await getMenuDraft(actor, { brandId });
+  if (draft.revision !== revision) throw menuDraftChanged();
+  const prepared = await Promise.all(photos.map((photo) => prepareBrandArtwork(photo, 2048, 2048)));
+  const extracted = await runMenuDraftModel({ kind: "import", photos: prepared }, extractedMenu, options);
+  if (extracted.sections.length === 0) {
+    throw new MaasiiError("invalid_input", "No readable dishes were found in these photos.", "menuAiNoDishes");
   }
+  const current = menu ?? draft.menu;
+  const additions: DraftMenuInput["sections"] = extracted.sections.map((section) => ({
+    ...section,
+    imported: true,
+    dishes: section.dishes.map((dish) => ({
+      ...dish,
+      imported: dish.priceSantim === null ? "missing_price" : "review",
+      priceSantim: dish.priceSantim ?? 0,
+    })),
+  }));
+  await saveMenuDraft(actor, {
+    brandId, revision, menu: { ...current, sections: [...current.sections, ...additions] },
+  });
+}
+
+export async function suggestMenuTranslations(
+  actor: Actor,
+  input: { brandId: string; revision: string | null; menu?: DraftMenuInput; sectionId: string; dishId?: string },
+  options: Parameters<typeof runMenuDraftModel>[2] = {},
+): Promise<void> {
+  const { brandId, revision, menu, sectionId, dishId } = parseInput(
+    draftEditInput.extend({ sectionId: z.uuid(), dishId: z.uuid().optional() }), input,
+  );
+  const draft = await getMenuDraft(actor, { brandId });
+  if (draft.revision !== revision) throw menuDraftChanged();
+  const current = menu ?? draft.menu;
+  const section = current.sections.find((candidate) => candidate.sectionId === sectionId);
+  const dish = dishId ? section?.dishes.find((candidate) => candidate.dishId === dishId) : undefined;
+  if (!section || (dishId && !dish)) throw new MaasiiError("not_found", "Menu entry not found.");
+
+  const entry = dish ?? section;
+  const fields = missingMenuTranslation("name", entry.name);
+  if (dish) fields.push(...missingMenuTranslation("description", dish.description));
+  if (fields.length === 0) {
+    throw new MaasiiError("invalid_input", "There is no missing language to suggest for this entry.", "menuAiText");
+  }
+  const suggestions = await runMenuDraftModel({ kind: "translate", fields }, translatedFields.refine(
+    (result) => (["name", "description"] as const).every((field) =>
+      (result[field] !== null) === fields.some((request) => request.field === field)),
+  ), options);
+  for (const { field, to } of fields) {
+    if (field === "name" && suggestions.name) {
+      entry.name[to] = suggestions.name;
+      entry.suggestedName = to;
+    }
+    if (field === "description" && dish && suggestions.description) {
+      dish.description[to] = suggestions.description;
+      dish.suggestedDescription = to;
+    }
+  }
+  await saveMenuDraft(actor, { brandId, revision, menu: current });
 }
 
 export async function saveMenuDraft(
@@ -470,6 +554,11 @@ export async function publishMenuDraft(
     checkDraftRevision(context, revision);
     const existing = savedDraft(context);
     const content = menu ?? existing ?? await readBrandMenu(tx, context);
+    if (content.sections.some((section) => section.imported || section.suggestedName || section.dishes.some(
+      (dish) => dish.imported || dish.suggestedName || dish.suggestedDescription,
+    ))) {
+      throw new MaasiiError("invalid_input", "Review imported entries and suggested translations before publishing.", "menuAiReview");
+    }
     const ready = assignIdentities({
       ...parseInput(menuInput, content, "menuDraftInvalid"),
       archivedDishes: content.archivedDishes ?? existing?.archivedDishes ?? context.publishedArchive,
