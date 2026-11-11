@@ -15,10 +15,10 @@ export async function POST(request: Request) {
 
   await sendOrderNotifications(systemActor, async (notice) => {
     const t = await getTranslations({ locale: notice.language, namespace: "StaffOrders" });
-    const tag = `order-${notice.orderId}`;
+    const tag = `${notice.reason === "bill-reminder" ? "bill" : "order"}-${notice.orderId}`;
     const push = generateRequestDetails(notice.subscription, JSON.stringify({
       title: t("table", { number: notice.tableNumber }),
-      body: t(notice.reason === "new" ? "newOrder" : "escalatedOrder"),
+      body: t(notice.reason === "bill-reminder" ? "billReminder" : notice.reason === "new" ? "newOrder" : "escalatedOrder"),
       tag,
       url: `/staff/tables/${notice.tableId}`,
     }), {

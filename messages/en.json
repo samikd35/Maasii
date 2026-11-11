@@ -409,6 +409,8 @@
     "menu": "Menu"
   },
   "StaffOrders": {
+    "newParty": "New party at Table {number}?",
+    "billReminder": "Paid?",
     "heading": "My tables",
     "empty": "No orders at your tables.",
     "table": "Table {number}",
@@ -436,6 +438,9 @@
     "notificationError": "Could not enable notifications. Try again."
   },
   "Bills": {
+    "paidQuestion": "Paid?",
+    "previousPartyPaid": "Previous party paid",
+    "sameParty": "Same party",
     "heading": "Prepared Bills",
     "table": "Table {number}",
     "prepare": "Prepare bill",

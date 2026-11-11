@@ -38,11 +38,13 @@ export type PreparedBill = {
   tableId: string;
   preparedAt: Date;
   totalSantim: number;
+  reminder: boolean;
 };
 
 export async function readPreparedBills(tx: Tx, venueId: string, tableId?: string): Promise<PreparedBill[]> {
   const { rows } = await tx.query<Omit<PreparedBill, "totalSantim"> & { totalSantim: string }>(
-    `select id as "visitId", table_id as "tableId", bill_prepared_at as "preparedAt", bill_total_santim as "totalSantim"
+    `select id as "visitId", table_id as "tableId", bill_prepared_at as "preparedAt", bill_total_santim as "totalSantim",
+       bill_reminded_at is not null as reminder
      from app.visits where venue_id = $1 and closed_at is null and bill_prepared_at is not null
        and ($2::uuid is null or table_id = $2) order by bill_prepared_at, id`,
     [venueId, tableId],
@@ -117,6 +119,7 @@ export async function reopenBill(actor: Actor, input: z.input<typeof billTarget>
       "update app.visits set bill_prepared_at = null, bill_lines = null, bill_total_santim = null where id = $1",
       [visit.id],
     );
+    await tx.query("select app.resolve_pending_party($1, $2)", [visit.id, visit.at]);
   });
 }
 
@@ -190,6 +193,18 @@ export async function confirmPayment(
       "update app.visits set closed_at = $2, closed_reason = 'paid' where id = $1", [visit.id, visit.at],
     );
     if (!rowCount) throw new MaasiiError("not_allowed", "The Visit is outside your assigned Tables or Venue.");
+    await tx.query("select app.resolve_pending_party($1, $2)", [visit.id, visit.at]);
     return paymentConfirmation(row);
+  });
+}
+
+
+export async function flagUnconfirmedBills(
+  actor: Actor, { now = new Date(), venueId }: { now?: Date; venueId?: string } = {},
+): Promise<void> {
+  if (actor.kind !== "system") throw new MaasiiError("not_allowed", "Only the notification job flags prepared Bills.");
+  const venue = parseInput(z.uuid().optional(), venueId);
+  await inTransaction(actor, async (tx) => {
+    await tx.query("select app.flag_unconfirmed_bills($1, $2)", [now, venue ?? null]);
   });
 }

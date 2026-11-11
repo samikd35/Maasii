@@ -79,6 +79,7 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
                 <div>
                   <p className="font-semibold">{billing("table", { number: tables.find(({ id }) => id === bill.tableId)?.number ?? "" })}</p>
                   <p className="text-sm">{billing("total", { amount: formatBirr(bill.totalSantim) })}</p>
+                  {bill.reminder && <p className="text-sm font-semibold">{billing("paidQuestion")}</p>}
                 </div>
                 <ActionForm action={reopenVisitBill.bind(null, venue.id, bill.visitId)}>
                   <SubmitButton variant="quiet">{billing("reopen")}</SubmitButton>
