@@ -45,6 +45,7 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
   const closing = await getTranslations("Closing");
   const floor = await getTranslations("Floor");
   const reviews = await getTranslations("Reviews");
+  const insights = await getTranslations("Insights");
 
   return (
     <>
@@ -57,6 +58,9 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
         <Link href={`/manage/venues/${venue.id}/floor`} className="inline-flex min-h-11 items-center text-sm font-medium underline">
           {floor("title")}
         </Link>
+        {isOwner && <Link href={`/manage/venues/${venue.id}/insights`} className="inline-flex min-h-11 items-center text-sm font-medium underline">
+          {insights("title")}
+        </Link>}
         <Link href={`/manage/venues/${venue.id}/closing`} className="inline-flex min-h-11 items-center text-sm font-medium underline">
           {closing("title")}
         </Link>

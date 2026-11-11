@@ -6,9 +6,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] Owners can set each venue's service hours and named Service Periods in Addis Ababa time. Periods cannot overlap.
-- [ ] For a chosen venue and week, each dish shows its accepted quantity per Service Period (Accepted Orders minus Dropped Dishes and removed lines), and the same figures for the previous week.
-- [ ] Each dish shows the share of Yes, Maybe and No Dish Reviews and its most common topic chips, always next to the number of responses.
-- [ ] Visit Reviews are shown as a distribution with their comments, filterable by rating.
-- [ ] All figures are computed in the database or application code.
-- [ ] Core tests cover Service Period bucketing (including boundaries and Addis Ababa time), quantity calculation, review shares, and the week-over-week comparison.
+- [x] Owners can set each venue's service hours and named Service Periods in Addis Ababa time. Periods cannot overlap.
+- [x] For a chosen venue and week, each dish shows its accepted quantity per Service Period (Accepted Orders minus Dropped Dishes and removed lines), and the same figures for the previous week.
+- [x] Each dish shows the share of Yes, Maybe and No Dish Reviews and its most common topic chips, always next to the number of responses.
+- [x] Visit Reviews are shown as a distribution with their comments, filterable by rating.
+- [x] All figures are computed in the database or application code.
+- [x] Core tests cover Service Period bucketing (including boundaries and Addis Ababa time), quantity calculation, review shares, and the week-over-week comparison.
