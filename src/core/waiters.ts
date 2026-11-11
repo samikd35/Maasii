@@ -301,3 +301,17 @@ export async function removeWaiter(
     if (rowCount) await closeWaiterAssignments(tx, venueId, waiterId, now ?? new Date());
   });
 }
+
+type OrderWaiter = { id: string; name: string; venueId: string; topic: string };
+
+export async function requireOrderWaiter(tx: Tx, actor: Actor, unlockToken: string | undefined, at: Date): Promise<OrderWaiter> {
+  if (actor.kind === "staff" && actor.sessionId && unlockToken) {
+    await tx.query(
+      "select set_config('app.order_unlock_hash', $1, true), set_config('app.order_now', $2, true)",
+      [tokenHash(unlockToken), at.toISOString()],
+    );
+    const { rows: [waiter] } = await tx.query<OrderWaiter>('select id, name, venue_id as "venueId", topic from app.order_waiter()');
+    if (waiter) return waiter;
+  }
+  throw new MaasiiError("not_allowed", "Unlock this Waiter device with its PIN.");
+}

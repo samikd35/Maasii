@@ -8,6 +8,7 @@ import {
   inviteManager,
   removeWaiter,
   renumberTable,
+  reopenBill,
   setTableActive,
   WAITER_JOIN_MINUTES,
 } from "@/core";
@@ -83,6 +84,14 @@ export async function removeVenueWaiter(venueId: string, waiterId: string): Prom
   const actor = await requireStaff();
   return forForm(async () => {
     await removeWaiter(actor, { venueId, waiterId });
+    revalidatePath(`/manage/venues/${venueId}`);
+  });
+}
+
+export async function reopenVisitBill(venueId: string, visitId: string): Promise<FormState> {
+  const actor = await requireStaff();
+  return forForm(async () => {
+    await reopenBill(actor, { venueId, visitId });
     revalidatePath(`/manage/venues/${venueId}`);
   });
 }

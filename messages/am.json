@@ -348,6 +348,8 @@
     "menuDraftInvalid": "ለእያንዳንዱ ክፍል፣ ምግብ፣ የምርጫ ቡድንና ምርጫ ቢያንስ በአንድ ቋንቋ ስም ይስጡ። እያንዳንዱ የምርጫ ቡድን ምርጫ ሊኖረው ይገባል። የቤቱ ተወዳጅ ምግብ ፎቶ ያስፈልገዋል።",
     "noRunningShift": "የሥራ ፈረቃ እስኪጀምር ማዘዝ አይቻልም።",
     "orderTableUnavailable": "ይህ ጠረጴዛ ከአሁን በኋላ አይገኝም።",
+    "orderTableBillPrepared": "በዚህ ጠረጴዛ ላይ ከማዘዝዎ በፊት አስተናጋጅዎን ይጠይቁ።",
+    "billPrepared": "ትዕዛዝ ለመጨመር ሂሳቡን እንዲከፍቱልዎ አስተናጋጅዎን ይጠይቁ።",
     "orderRequestConflict": "ይህ ትዕዛዝ መላኩን ማረጋገጥ አልተቻለም። እንደገና ከመላክዎ በፊት አስተናጋጅዎን ይጠይቁ።",
     "orderDraftChanged": "ረቂቁን ይመልከቱ።",
     "paymentDestinationRequired": "የአቅራቢውን ስም፣ የተቀባዩን ስም እና የሒሳብ ቁጥር ወይም የነጋዴ ኮድ ያስገቡ።",
@@ -410,5 +412,23 @@
     "accepted": "{name} ተቀብለዋል",
     "waiting": "የቆየበት ጊዜ {time}",
     "refreshError": "ትዕዛዞችን ማደስ አልተቻለም። በድጋሚ በመገናኘት ላይ…"
+  },
+  "Bills": {
+    "heading": "የተዘጋጁ ሂሳቦች",
+    "table": "ጠረጴዛ {number}",
+    "prepare": "ሂሳቡን ያዘጋጁ",
+    "reopen": "ሂሳቡን እንደገና ይክፈቱ",
+    "confirm": "ክፍያውን ያረጋግጡ",
+    "method": "የክፍያ ዘዴ",
+    "selectMethod": "የክፍያ ዘዴ ይምረጡ",
+    "cash": "ጥሬ ገንዘብ",
+    "bank_transfer": "የባንክ ዝውውር",
+    "mobile_wallet": "የሞባይል ክፍያ",
+    "amount": "የኦፊሴላዊው ደረሰኝ መጠን (ብር)",
+    "invalidAmount": "እስከ ሁለት የአስርዮሽ አሃዞች ያሉት መጠን ያስገቡ።",
+    "total": "ጠቅላላ ሂሳብ፦ {amount} ብር",
+    "difference": "የደረሰኝ ልዩነት፦ {amount} ብር",
+    "record": "የክፍያ ማረጋገጫውን ይመዝግቡ",
+    "error": "ሂሳቡን ማዘመን አልተቻለም። እንደገና ይሞክሩ።"
   }
 }

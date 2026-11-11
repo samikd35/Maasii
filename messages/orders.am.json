@@ -12,5 +12,19 @@
   "serviceUnavailable": "ጠረጴዛዎቹን ማሳየት አልተቻለም። እንደገና ይሞክሩ።",
   "orders": "ትዕዛዞች",
   "billTotal": "ጠቅላላ ሂሳብ",
-  "requestConflict": "ይህ ትዕዛዝ መላኩን ማረጋገጥ አልተቻለም። እንደገና ከመላክዎ በፊት አስተናጋጅዎን ይጠይቁ።"
+  "requestConflict": "ይህ ትዕዛዝ መላኩን ማረጋገጥ አልተቻለም። እንደገና ከመላክዎ በፊት አስተናጋጅዎን ይጠይቁ።",
+  "bill": "ሂሳብ",
+  "billReady": "ሂሳቡ ተዘጋጅቷል",
+  "billPaid": "ሂሳቡ ተከፍሏል",
+  "orderTableBillPrepared": "በዚህ ጠረጴዛ ላይ ከማዘዝዎ በፊት አስተናጋጅዎን ይጠይቁ።",
+  "billPrepared": "ትዕዛዝ ለመጨመር ሂሳቡን እንዲከፍቱልዎ አስተናጋጅዎን ይጠይቁ።",
+  "notTaxReceipt": "የግብር ደረሰኝ አይደለም",
+  "paymentOptions": "የክፍያ አማራጮች",
+  "bank_transfer": "የባንክ ዝውውር",
+  "mobile_wallet": "የሞባይል ክፍያ",
+  "cash": "ጥሬ ገንዘብ",
+  "copyCode": "የሂሳብ ቁጥሩን ወይም የነጋዴ ኮዱን ይቅዱ",
+  "copied": "ተቀድቷል",
+  "copyFailed": "መቅዳት አልተቻለም። ቁጥሩን መርጠው ይቅዱ።",
+  "paymentQr": "የክፍያ QR ምስል"
 }

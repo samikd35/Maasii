@@ -36,7 +36,9 @@ type RefusalReason =
   | "noRunningShift"
   | "orderTableUnavailable"
   | "orderDraftChanged"
-  | "orderRequestConflict";
+  | "orderRequestConflict"
+  | "billPrepared"
+  | "orderTableBillPrepared";
 
 /** A refusal the caller can act on, as opposed to a bug or an outage. */
 export class MaasiiError extends Error {

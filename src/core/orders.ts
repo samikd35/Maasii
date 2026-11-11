@@ -1,14 +1,16 @@
 import { z } from "zod";
 import type { Actor } from "./actor";
 import type { Table } from "./brands";
+import { billFromOrders, billVisitFields, readGuestBillOptions, readPreparedBills, type Bill, type BillVisit } from "./bills";
 import { inTransaction, type Tx } from "./db";
 import { MAX_NOTE_LENGTH, MAX_QUANTITY, priceDraftLine } from "./draft";
 import { MaasiiError } from "./errors";
 import type { Bilingual } from "./language";
 import { readPublishedMenu } from "./menu";
+import { readVenuePaymentOptions } from "./payment-options";
 import { findResponsibleWaiter, findRunningShift, lockVenueShifts } from "./shifts";
 import { parseInput } from "./validation";
-import { tokenHash } from "./waiters";
+import { requireOrderWaiter } from "./waiters";
 
 const id = z.uuid().transform((value) => value.toLowerCase());
 const venueLink = z.object({ venueLinkToken: z.string().min(1).max(200) });
@@ -49,7 +51,15 @@ export type Order = {
 };
 
 type GuestOrder = Omit<Order, "requestId"> & { requestId: string | null };
-type GuestVisit = { id: string; table: Table; orders: GuestOrder[]; totalSantim: number };
+type GuestVisit = {
+  id: string;
+  table: Table;
+  orders: GuestOrder[];
+  totalSantim: number;
+  bill: Bill | null;
+  closedAt: Date | null;
+  paymentOptions: Awaited<ReturnType<typeof readGuestBillOptions>>;
+};
 
 const orderDetails = `id, visit_id as "visitId", table_id as "tableId", table_number as "tableNumber",
   state, sent_at as "sentAt",
@@ -146,7 +156,7 @@ export async function sendOrder(
       if ((error as { constraint?: string }).constraint === "orders_request_id_key") {
         throw new MaasiiError("not_allowed", "This request belongs to another guest session.", "orderRequestConflict");
       }
-      throw error;
+      throwPreparedBillError(error);
     }
   });
 }
@@ -155,23 +165,28 @@ export async function getGuestVisit(actor: Actor, input: z.input<typeof venueLin
   if (actor.kind !== "guest") return null;
   const { venueLinkToken } = parseInput(venueLink, input);
   return inTransaction(actor, async (tx) => {
+    const { rows: [visit] } = await tx.query<BillVisit>(
+      `select ${billVisitFields} from app.visits where venue_id = (select id from app.venues where link_token = $1)
+         and id in (select visit_id from app.guest_table_choices where guest_user_id = $2)
+         and (closed_at is null or closed_reason = 'paid')`,
+      [venueLinkToken, actor.userId],
+    );
+    if (!visit) return null;
     const { rows: orders } = await tx.query<GuestOrder>(
       `select ${orderDetails}, case when guest_user_id = $2 then request_id end as "requestId"
-       from app.orders where venue_id = (select id from app.venues where link_token = $1)
-         and visit_id in (select visit_id from app.guest_table_choices where guest_user_id = $2)
-         and visit_id in (select id from app.visits where closed_at is null)
-       order by sent_at, id`,
-      [venueLinkToken, actor.userId],
+       from app.orders where visit_id = $1 order by sent_at, id`,
+      [visit.id, actor.userId],
     );
     const latest = orders.at(-1);
     if (!latest) return null;
-    const totalSantim = orders.reduce((total, order) => {
-      if (order.state !== "accepted") return total;
-      return order.lines.reduce((subtotal, line) =>
-        line.dropReason == null ? subtotal + line.unitPriceSantim * line.quantity : subtotal, total);
-    }, 0);
+    const bill = visit.preparedAt && {
+      lines: visit.lines ?? [], totalSantim: Number(visit.totalSantim), preparedAt: visit.preparedAt,
+    };
     return {
-      id: latest.visitId, table: { id: latest.tableId, number: latest.tableNumber }, orders, totalSantim,
+      id: visit.id, table: { id: latest.tableId, number: latest.tableNumber }, orders,
+      closedAt: visit.closedAt, bill,
+      totalSantim: bill?.totalSantim ?? billFromOrders(orders).totalSantim,
+      paymentOptions: bill && !visit.closedAt ? await readGuestBillOptions(tx, visit.venueId) : [],
     };
   });
 }
@@ -181,23 +196,19 @@ export async function getGuestOrders(actor: Actor, input: z.input<typeof venueLi
   return visit?.orders.filter((order): order is Order => order.requestId !== null) ?? [];
 }
 
-type OrderWaiter = { id: string; name: string; venueId: string; topic: string };
-
-async function requireOrderWaiter(tx: Tx, actor: Actor, unlockToken: string | undefined, at: Date): Promise<OrderWaiter> {
-  if (actor.kind === "staff" && actor.sessionId && unlockToken) {
-    await tx.query(
-      "select set_config('app.order_unlock_hash', $1, true), set_config('app.order_now', $2, true)",
-      [tokenHash(unlockToken), at.toISOString()],
-    );
-    const { rows: [waiter] } = await tx.query<OrderWaiter>('select id, name, venue_id as "venueId", topic from app.order_waiter()');
-    if (waiter) return waiter;
+function throwPreparedBillError(error: unknown): never {
+  if ((error as { constraint?: string }).constraint === "visit_bill_prepared") {
+    throw new MaasiiError("invalid_input", "The Bill is prepared. Ask your waiter to reopen it.", "billPrepared");
   }
-  throw new MaasiiError("not_allowed", "Unlock this Waiter device with its PIN.");
+  if ((error as { constraint?: string }).constraint === "visit_bill_needs_waiter") {
+    throw new MaasiiError("invalid_input", "Ask your waiter before ordering at this table.", "orderTableBillPrepared");
+  }
+  throw error;
 }
 
 export async function getMyTableOrders(
   actor: Actor, { unlockToken }: { unlockToken?: string } = {}, { now = new Date() }: { now?: Date } = {},
-): Promise<{ orders: Order[]; topic: string }> {
+) {
   return inTransaction(actor, async (tx) => {
     const waiter = await requireOrderWaiter(tx, actor, unlockToken, now);
     const { rows } = await tx.query<Order>(
@@ -205,7 +216,12 @@ export async function getMyTableOrders(
         and visit_id in (select id from app.visits where closed_at is null) order by (state <> 'sent'), sent_at, id`,
       [waiter.venueId],
     );
-    return { orders: rows, topic: waiter.topic };
+    const bills = await readPreparedBills(tx, waiter.venueId);
+    const paymentOptions = bills.length
+      ? (await readVenuePaymentOptions(tx, waiter.venueId, { activeOnly: true }))
+        .map(({ id, kind, provider, accountOrMerchantCode }) => ({ id, kind, provider, accountOrMerchantCode }))
+      : [];
+    return { orders: rows, topic: waiter.topic, venueId: waiter.venueId, bills, paymentOptions };
   });
 }
 
@@ -223,7 +239,7 @@ export async function acceptOrder(
        where venue_id = $1 and id = $2 and state = 'sent'
          and visit_id in (select id from app.visits where closed_at is null) returning ${orderFields}`,
       [waiter.venueId, orderId, waiter.id, waiter.name, at],
-    );
+    ).catch(throwPreparedBillError);
     if (accepted) return accepted;
     const { rows: [prior] } = await tx.query<Order>(
       `select ${orderFields} from app.orders where venue_id = $1 and id = $2 and state = 'accepted'`,
