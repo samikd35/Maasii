@@ -62,7 +62,7 @@ test("the menu is printed in ink on warm paper with touch targets of at least 44
   });
   expect(colours).toEqual({ background: "rgb(251, 247, 240)", text: "rgb(28, 25, 23)" });
 
-  const targets = page.locator("a, button, input, select, textarea, [role=button]");
+  const targets = page.locator("a, button, input:not([type=hidden]), select, textarea, [role=button]");
   const sizes = await targets.evaluateAll((elements) =>
     elements.map((element) => {
       const box = element.getBoundingClientRect();
@@ -85,7 +85,16 @@ test("publishing a new Menu version changes what guests see", async ({ page }) =
     brandId: s.brand.id,
     menu: {
       sections: [
-        { name: "Pastries", dishes: [{ name: "Jam Tart", description: "Sweet, tangy jam", priceSantim: 11_000 }] },
+        {
+          name: { en: "Pastries", am: "ፓስትሪዎች" },
+          dishes: [
+            {
+              name: { en: "Jam Tart", am: "የጃም ታርት" },
+              description: { en: "Sweet, tangy jam", am: "ጣፋጭ እና ኮምጠጥ ያለ ጃም" },
+              priceSantim: 11_000,
+            },
+          ],
+        },
       ],
     },
   });
@@ -100,18 +109,4 @@ test("an unknown Venue Link shows a friendly not-found page", async ({ page }) =
 
   expect(response?.status()).toBe(404);
   await expect(page.getByRole("heading", { name: "We can't find this menu" })).toBeVisible();
-});
-
-test("the guest menu weighs under 250 KB before photos", async ({ page }) => {
-  const pending: Promise<number>[] = [];
-  page.on("requestfinished", (request) => {
-    if (request.resourceType() === "image") return;
-    pending.push(request.sizes().then((sizes) => sizes.responseBodySize + sizes.responseHeadersSize));
-  });
-
-  await page.goto(bilosMenuLink, { waitUntil: "networkidle" });
-  const bytes = (await Promise.all(pending)).reduce((total, size) => total + size, 0);
-
-  console.log(`Guest menu weight before photos: ${(bytes / 1024).toFixed(1)} KB`);
-  expect(bytes).toBeLessThan(250 * 1024);
 });

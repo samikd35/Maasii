@@ -8,9 +8,12 @@
   --color-ink-muted: #57534e;
   --color-rule: #e4dccd;
 
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Ethiopic", sans-serif;
-  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Noto Serif Ethiopic", serif;
+  /* --font-ethiopic (src/app/fonts.ts) covers only Ethiopic characters, so Latin text falls through to the system fonts. */
+  --font-sans: var(--font-ethiopic), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-ethiopic), "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --font-system: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Ethiopic", Kefa, Nyala, sans-serif;
 }
+
 
 @media (prefers-reduced-motion: no-preference) {
   html {

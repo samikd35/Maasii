@@ -3,20 +3,21 @@ import { requireBrandOwner } from "./access";
 import type { Actor } from "./actor";
 import { inTransaction, type Tx } from "./db";
 import { MaasiiError } from "./errors";
+import { bilingualInput, bilingualNameInput, inLanguage, languages, type Bilingual, type Language } from "./language";
 
 // ---- Publishing --------------------------------------------------------------------------------
 
 const choiceInput = z.object({
   /** Omit for a new choice. Pass a previously published choice's id so guests' Drafts still match it. */
   choiceId: z.uuid().optional(),
-  name: z.string().trim().min(1),
+  name: bilingualNameInput,
   priceChangeSantim: z.number().int().nonnegative().default(0),
 });
 
 const optionGroupInput = z
   .object({
     optionGroupId: z.uuid().optional(),
-    name: z.string().trim().min(1),
+    name: bilingualNameInput,
     kind: z.enum(["choose_one", "add_extras"]),
     /** Only a "choose one" group can be required. */
     required: z.boolean().default(false),
@@ -29,8 +30,8 @@ const optionGroupInput = z
 const dishInput = z.object({
   /** Omit for a new dish. Pass the id of a previously published dish to keep its identity. */
   dishId: z.uuid().optional(),
-  name: z.string().trim().min(1),
-  description: z.string().trim().default(""),
+  name: bilingualNameInput,
+  description: bilingualInput.default({ am: "", en: "" }),
   priceSantim: z.number().int().nonnegative(),
   fasting: z.boolean().default(false),
   photoUrl: z.string().trim().min(1).optional(),
@@ -39,7 +40,7 @@ const dishInput = z.object({
 
 const sectionInput = z.object({
   sectionId: z.uuid().optional(),
-  name: z.string().trim().min(1),
+  name: bilingualNameInput,
   dishes: z.array(dishInput),
 });
 
@@ -54,11 +55,15 @@ export type PublishedMenuVersion = {
   publishedAt: Date;
   sections: {
     sectionId: string;
-    name: string;
+    name: Bilingual;
     dishes: {
       dishId: string;
-      name: string;
-      optionGroups: { optionGroupId: string; name: string; choices: { choiceId: string; name: string }[] }[];
+      name: Bilingual;
+      optionGroups: {
+        optionGroupId: string;
+        name: Bilingual;
+        choices: { choiceId: string; name: Bilingual }[];
+      }[];
     }[];
   }[];
 };
@@ -126,24 +131,35 @@ export async function publishMenu(
     const version = rows[0];
 
     await tx.query(
-      `insert into app.menu_version_sections (menu_version_id, section_id, position, name_en)
-       select $1, s.id, s.position, s.name
-       from unnest($2::uuid[], $3::int[], $4::text[]) as s (id, position, name)`,
-      [version.id, sections.map((s) => s.sectionId), sections.map((_, i) => i), sections.map((s) => s.name)],
+      `insert into app.menu_version_sections (menu_version_id, section_id, position, name_en, name_am)
+       select $1, s.id, s.position, s.name_en, s.name_am
+       from unnest($2::uuid[], $3::int[], $4::text[], $5::text[]) as s (id, position, name_en, name_am)`,
+      [
+        version.id,
+        sections.map((s) => s.sectionId),
+        sections.map((_, i) => i),
+        sections.map((s) => s.name.en),
+        sections.map((s) => s.name.am),
+      ],
     );
     await tx.query(
       `insert into app.menu_version_dishes
-         (menu_version_id, dish_id, section_id, position, name_en, description_en, price_santim, fasting, photo_url)
-       select $1, d.id, d.section_id, d.position, d.name, d.description, d.price, d.fasting, d.photo_url
-       from unnest($2::uuid[], $3::uuid[], $4::int[], $5::text[], $6::text[], $7::int[], $8::boolean[], $9::text[])
-         as d (id, section_id, position, name, description, price, fasting, photo_url)`,
+         (menu_version_id, dish_id, section_id, position,
+          name_en, name_am, description_en, description_am, price_santim, fasting, photo_url)
+       select $1, d.id, d.section_id, d.position, d.name_en, d.name_am, d.description_en, d.description_am,
+              d.price, d.fasting, d.photo_url
+       from unnest($2::uuid[], $3::uuid[], $4::int[], $5::text[], $6::text[], $7::text[], $8::text[],
+                   $9::int[], $10::boolean[], $11::text[])
+         as d (id, section_id, position, name_en, name_am, description_en, description_am, price, fasting, photo_url)`,
       [
         version.id,
         dishes.map((d) => d.dishId),
         dishes.map((d) => d.sectionId),
         dishes.map((d) => d.position),
-        dishes.map((d) => d.name),
-        dishes.map((d) => d.description),
+        dishes.map((d) => d.name.en),
+        dishes.map((d) => d.name.am),
+        dishes.map((d) => d.description.en),
+        dishes.map((d) => d.description.am),
         dishes.map((d) => d.priceSantim),
         dishes.map((d) => d.fasting),
         dishes.map((d) => d.photoUrl ?? null),
@@ -151,10 +167,10 @@ export async function publishMenu(
     );
     await tx.query(
       `insert into app.menu_version_option_groups
-         (menu_version_id, option_group_id, dish_id, position, kind, required, name_en)
-       select $1, g.id, g.dish_id, g.position, g.kind, g.required, g.name
-       from unnest($2::uuid[], $3::uuid[], $4::int[], $5::text[], $6::boolean[], $7::text[])
-         as g (id, dish_id, position, kind, required, name)`,
+         (menu_version_id, option_group_id, dish_id, position, kind, required, name_en, name_am)
+       select $1, g.id, g.dish_id, g.position, g.kind, g.required, g.name_en, g.name_am
+       from unnest($2::uuid[], $3::uuid[], $4::int[], $5::text[], $6::boolean[], $7::text[], $8::text[])
+         as g (id, dish_id, position, kind, required, name_en, name_am)`,
       [
         version.id,
         optionGroups.map((g) => g.optionGroupId),
@@ -162,21 +178,23 @@ export async function publishMenu(
         optionGroups.map((g) => g.position),
         optionGroups.map((g) => g.kind),
         optionGroups.map((g) => g.required),
-        optionGroups.map((g) => g.name),
+        optionGroups.map((g) => g.name.en),
+        optionGroups.map((g) => g.name.am),
       ],
     );
     await tx.query(
       `insert into app.menu_version_option_choices
-         (menu_version_id, choice_id, option_group_id, position, name_en, price_change_santim)
-       select $1, c.id, c.option_group_id, c.position, c.name, c.price_change
-       from unnest($2::uuid[], $3::uuid[], $4::int[], $5::text[], $6::int[])
-         as c (id, option_group_id, position, name, price_change)`,
+         (menu_version_id, choice_id, option_group_id, position, name_en, name_am, price_change_santim)
+       select $1, c.id, c.option_group_id, c.position, c.name_en, c.name_am, c.price_change
+       from unnest($2::uuid[], $3::uuid[], $4::int[], $5::text[], $6::text[], $7::int[])
+         as c (id, option_group_id, position, name_en, name_am, price_change)`,
       [
         version.id,
         choices.map((c) => c.choiceId),
         choices.map((c) => c.optionGroupId),
         choices.map((c) => c.position),
-        choices.map((c) => c.name),
+        choices.map((c) => c.name.en),
+        choices.map((c) => c.name.am),
         choices.map((c) => c.priceChangeSantim),
       ],
     );
@@ -268,11 +286,18 @@ export type GuestMenu = {
   sections: GuestMenuSection[];
 };
 
-/** What a guest sees after opening a Venue Link, or null when no Venue has that link. */
+/**
+ * What a guest sees after opening a Venue Link, or null when no Venue has that link. Menu text
+ * is in `language` (English by default), falling back to the other language where text is missing.
+ */
 export async function getPublishedMenu(
   actor: Actor,
-  input: { venueLinkToken: string },
+  input: { venueLinkToken: string; language?: Language },
 ): Promise<GuestMenu | null> {
+  const language = z.enum(languages).default("en").safeParse(input.language);
+  if (!language.success) throw new MaasiiError("invalid_input", "The Menu is only available in Amharic and English.");
+  const text = (en: string, am: string) => inLanguage({ en, am }, language.data);
+
   return inTransaction(actor, async (tx) => {
     const { rows } = await tx.query(
       `select v.id as venue_id, v.name as venue_name, v.link_token,
@@ -297,55 +322,81 @@ export async function getPublishedMenu(
     };
     if (!row.version_id) return menu;
 
-    const sections = await tx.query<{ id: string; name: string }>(
-      `select section_id as id, name_en as name from app.menu_version_sections
+    const sections = await tx.query<{ id: string; name_en: string; name_am: string }>(
+      `select section_id as id, name_en, name_am from app.menu_version_sections
        where menu_version_id = $1 order by position`,
       [row.version_id],
     );
-    const dishes = await tx.query<Omit<GuestMenuDish, "optionGroups"> & { sectionId: string }>(
-      `select dish_id as id, section_id as "sectionId", name_en as name,
-              description_en as description, price_santim as "priceSantim",
-              fasting, photo_url as "photoUrl"
+    const dishes = await tx.query<{
+      id: string;
+      section_id: string;
+      name_en: string;
+      name_am: string;
+      description_en: string;
+      description_am: string;
+      price_santim: number;
+      fasting: boolean;
+      photo_url: string | null;
+    }>(
+      `select dish_id as id, section_id, name_en, name_am, description_en, description_am, price_santim,
+              fasting, photo_url
        from app.menu_version_dishes
        where menu_version_id = $1 order by position`,
       [row.version_id],
     );
-    const groups = await tx.query<Omit<GuestOptionGroup, "choices"> & { dishId: string }>(
-      `select option_group_id as id, dish_id as "dishId", name_en as name, kind, required
+    const groups = await tx.query<{
+      id: string;
+      dish_id: string;
+      name_en: string;
+      name_am: string;
+      kind: GuestOptionGroup["kind"];
+      required: boolean;
+    }>(
+      `select option_group_id as id, dish_id, name_en, name_am, kind, required
        from app.menu_version_option_groups
        where menu_version_id = $1 order by position`,
       [row.version_id],
     );
-    const choices = await tx.query<GuestOptionChoice & { optionGroupId: string }>(
-      `select choice_id as id, option_group_id as "optionGroupId", name_en as name,
-              price_change_santim as "priceChangeSantim"
+    const choices = await tx.query<{
+      id: string;
+      option_group_id: string;
+      name_en: string;
+      name_am: string;
+      price_change_santim: number;
+    }>(
+      `select choice_id as id, option_group_id, name_en, name_am, price_change_santim
        from app.menu_version_option_choices
        where menu_version_id = $1 order by position`,
       [row.version_id],
     );
     const optionGroupsOf = (dishId: string): GuestOptionGroup[] =>
       groups.rows
-        .filter((group) => group.dishId === dishId)
+        .filter((group) => group.dish_id === dishId)
         .map((group) => ({
           id: group.id,
-          name: group.name,
+          name: text(group.name_en, group.name_am),
           kind: group.kind,
           required: group.required,
           choices: choices.rows
-            .filter((choice) => choice.optionGroupId === group.id)
-            .map((choice) => ({ id: choice.id, name: choice.name, priceChangeSantim: choice.priceChangeSantim })),
+            .filter((choice) => choice.option_group_id === group.id)
+            .map((choice) => ({
+              id: choice.id,
+              name: text(choice.name_en, choice.name_am),
+              priceChangeSantim: choice.price_change_santim,
+            })),
         }));
     menu.sections = sections.rows.map((section) => ({
-      ...section,
+      id: section.id,
+      name: text(section.name_en, section.name_am),
       dishes: dishes.rows
-        .filter((dish) => dish.sectionId === section.id)
+        .filter((dish) => dish.section_id === section.id)
         .map((dish) => ({
           id: dish.id,
-          name: dish.name,
-          description: dish.description,
-          priceSantim: dish.priceSantim,
+          name: text(dish.name_en, dish.name_am),
+          description: text(dish.description_en, dish.description_am),
+          priceSantim: dish.price_santim,
           fasting: dish.fasting,
-          photoUrl: dish.photoUrl,
+          photoUrl: dish.photo_url,
           optionGroups: optionGroupsOf(dish.id),
         })),
     }));

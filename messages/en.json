@@ -1,0 +1,60 @@
+{
+  "Metadata": {
+    "description": "Table service for Ethiopian cafés and restaurants"
+  },
+  "Home": {
+    "tagline": "Tap or scan the card on your table to open the menu."
+  },
+  "LanguageSwitch": {
+    "label": "Language",
+    "am": "አማ",
+    "en": "EN"
+  },
+  "Price": {
+    "currency": "ETB"
+  },
+  "GuestMenu": {
+    "title": "{brand} · {venue} menu",
+    "notFoundTitle": "Menu not found · Maasii",
+    "heading": "Our menu",
+    "sections": "Menu sections",
+    "comingSoon": "The menu is on its way. Please ask a member of staff."
+  },
+  "VenueLinkNotFound": {
+    "heading": "We can't find this menu",
+    "body": "The link may be mistyped, or the venue may have a new one. Try tapping or scanning the card on your table again, or ask a member of staff."
+  },
+  "Ordering": {
+    "close": "Close",
+    "fasting": "Fasting",
+    "chooseOne": "Choose one",
+    "addExtras": "Add extras",
+    "required": "Required",
+    "optional": "Optional",
+    "note": "Note for the kitchen",
+    "notePlaceholder": "For example, no onion",
+    "quantity": "Quantity",
+    "dishQuantity": "Quantity, {dish}",
+    "oneFewer": "One fewer",
+    "oneMore": "One more",
+    "price": "Price",
+    "addToOrder": "Add to order",
+    "saveChanges": "Save changes",
+    "stillToChoose": "Still to choose: {groups}",
+    "onlyOneChoice": "Choose only one {group}",
+    "choiceGone": "{choice} is no longer offered.",
+    "yourDraft": "Your Draft",
+    "yourTable": "Your table",
+    "draftHeading": "Draft · not sent yet",
+    "dishCount": "{count, plural, one {# dish} other {# dishes}}",
+    "needAttention": "{count, plural, one {# dish needs attention} other {# dishes need attention}}",
+    "total": "Total",
+    "edit": "Edit",
+    "remove": "Remove",
+    "dishGone": "This dish is no longer on the menu. Please remove it.",
+    "editToFix": "Edit this dish to choose again, or remove it.",
+    "added": "Added {dish} to your Draft",
+    "updated": "Updated {dish} in your Draft",
+    "removed": "Removed {dish} from your Draft"
+  }
+}

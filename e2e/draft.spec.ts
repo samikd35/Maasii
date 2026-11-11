@@ -208,3 +208,35 @@ test("a Draft line whose dish or choice left the published Menu tells the guest 
   await expect(tunaLine.getByTestId("price")).toHaveText("360 ETB");
   await expect(page.getByRole("dialog")).toContainText("1 dish needs attention");
 });
+
+test("switching languages translates the Draft and keeps the guest's choices, quantity and note", async ({ page }) => {
+  await page.goto(bilosMenuLink);
+  await openDish(page, "Tuna Sandwich");
+
+  const sheet = dishSheet(page);
+  await sheet.getByRole("radio", { name: /Whole wheat/ }).check();
+  await sheet.getByLabel("Note for the kitchen").fill("No onion");
+  await sheet.getByRole("button", { name: "One more" }).click();
+  await sheet.getByRole("button", { name: "Add to order" }).click();
+
+  await page.getByRole("button", { name: "አማ" }).click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "am");
+  const slip = page.getByRole("button", { name: /የትዕዛዝ ረቂቅዎ/ });
+  await expect(slip).toContainText("2 ምግቦች");
+  await expect(slip).toContainText("800 ብር");
+  await slip.click();
+
+  await expect(sheet.getByRole("heading", { name: "ጠረጴዛዎ" })).toBeVisible();
+  const tuna = sheet.getByRole("listitem").filter({ hasText: "የቱና ሳንድዊች" });
+  await expect(tuna).toContainText("ሙሉ ስንዴ");
+  await expect(tuna).toContainText("No onion");
+  await expect(tuna.getByTestId("quantity")).toHaveText("2");
+
+  await tuna.getByRole("button", { name: "ያስተካክሉ" }).click();
+  await expect(sheet.getByRole("heading", { name: "የቱና ሳንድዊች" })).toBeVisible();
+  const bagel = sheet.getByRole("group", { name: "ቤግል" });
+  await expect(bagel).toContainText("አንድ ይምረጡ · አስፈላጊ");
+  await expect(bagel.getByRole("radio", { name: /ሙሉ ስንዴ.*20 ብር/ })).toBeChecked();
+  await expect(sheet.getByLabel("ለወጥ ቤቱ ማስታወሻ")).toHaveValue("No onion");
+  await expect(sheet.getByRole("button", { name: "ለውጦቹን ያስቀምጡ" })).toBeEnabled();
+});

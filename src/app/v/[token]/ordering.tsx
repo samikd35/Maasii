@@ -3,6 +3,7 @@
 // The guest menu's one client island: the dish sheet, the docked slip and the Draft sheet.
 // Prices and checks come from the Maasii core's browser-safe rules; this file only renders them
 // and keeps the Draft in the phone's local storage.
+import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import {
   MAX_NOTE_LENGTH,
@@ -19,7 +20,6 @@ import {
   type PricedDraftLine,
 } from "@/core/browser";
 import { formatBirr, Price } from "@/ui/price";
-import { orderingText as t } from "./ordering-text";
 
 type Line = DraftLine & { lineId: string };
 type SheetRequest = { dishId: string } | { lineId: string } | { draft: true };
@@ -113,6 +113,8 @@ export function OpenDishButton({ dishId, labelledBy, describedBy }: { dishId: st
 // ---- The island --------------------------------------------------------------------------------
 
 export function Ordering({ venueLinkToken, sections }: { venueLinkToken: string; sections: GuestMenuSection[] }) {
+  const t = useTranslations("Ordering");
+  const price = useTranslations("Price");
   const key = draftKey(venueLinkToken);
   const lines = useSyncExternalStore(subscribe, () => readDraft(key), () => noLines);
   const [sheet, setSheet] = useState<SheetRequest | null>(null);
@@ -144,7 +146,7 @@ export function Ordering({ venueLinkToken, sections }: { venueLinkToken: string;
           dish={dish}
           onClose={() => setSheet(null)}
           onSave={(line) => {
-            save([...lines, { ...line, lineId: newLineId() }], t.added(dish.name));
+            save([...lines, { ...line, lineId: newLineId() }], t("added", { dish: dish.name }));
             setSheet(null);
           }}
         />
@@ -161,10 +163,10 @@ export function Ordering({ venueLinkToken, sections }: { venueLinkToken: string;
           menu={menu}
           dish={dish}
           editing={editing}
-          notices={draft.lines[index].problems.flatMap((p) => (p.kind === "choice_gone" ? [t.choiceGone(p.choiceName)] : []))}
+          notices={draft.lines[index].problems.flatMap((p) => (p.kind === "choice_gone" ? [t("choiceGone", { choice: p.choiceName })] : []))}
           onClose={() => setSheet({ draft: true })}
           onSave={(line) => {
-            save(lines.map((l) => (l.lineId === editing.lineId ? { ...line, lineId: l.lineId } : l)), t.updated(dish.name));
+            save(lines.map((l) => (l.lineId === editing.lineId ? { ...line, lineId: l.lineId } : l)), t("updated", { dish: dish.name }));
             setSheet({ draft: true });
           }}
         />
@@ -180,10 +182,9 @@ export function Ordering({ venueLinkToken, sections }: { venueLinkToken: string;
         onQuantity={(lineId, quantity) => save(lines.map((l) => (l.lineId === lineId ? { ...l, quantity } : l)), "")}
         onRemove={(line) => {
           const next = lines.filter((l) => l.lineId !== line.lineId);
-          save(next, t.removed(line.dishName));
+          save(next, t("removed", { dish: findDish(line.dishId)?.name ?? line.dishName }));
           if (next.length === 0) setSheet(null);
         }}
-        findDish={findDish}
       />
     );
   }
@@ -200,13 +201,13 @@ export function Ordering({ venueLinkToken, sections }: { venueLinkToken: string;
           >
             <span className="flex flex-col">
               <span className="font-semibold">
-                {t.yourDraft} · {t.dishCount(draft.dishCount)}
+                {t("yourDraft")} · {t("dishCount", { count: draft.dishCount })}
               </span>
               {draft.linesNeedingAttention > 0 && (
-                <span className="text-sm text-paper/85">{t.needAttention(draft.linesNeedingAttention)}</span>
+                <span className="text-sm text-paper/85">{t("needAttention", { count: draft.linesNeedingAttention })}</span>
               )}
             </span>
-            <span className="font-semibold whitespace-nowrap tabular-nums">{formatBirr(draft.totalSantim)} ETB</span>
+            <span className="font-semibold whitespace-nowrap tabular-nums">{formatBirr(draft.totalSantim)} {price("currency")}</span>
           </button>
         </div>
       )}
@@ -253,6 +254,7 @@ function Sheet({
 }
 
 function SheetHeading({ id, children, onClose }: { id: string; children: ReactNode; onClose: () => void }) {
+  const t = useTranslations("Ordering");
   return (
     <div className="flex items-start justify-between gap-3">
       <h2 id={id} className="pt-1.5 font-display text-2xl leading-tight">
@@ -263,7 +265,7 @@ function SheetHeading({ id, children, onClose }: { id: string; children: ReactNo
         onClick={onClose}
         className="-mr-2 min-h-11 min-w-11 shrink-0 rounded-full px-3 text-sm font-medium underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ink"
       >
-        {t.close}
+        {t("close")}
       </button>
     </div>
   );
@@ -284,6 +286,8 @@ function DishSheet({
   onClose: () => void;
   onSave: (line: DraftLine) => void;
 }) {
+  const t = useTranslations("Ordering");
+  const price = useTranslations("Price");
   const [chosen, setChosen] = useState<string[]>(() => editing?.choices.map((c) => c.choiceId) ?? []);
   const [quantity, setQuantity] = useState(editing?.quantity ?? 1);
   const [note, setNote] = useState(editing?.note ?? "");
@@ -320,12 +324,12 @@ function DishSheet({
         <>
           {missing.length > 0 && (
             <p id={hintId} className="mb-2.5 text-sm font-medium">
-              {t.stillToChoose(missing)}
+              {t("stillToChoose", { groups: missing.join(", ") })}
             </p>
           )}
           <div className="flex items-center gap-4">
             <div aria-live="polite" className="min-w-16">
-              <span className="sr-only">{t.price} </span>
+              <span className="sr-only">{t("price")} </span>
               <Price santim={priced.totalSantim ?? 0} />
             </div>
             <button
@@ -335,7 +339,7 @@ function DishSheet({
               onClick={() => onSave(line)}
               className="min-h-12 flex-1 rounded-xl bg-ink px-5 font-semibold text-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:bg-ink/35"
             >
-              {editing ? t.saveChanges : t.addToOrder}
+              {editing ? t("saveChanges") : t("addToOrder")}
             </button>
           </div>
         </>
@@ -352,7 +356,7 @@ function DishSheet({
         {dish.fasting && (
           <p className="mt-2">
             <span className="inline-flex rounded-full border border-ink/40 px-2.5 py-0.5 text-xs font-semibold tracking-wide uppercase">
-              {t.fasting}
+              {t("fasting")}
             </span>
           </p>
         )}
@@ -368,7 +372,7 @@ function DishSheet({
         <fieldset key={group.id} className="mt-6 px-5">
           <legend className="text-sm font-semibold tracking-wide uppercase">{group.name}</legend>
           <p className="border-b border-ink/70 pb-1.5 text-xs font-medium text-ink-muted">
-            {group.kind === "choose_one" ? t.chooseOne : t.addExtras} · {group.required ? t.required : t.optional}
+            {group.kind === "choose_one" ? t("chooseOne") : t("addExtras")} · {group.required ? t("required") : t("optional")}
           </p>
           <ul>
             {group.choices.map((choice) => {
@@ -388,7 +392,7 @@ function DishSheet({
                     />
                     <span className="flex-1">{choice.name}</span>
                     {choice.priceChangeSantim > 0 && (
-                      <span className="text-sm text-ink-muted tabular-nums">{t.priceChange(formatBirr(choice.priceChangeSantim))}</span>
+                      <span className="text-sm text-ink-muted tabular-nums">+{formatBirr(choice.priceChangeSantim)} {price("currency")}</span>
                     )}
                   </label>
                 </li>
@@ -399,20 +403,20 @@ function DishSheet({
       ))}
 
       <label className="mt-6 block px-5">
-        <span className="text-sm font-semibold">{t.note}</span>
+        <span className="text-sm font-semibold">{t("note")}</span>
         <textarea
           value={note}
           onChange={(event) => setNote(event.target.value)}
           maxLength={MAX_NOTE_LENGTH}
           rows={2}
-          placeholder={t.notePlaceholder}
+          placeholder={t("notePlaceholder")}
           className="mt-1.5 block min-h-11 w-full resize-none rounded-lg border border-ink/30 bg-white/70 px-3 py-2 text-base"
         />
       </label>
 
       <div className="mt-4 flex items-center justify-between px-5 pb-5">
-        <span className="text-sm font-semibold">{t.quantity}</span>
-        <QuantityStepper label={t.quantity} value={quantity} onChange={setQuantity} />
+        <span className="text-sm font-semibold">{t("quantity")}</span>
+        <QuantityStepper label={t("quantity")} value={quantity} onChange={setQuantity} />
       </div>
     </Sheet>
   );
@@ -425,7 +429,6 @@ function DraftSheet({
   onEdit,
   onQuantity,
   onRemove,
-  findDish,
 }: {
   lines: Line[];
   draft: PricedDraft;
@@ -433,8 +436,8 @@ function DraftSheet({
   onEdit: (lineId: string) => void;
   onQuantity: (lineId: string, quantity: number) => void;
   onRemove: (line: Line) => void;
-  findDish: (dishId: string) => GuestMenuDish | undefined;
 }) {
+  const t = useTranslations("Ordering");
   const headingId = useId();
   return (
     <Sheet
@@ -443,7 +446,7 @@ function DraftSheet({
       footer={
         <div className="flex items-center justify-between">
           <span className="font-semibold">
-            {t.total} · {t.dishCount(draft.dishCount)}
+            {t("total")} · {t("dishCount", { count: draft.dishCount })}
           </span>
           <Price santim={draft.totalSantim} />
         </div>
@@ -451,11 +454,11 @@ function DraftSheet({
     >
       <div className="px-5 pt-4">
         <SheetHeading id={headingId} onClose={onClose}>
-          {t.yourTable}
+          {t("yourTable")}
         </SheetHeading>
-        <h3 className="mt-4 border-b border-ink/70 pb-1.5 text-sm font-semibold tracking-wide uppercase">{t.draftHeading}</h3>
+        <h3 className="mt-4 border-b border-ink/70 pb-1.5 text-sm font-semibold tracking-wide uppercase">{t("draftHeading")}</h3>
         {draft.linesNeedingAttention > 0 && (
-          <p className="mt-2 text-sm font-medium">{t.needAttention(draft.linesNeedingAttention)}</p>
+          <p className="mt-2 text-sm font-medium">{t("needAttention", { count: draft.linesNeedingAttention })}</p>
         )}
         <ul className="pb-4">
           {lines.map((line, index) => (
@@ -463,7 +466,6 @@ function DraftSheet({
               key={line.lineId}
               line={line}
               priced={draft.lines[index]}
-              name={findDish(line.dishId)?.name ?? line.dishName}
               onEdit={() => onEdit(line.lineId)}
               onQuantity={(quantity) => onQuantity(line.lineId, quantity)}
               onRemove={() => onRemove(line)}
@@ -478,25 +480,27 @@ function DraftSheet({
 function DraftLineRow({
   line,
   priced,
-  name,
   onEdit,
   onQuantity,
   onRemove,
 }: {
   line: Line;
   priced: PricedDraftLine;
-  name: string;
   onEdit: () => void;
   onQuantity: (quantity: number) => void;
   onRemove: () => void;
 }) {
-  const problems = describeProblems(priced.problems);
+  const t = useTranslations("Ordering");
+  const problems = describeProblems(priced.problems, t);
+  const name = priced.dish?.name ?? line.dishName;
+  const offered = priced.dish?.optionGroups.flatMap((group) => group.choices) ?? [];
+  const choices = line.choices.map((choice) => offered.find(({ id }) => id === choice.choiceId)?.name ?? choice.name);
   return (
     <li className="border-b border-rule py-3">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="font-semibold">{name}</p>
-          {line.choices.length > 0 && <p className="text-sm text-ink-muted">{line.choices.map((c) => c.name).join(", ")}</p>}
+          {choices.length > 0 && <p className="text-sm text-ink-muted">{choices.join(", ")}</p>}
           {line.note && <p className="text-sm text-ink-muted italic">“{line.note}”</p>}
         </div>
         {problems.length === 0 && priced.totalSantim !== null && <Price santim={priced.totalSantim} />}
@@ -505,15 +509,15 @@ function DraftLineRow({
         <p className="mt-2 border-l-4 border-ink bg-paper-deep px-3 py-2 text-sm">{problems.join(" ")}</p>
       )}
       <div className="mt-2 flex items-center gap-1">
-        {priced.dish && <QuantityStepper label={`${t.quantity}, ${name}`} value={line.quantity} onChange={onQuantity} />}
+        {priced.dish && <QuantityStepper label={t("dishQuantity", { dish: name })} value={line.quantity} onChange={onQuantity} />}
         <span className="flex-1" />
         {priced.dish && (
           <button type="button" onClick={onEdit} className={textButton}>
-            {t.edit}
+            {t("edit")}
           </button>
         )}
         <button type="button" onClick={onRemove} className={textButton}>
-          {t.remove}
+          {t("remove")}
         </button>
       </div>
     </li>
@@ -523,34 +527,38 @@ function DraftLineRow({
 const textButton =
   "min-h-11 min-w-11 rounded-full px-3 text-sm font-medium underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ink";
 
-function describeProblems(problems: DraftLineProblem[]): string[] {
-  if (problems.some((p) => p.kind === "dish_gone")) return [t.dishGone];
+function describeProblems(
+  problems: DraftLineProblem[],
+  t: ReturnType<typeof useTranslations<"Ordering">>,
+): string[] {
+  if (problems.some((p) => p.kind === "dish_gone")) return [t("dishGone")];
   const messages = problems.flatMap((p) => {
     switch (p.kind) {
       case "choice_gone":
-        return [t.choiceGone(p.choiceName)];
+        return [t("choiceGone", { choice: p.choiceName })];
       case "too_many_choices":
-        return [t.onlyOneChoice(p.optionGroupName)];
+        return [t("onlyOneChoice", { group: p.optionGroupName })];
       default:
         return [];
     }
   });
   const missing = problems.flatMap((p) => (p.kind === "choice_missing" ? [p.optionGroupName] : []));
-  if (missing.length > 0) messages.push(t.stillToChoose(missing));
-  return problems.length > 0 ? [...messages, t.editToFix] : [];
+  if (missing.length > 0) messages.push(t("stillToChoose", { groups: missing.join(", ") }));
+  return problems.length > 0 ? [...messages, t("editToFix")] : [];
 }
 
 function QuantityStepper({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
+  const t = useTranslations("Ordering");
   const step = "flex size-11 items-center justify-center rounded-full border border-ink/40 text-xl leading-none disabled:opacity-35 focus-visible:outline-2 focus-visible:outline-ink";
   return (
     <div role="group" aria-label={label} className="flex items-center">
-      <button type="button" aria-label={t.oneFewer} disabled={value <= 1} onClick={() => onChange(value - 1)} className={step}>
+      <button type="button" aria-label={t("oneFewer")} disabled={value <= 1} onClick={() => onChange(value - 1)} className={step}>
         −
       </button>
       <span data-testid="quantity" aria-live="polite" className="w-10 text-center font-semibold tabular-nums">
         {value}
       </span>
-      <button type="button" aria-label={t.oneMore} disabled={value >= MAX_QUANTITY} onClick={() => onChange(value + 1)} className={step}>
+      <button type="button" aria-label={t("oneMore")} disabled={value >= MAX_QUANTITY} onClick={() => onChange(value + 1)} className={step}>
         +
       </button>
     </div>
