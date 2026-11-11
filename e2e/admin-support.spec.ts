@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { addPaymentOption, guestActor, listBrandSupportOpenings, sendOrder, startShift } from "@/core";
+import { addPaymentOption, guestActor, listBrandSupportOpenings, listFastingPeriods, removeFastingPeriod, sendOrder, startShift } from "@/core";
 import { createPublicAuthClient } from "@/lib/supabase/public";
 import { LANCHA_LINK_TOKEN } from "../scripts/seed/bilos";
 import { scenario } from "../tests/support/scenario";
@@ -60,33 +60,42 @@ test("the admin can open a Brand for support without getting Brand edit controls
 });
 
 test("a platform admin adds, edits and removes calendar dates and a guest sees each change", async ({ page, browser }) => {
-  await openAdmin(page, await createPlatformAdmin());
+  const admin = await createPlatformAdmin();
+  await openAdmin(page, admin);
   await page.getByRole("link", { name: "Fasting calendar" }).click();
   const guest = await browser.newPage({ ...test.info().project.use });
-  await guest.setExtraHTTPHeaders({ "x-maasii-test-now": "2041-09-02T12:00:00Z" });
-  await guest.goto(`/v/${LANCHA_LINK_TOKEN}`);
-  const firstSection = guest.getByRole("navigation", { name: "Menu sections" }).getByRole("link").first();
-  await expect(firstSection).toHaveText("Breakfast");
+  const startsOn = "2041-09-02";
+  const endsOn = "2041-09-03";
+  try {
+    await guest.setExtraHTTPHeaders({ "x-maasii-test-now": `${startsOn}T12:00:00Z` });
+    await guest.goto(`/v/${LANCHA_LINK_TOKEN}`);
+    const firstSection = guest.getByRole("navigation", { name: "Menu sections" }).getByRole("link").first();
+    await expect(firstSection).toHaveText("Breakfast");
 
-  const add = page.getByRole("region", { name: "Add a calendar period" });
-  await add.getByLabel("Start date").fill("2041-09-02");
-  await add.getByLabel("End date").fill("2041-09-03");
-  await add.getByRole("button", { name: "Add period" }).click();
-  const period = page.getByRole("article").filter({ has: page.locator('time[datetime="2041-09-02"]') });
-  await expect(period).toContainText("Fasting season");
-  await guest.reload();
-  await expect(firstSection).toHaveText("Fasting dishes");
+    const add = page.getByRole("region", { name: "Add a calendar period" });
+    await add.getByLabel("Start date").fill(startsOn);
+    await add.getByLabel("End date").fill(endsOn);
+    await add.getByRole("button", { name: "Add period" }).click();
+    const period = page.getByRole("article").filter({ has: page.locator(`time[datetime="${startsOn}"]`) });
+    await expect(period.getByRole("heading", { name: "Fasting season", exact: true })).toBeVisible();
+    await guest.reload();
+    await expect(firstSection).toHaveText("Fasting dishes");
 
-  await period.getByText("Edit period", { exact: true }).click();
-  await period.getByLabel("Period type").selectOption("exception");
-  await period.getByRole("button", { name: "Save period" }).click();
-  await expect(period).toContainText("Non-fasting exception");
-  await guest.reload();
-  await expect(firstSection).toHaveText("Breakfast");
+    await period.getByText("Edit period", { exact: true }).click();
+    await period.getByLabel("Period type").selectOption("exception");
+    await period.getByRole("button", { name: "Save period" }).click();
+    await expect(period.getByRole("heading", { name: "Non-fasting exception", exact: true })).toBeVisible();
+    await guest.reload();
+    await expect(firstSection).toHaveText("Breakfast");
 
-  await period.getByRole("button", { name: "Remove period" }).click();
-  await expect(period).toHaveCount(0);
-  await page.getByRole("button", { name: "አማ", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "የጾም ቀን መቁጠሪያ", level: 1 })).toBeVisible();
-  await guest.close();
+    await period.getByRole("button", { name: "Remove period" }).click();
+    await expect(period).toHaveCount(0);
+    await page.getByRole("button", { name: "አማ", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "የጾም ቀን መቁጠሪያ", level: 1 })).toBeVisible();
+  } finally {
+    await guest.close();
+    for (const period of await listFastingPeriods(admin.actor)) {
+      if (period.startsOn === startsOn && period.endsOn === endsOn) await removeFastingPeriod(admin.actor, period);
+    }
+  }
 });
