@@ -1,9 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
-
-type FormState = { error?: string; done?: string; link?: string } | undefined;
+import type { FormState } from "@/lib/session";
 
 /**
  * A management form that runs a server action and shows its outcome below the fields: a refusal in
@@ -13,28 +13,28 @@ export function ActionForm({
   action,
   children,
   className,
-  linkLabel = "Invitation link",
 }: {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
   children: ReactNode;
   className?: string;
-  linkLabel?: string;
 }) {
+  const t = useTranslations("StaffForms");
+  const errors = useTranslations("StaffErrors");
   const [state, formAction] = useActionState(action, undefined);
   return (
     <form action={formAction} className={className}>
       {children}
       {state?.error && (
         <p role="alert" className="mt-2 basis-full text-sm font-medium text-red-800">
-          {state.error}
+          {errors(state.error)}
         </p>
       )}
       {state?.done && (
         <p role="status" className="mt-2 basis-full text-sm text-ink-muted">
-          {state.done}
+          {t(state.done.key, state.done.values)}
         </p>
       )}
-      {state?.link && <CopyField label={linkLabel} value={state.link} />}
+      {state?.link && <CopyField key={state.link} label={t("invitationLink")} value={state.link} />}
     </form>
   );
 }
@@ -58,6 +58,7 @@ export function SubmitButton({ children, variant = "primary" }: { children: Reac
 
 /** A read-only link with a Copy button, to send by WhatsApp, SMS or email. */
 export function CopyField({ label, value }: { label: string; value: string }) {
+  const t = useTranslations("StaffForms");
   const [copied, setCopied] = useState(false);
   return (
     <div className="mt-3 basis-full">
@@ -78,7 +79,7 @@ export function CopyField({ label, value }: { label: string; value: string }) {
         }}
         className="mt-2 min-h-11 min-w-11 rounded-md border border-ink/30 px-4 font-medium"
       >
-        {copied ? "Copied" : "Copy link"}
+        {t(copied ? "copied" : "copyLink")}
       </button>
     </div>
   );

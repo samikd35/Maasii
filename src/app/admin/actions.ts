@@ -23,8 +23,8 @@ export async function inviteBrandOwner(brandId: string, _state: FormState, formD
     });
     revalidatePath(`/admin/brands/${brandId}`);
     return {
-      done: "Send this link to the owner. It works once, for 7 days.",
-      link: `${await siteUrl()}/invite/${invitation.token}`,
+      done: { key: "invitationReady" },
+      link: new URL(`/invite/${invitation.token}`, await siteUrl()).toString(),
     };
   });
 }

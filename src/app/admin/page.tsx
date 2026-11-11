@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { listBrands, MaasiiError, type Actor } from "@/core";
 import { requireAdmin } from "@/lib/session";
 import { Field } from "@/ui/field";
@@ -17,13 +18,14 @@ async function load(actor: Actor) {
 
 export default async function AdminHome() {
   const brands = await load(await requireAdmin());
+  const t = await getTranslations("StaffAdmin");
 
   return (
     <>
-      <h1 className="font-display text-3xl">Brands</h1>
+      <h1 className="font-display text-3xl">{t("brands")}</h1>
       <ActionForm action={addBrand} className="mt-6 flex flex-wrap items-end gap-3">
-        <Field label="Brand name" name="name" required className="min-w-0 flex-1" />
-        <SubmitButton>Create brand</SubmitButton>
+        <Field label={t("brandName")} name="name" required className="min-w-0 flex-1" />
+        <SubmitButton>{t("createBrand")}</SubmitButton>
       </ActionForm>
 
       <ul className="mt-6">
@@ -33,7 +35,7 @@ export default async function AdminHome() {
               <span>
                 <span className="font-semibold">{brand.name}</span>
                 <span className="block text-sm text-ink-muted">
-                  {brand.venueCount === 1 ? "1 venue" : `${brand.venueCount} venues`}
+                  {t("venueCount", { count: brand.venueCount })}
                 </span>
               </span>
               <span aria-hidden>›</span>

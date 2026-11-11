@@ -5,7 +5,6 @@ import {
   addTables,
   createVenue,
   inviteManager,
-  MaasiiError,
   renumberTable,
   setTableActive,
 } from "@/core";
@@ -16,7 +15,7 @@ export async function addVenue(brandId: string, _state: FormState, formData: For
   return forForm(async () => {
     const venue = await createVenue(actor, { brandId, name: String(formData.get("name") ?? "") });
     revalidatePath("/manage");
-    return { done: `${venue.name} is ready. Open it to add its tables.` };
+    return { done: { key: "venueAdded", values: { name: venue.name } } };
   });
 }
 
@@ -26,12 +25,12 @@ export async function addTableRange(venueId: string, _state: FormState, formData
     const from = Number(formData.get("from"));
     const to = formData.get("to") ? Number(formData.get("to")) : from;
     if (!Number.isInteger(from) || !Number.isInteger(to) || to < from || to - from >= 500) {
-      throw new MaasiiError("invalid_input", "Enter the first and last table numbers, such as 1 to 16.");
+      return { error: "invalidTableRange" };
     }
     const numbers = Array.from({ length: to - from + 1 }, (_, i) => from + i);
     await addTables(actor, { venueId, numbers });
     revalidatePath(`/manage/venues/${venueId}`);
-    return { done: numbers.length === 1 ? `Added table ${from}.` : `Added tables ${from} to ${to}.` };
+    return { done: { key: from === to ? "tableAdded" : "tablesAdded", values: { from, to } } };
   });
 }
 
@@ -59,8 +58,8 @@ export async function inviteVenueManager(venueId: string, _state: FormState, for
     });
     revalidatePath(`/manage/venues/${venueId}`);
     return {
-      done: "Send this link to them. It works once, for 7 days.",
-      link: `${await siteUrl()}/invite/${invitation.token}`,
+      done: { key: "invitationReady" },
+      link: new URL(`/invite/${invitation.token}`, await siteUrl()).toString(),
     };
   });
 }

@@ -13,14 +13,14 @@ export function parseStaffContact(input: string): StaffContact {
   if (text.includes("@")) {
     const email = z.email().safeParse(text.toLowerCase());
     if (email.success) return { email: email.data };
-    throw new MaasiiError("invalid_input", "That email address doesn't look right.");
+    throw new MaasiiError("invalid_input", "That email address doesn't look right.", "invalidContact");
   }
 
   const digits = text.replace(/[\s().-]/g, "");
   const ethiopian = digits.match(/^(?:\+?251|0)?([79]\d{8})$/);
   if (ethiopian) return { phone: `+251${ethiopian[1]}` };
   if (/^\+[1-9]\d{7,14}$/.test(digits)) return { phone: digits };
-  throw new MaasiiError("invalid_input", "Enter an email address or a phone number such as 0911 234 567.");
+  throw new MaasiiError("invalid_input", "Enter an email address or a phone number such as 0911 234 567.", "invalidContact");
 }
 
 export function contactText(contact: StaffContact): string {

@@ -29,12 +29,12 @@ test("another brand's Owner can neither read nor change a brand's Venues, Tables
     () => createVenue(intruder, { brandId: bilos.brand.id, name: "Bole" }),
     () => inviteManager(intruder, { venueId, name: "Mallory", contact: uniqueEmail("mallory") }),
     () => addTables(intruder, { venueId, numbers: [3] }),
-    () => renumberTable(intruder, { tableId, number: 9 }),
-    () => setTableActive(intruder, { tableId, active: false }),
   ];
   for (const attempt of attempts) {
     await expect(attempt()).rejects.toMatchObject({ code: "not_allowed" });
   }
+  await expect(renumberTable(intruder, { tableId, number: 9 })).rejects.toMatchObject({ code: "not_found" });
+  await expect(setTableActive(intruder, { tableId, active: false })).rejects.toMatchObject({ code: "not_found" });
 
   expect((await getVenueSetup(bilos.owner.actor, { venueId })).tables).toEqual([
     { id: tableId, number: 1, active: true },
@@ -69,11 +69,17 @@ test("row-level security alone hides another brand's memberships and invitations
   );
 });
 
-test("row-level security alone stops staff changing another venue's Tables or another brand's Venues", async () => {
+test("row-level security alone protects another venue's Tables and another brand's Venues", async () => {
   const bilos = await scenario().brand("Bilo's").venue("Lancha", { tables: 1 }).venue("Bole", { tables: 1 }).manager("Hana").build();
   const saba = await scenario().brand("Saba House").build();
   const boleTable = bilos.venues.Bole.tables[0].id;
   const lanchaTable = bilos.venues.Lancha.tables[0].id;
+
+  const readTable = "select id from app.tables where id = $1";
+  expect((await asPerson(bilos.managers.Hana.userId, readTable, [boleTable])).rows).toEqual([]);
+  expect((await asPerson(saba.owner.userId, readTable, [lanchaTable])).rows).toEqual([]);
+  expect((await asPerson(bilos.managers.Hana.userId, readTable, [lanchaTable])).rows).toEqual([{ id: lanchaTable }]);
+  expect((await asPerson(bilos.owner.userId, readTable, [boleTable])).rows).toEqual([{ id: boleTable }]);
 
   const renumber = "update app.tables set number = 99 where id = $1";
   expect((await asPerson(bilos.managers.Hana.userId, renumber, [boleTable])).rowCount).toBe(0);

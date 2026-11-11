@@ -165,7 +165,7 @@ export async function addTables(
   actor: Actor,
   input: { venueId: string; numbers: number[] },
 ): Promise<Table[]> {
-  const { numbers } = parseInput(z.object({ numbers: z.array(tableNumber) }), input);
+  const { numbers } = parseInput(z.object({ numbers: z.array(tableNumber) }), input, "invalidTableNumber");
   const repeated = numbers.find((n, i) => numbers.indexOf(n) !== i);
   if (repeated !== undefined) throw new MaasiiError("invalid_input", `Table ${repeated} is listed twice.`);
 
@@ -192,7 +192,7 @@ export async function addTables(
 
 /** Gives a Table a new number. Its history (Visits, Orders) stays with it. */
 export async function renumberTable(actor: Actor, input: { tableId: string; number: number }): Promise<void> {
-  const { number } = parseInput(z.object({ number: tableNumber }), input);
+  const { number } = parseInput(z.object({ number: tableNumber }), input, "invalidTableNumber");
   await inTransaction(actor, async (tx) => {
     const table = await findTable(tx, actor, input.tableId);
     const taken = await tx.query(
@@ -226,7 +226,7 @@ async function findTable(tx: Tx, actor: Actor, tableId: string): Promise<{ id: s
 }
 
 function tableNumberTaken(number: number): MaasiiError {
-  return new MaasiiError("invalid_input", `Table ${number} already exists at this venue.`);
+  return new MaasiiError("invalid_input", `Table ${number} already exists at this venue.`, "tableNumberTaken");
 }
 
 /** Turns a race on the (venue, number) unique key into the same refusal as the check before it. */
@@ -235,7 +235,7 @@ async function uniqueTableNumbers<T>(write: () => Promise<T>): Promise<T> {
     return await write();
   } catch (error) {
     if ((error as { code?: string }).code === "23505") {
-      throw new MaasiiError("invalid_input", "That table number already exists at this venue.");
+      throw new MaasiiError("invalid_input", "That table number already exists at this venue.", "tableNumberTaken");
     }
     throw error;
   }

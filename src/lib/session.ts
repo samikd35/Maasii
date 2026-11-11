@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { adminActor, MaasiiError, staffActor, type Actor } from "@/core";
+import type { Messages } from "@/i18n/messages";
 import { createSessionClient } from "@/lib/supabase/server";
 
 /** The signed-in person's user id, verified from the session token, or null. */
@@ -35,7 +36,11 @@ export async function siteUrl(): Promise<string> {
   return `${protocol}://${host}`;
 }
 
-export type FormState = { error?: string; done?: string; link?: string } | undefined;
+export type FormState = {
+  error?: keyof Messages["StaffErrors"];
+  done?: { key: keyof Messages["StaffForms"]; values?: Record<string, string | number> };
+  link?: string;
+} | undefined;
 
 /**
  * Runs a core command for a form. A refusal from the core becomes a message for the person;
@@ -45,7 +50,7 @@ export async function forForm(work: () => Promise<FormState | void>): Promise<Fo
   try {
     return (await work()) ?? {};
   } catch (error) {
-    if (error instanceof MaasiiError) return { error: error.message };
+    if (error instanceof MaasiiError) return { error: error.reason ?? error.code };
     throw error;
   }
 }

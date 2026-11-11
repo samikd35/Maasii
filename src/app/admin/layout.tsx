@@ -1,13 +1,20 @@
 import type { Metadata } from "next";
-import { StaffHeader } from "@/ui/staff-header";
+import { getTranslations } from "next-intl/server";
+import { StaffFormMessages, StaffHeader } from "@/ui/staff-header";
 
-export const metadata: Metadata = { title: "Platform admin · Maasii" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Staff");
+  return { title: `${t("platformAdmin")} · Maasii` };
+}
 
-export default function AdminLayout({ children }: LayoutProps<"/admin">) {
+export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
+  const t = await getTranslations("Staff");
   return (
     <>
-      <StaffHeader home="/admin" label="Platform admin" />
-      <main className="mx-auto max-w-2xl px-5 pt-6 pb-16">{children}</main>
+      <StaffHeader home="/admin" label={t("platformAdmin")} />
+      <StaffFormMessages>
+        <main className="mx-auto max-w-2xl px-5 pt-6 pb-16">{children}</main>
+      </StaffFormMessages>
     </>
   );
 }

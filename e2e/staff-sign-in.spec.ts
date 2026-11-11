@@ -1,13 +1,22 @@
+import { readFile } from "node:fs/promises";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { acceptInvitation, inviteManager, publicActor } from "@/core";
+import { LANCHA_LINK_TOKEN } from "../scripts/seed/bilos";
 import { scenario } from "../tests/support/scenario";
 import { createPlatformAdmin, TEST_PASSWORD, uniqueEmail, uniquePhone } from "../tests/support/users";
 
 async function signIn(page: Page, contact: string, password: string) {
   await page.goto("/sign-in");
+  await chooseEnglish(page);
   await page.getByLabel("Email or phone").fill(contact);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Sign in" }).click();
+}
+
+async function chooseEnglish(page: Page) {
+  const button = page.getByRole("button", { name: "EN", exact: true });
+  if ((await button.getAttribute("aria-pressed")) === "false") await button.click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
 }
 
 /** Opens an invitation link on a new phone and accepts it with a password. */
@@ -15,10 +24,28 @@ async function acceptOnNewPhone(browser: Browser, link: string, password: string
   const context = await browser.newContext({ ...test.info().project.use });
   const page = await context.newPage();
   await page.goto(link);
+  await chooseEnglish(page);
   await page.getByLabel("Choose a password").fill(password);
   await page.getByRole("button", { name: "Accept invitation" }).click();
   return page;
 }
+
+test("staff screens default to Amharic and remember their own language choice", async ({ page }) => {
+  const venueLink = `/v/${LANCHA_LINK_TOKEN}`;
+  await page.goto("/sign-in");
+  await expect(page.getByRole("heading", { name: "ወደ Maasii ይግቡ" })).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("lang", "am");
+  await chooseEnglish(page);
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Sign in to Maasii" })).toBeVisible();
+
+  await page.goto(venueLink);
+  await expect(page.getByRole("heading", { name: "Our menu" })).toBeVisible();
+  await page.getByRole("button", { name: "አማ", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "ምናሌያችን" })).toBeVisible();
+  await page.goto("/sign-in");
+  await expect(page.getByRole("heading", { name: "Sign in to Maasii" })).toBeVisible();
+});
 
 test("the platform admin creates a brand and invites its Owner, who accepts on their own phone", async ({ page, browser }) => {
   const admin = await createPlatformAdmin();
@@ -45,7 +72,7 @@ test("the platform admin creates a brand and invites its Owner, who accepts on t
   await expect(page.getByRole("region", { name: "Owners" })).toContainText("Selam");
 });
 
-test("an Owner creates a Venue, sets up its Tables, downloads its QR image and invites its Manager", async ({ page, browser }) => {
+test("an Owner creates a Venue, sets up its Tables, downloads its Venue Link and QR image and invites its Manager", async ({ page, browser }) => {
   const s = await scenario().brand("Bilo's Pastry").venue("Lancha", { tables: 2 }).build();
   const managerPhone = uniquePhone();
 
@@ -75,13 +102,21 @@ test("an Owner creates a Venue, sets up its Tables, downloads its QR image and i
   await expect(two).not.toContainText("Not in use");
 
   const venueLink = page.getByRole("region", { name: "Venue Link" });
-  await expect(venueLink.getByLabel("Venue Link")).toHaveValue(/\/v\/bilos-pastry-bole-[a-z0-9]{4}$/);
+  const linkInput = venueLink.getByLabel("Venue Link", { exact: true });
+  await expect(linkInput).toHaveValue(/\/v\/bilos-pastry-bole-[a-z0-9]{4}$/);
+  const [linkDownload] = await Promise.all([
+    page.waitForEvent("download"),
+    venueLink.getByRole("link", { name: "Download Venue Link" }).click(),
+  ]);
+  expect(linkDownload.suggestedFilename()).toMatch(/^bilos-pastry-bole-[a-z0-9]{4}-link\.txt$/);
+  expect((await readFile(await linkDownload.path(), "utf8")).trim()).toBe(await linkInput.inputValue());
   await expect(venueLink.getByRole("img", { name: "QR code for the Bole Venue Link" })).toBeVisible();
   const [download] = await Promise.all([
     page.waitForEvent("download"),
     venueLink.getByRole("link", { name: "Download QR image" }).click(),
   ]);
   expect(download.suggestedFilename()).toMatch(/^bilos-pastry-bole-[a-z0-9]{4}-qr\.png$/);
+  expect(await download.failure()).toBeNull();
 
   const managers = page.getByRole("region", { name: "Managers" });
   await managers.getByLabel("Name").fill("Hana");
@@ -92,7 +127,13 @@ test("an Owner creates a Venue, sets up its Tables, downloads its QR image and i
   const hana = await acceptOnNewPhone(browser, link, "hana-at-bole-2026");
   await hana.getByRole("link", { name: /Bole/ }).click();
   await expect(hana.getByRole("heading", { name: "Bole", level: 1 })).toBeVisible();
-  await expect(hana.getByRole("region", { name: "Tables" }).getByRole("listitem")).toHaveCount(4);
+  const managerTables = hana.getByRole("region", { name: "Tables" });
+  await expect(managerTables.getByRole("listitem")).toHaveCount(4);
+  await managerTables.getByLabel("From table").fill("5");
+  await managerTables.getByRole("button", { name: "Add tables" }).click();
+  await expect(managerTables.getByRole("listitem")).toHaveCount(5);
+  await expect(hana.getByRole("link", { name: "Download Venue Link" })).toBeVisible();
+  await expect(hana.getByRole("link", { name: "Download QR image" })).toBeVisible();
   await expect(hana.getByRole("button", { name: "Invite manager" })).toHaveCount(0);
   await hana.goto("/manage");
   await expect(hana.getByRole("link", { name: /Lancha/ })).toHaveCount(0);
@@ -128,18 +169,27 @@ test("a Manager cannot open another venue's page", async ({ page }) => {
 });
 
 test("every management screen fits a phone, with touch targets of at least 44 by 44 pixels", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 720 });
   const s = await scenario().brand("Bilo's Pastry").venue("Lancha", { tables: 16 }).manager("Hana").build();
   const admin = await createPlatformAdmin();
+  const { token } = await inviteManager(s.owner.actor, { venueId: s.venue.id, name: "Selam", contact: uniqueEmail("selam") });
 
   const screens: { who: { email: string; password: string }; paths: string[] }[] = [
-    { who: { email: "", password: "" }, paths: ["/sign-in"] },
+    { who: { email: "", password: "" }, paths: ["/sign-in", `/invite/${token}`] },
     { who: s.owner, paths: ["/manage", `/manage/venues/${s.venue.id}`] },
     { who: admin, paths: ["/admin", `/admin/brands/${s.brand.id}`] },
   ];
   for (const { who, paths } of screens) {
-    if (who.email) await signIn(page, who.email, who.password);
+    if (who.email) {
+      await signIn(page, who.email, who.password);
+      await expect(page).toHaveURL(/\/manage$/);
+      await page.getByRole("button", { name: "አማ", exact: true }).click();
+      await expect(page.locator("html")).toHaveAttribute("lang", "am");
+    }
     for (const path of paths) {
       await page.goto(path);
+      expect(new URL(page.url()).pathname).toBe(path);
+      await expect(page.locator("html")).toHaveAttribute("lang", "am");
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       expect(overflow, `${path} scrolls sideways`).toBeLessThanOrEqual(0);
 
@@ -155,6 +205,10 @@ test("every management screen fits a phone, with touch targets of at least 44 by
         expect(size.height, `${path}: ${size.label} is too short`).toBeGreaterThanOrEqual(44);
         expect(size.width, `${path}: ${size.label} is too narrow`).toBeGreaterThanOrEqual(44);
       }
+    }
+    if (who.email) {
+      await page.getByRole("button", { name: "ይውጡ", exact: true }).click();
+      await expect(page).toHaveURL(/\/sign-in$/);
     }
   }
 });

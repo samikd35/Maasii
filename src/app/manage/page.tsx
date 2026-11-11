@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { getTranslations } from "next-intl/server";
 import { getMyAccess } from "@/core";
 import { requireStaff } from "@/lib/session";
 import { Field } from "@/ui/field";
@@ -7,20 +9,22 @@ import { addVenue } from "./actions";
 
 export default async function ManageHome() {
   const access = await getMyAccess(await requireStaff());
+  const t = await getTranslations("StaffManage");
+  const staff = await getTranslations("Staff");
   const nothing = access.brands.length === 0 && access.venues.length === 0;
 
   return (
     <>
-      <h1 className="font-display text-3xl">{access.name ? `Hello, ${access.name}` : "Your venues"}</h1>
+      <h1 className="font-display text-3xl">{access.name ? t("greeting", { name: access.name }) : t("yourVenues")}</h1>
 
       {access.isPlatformAdmin && (
         <Link href="/admin" className="mt-4 inline-flex min-h-11 items-center font-semibold underline">
-          Platform admin
+          {staff("platformAdmin")}
         </Link>
       )}
 
       {nothing && !access.isPlatformAdmin && (
-        <p className="mt-4 text-ink-muted">You don&apos;t manage any venue yet. Ask your brand&apos;s owner for an invitation.</p>
+        <p className="mt-4 text-ink-muted">{t("noAccess")}</p>
       )}
 
       {access.brands.map((brand) => (
@@ -29,12 +33,12 @@ export default async function ManageHome() {
             <h2 id={`brand-${brand.id}`} className="text-xl font-semibold">
               {brand.name}
             </h2>
-            <span className="text-sm text-ink-muted">Owner</span>
+            <span className="text-sm text-ink-muted">{staff("owner")}</span>
           </div>
           <VenueList venues={brand.venues} />
           <ActionForm action={addVenue.bind(null, brand.id)} className="mt-4 flex flex-wrap items-end gap-3">
-            <Field label="Venue name" name="name" required className="min-w-0 flex-1" />
-            <SubmitButton>Add venue</SubmitButton>
+            <Field label={t("venueName")} name="name" required className="min-w-0 flex-1" />
+            <SubmitButton>{t("addVenue")}</SubmitButton>
           </ActionForm>
         </section>
       ))}
@@ -43,9 +47,9 @@ export default async function ManageHome() {
         <section aria-labelledby="managed-venues" className="mt-8">
           <div className="flex items-baseline justify-between gap-3 border-b border-ink/70 pb-1.5">
             <h2 id="managed-venues" className="text-xl font-semibold">
-              Venues you manage
+              {t("managedVenues")}
             </h2>
-            <span className="text-sm text-ink-muted">Manager</span>
+            <span className="text-sm text-ink-muted">{staff("manager")}</span>
           </div>
           <VenueList venues={access.venues.map((v) => ({ id: v.id, name: v.name, detail: v.brandName }))} />
         </section>
@@ -55,7 +59,8 @@ export default async function ManageHome() {
 }
 
 function VenueList({ venues }: { venues: { id: string; name: string; detail?: string }[] }) {
-  if (venues.length === 0) return <p className="py-3 text-ink-muted">No venues yet.</p>;
+  const t = useTranslations("StaffManage");
+  if (venues.length === 0) return <p className="py-3 text-ink-muted">{t("noVenues")}</p>;
   return (
     <ul>
       {venues.map((venue) => (

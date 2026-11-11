@@ -6,10 +6,10 @@
 
 **Status:** ready-for-agent
 
-- [ ] A platform admin role exists. The admin can create a brand and send its owner an invitation.
-- [ ] Owners and managers accept invitations and sign in with email or phone plus a password, through Supabase Auth.
-- [ ] Staff memberships link a person to a role: Owner for a brand, Manager for a venue. Owners can act as a manager at any venue of their brand.
-- [ ] An owner can create venues, and an owner or that venue's manager can add, renumber and deactivate tables.
-- [ ] An owner or manager can see and download the Venue Link and a QR image of it.
-- [ ] Row-level security and core checks prevent any staff member from reading or changing another brand's or venue's data. Core tests prove this for both reads and commands.
-- [ ] Every management screen built here is usable on a phone.
+- [x] A platform admin role exists. The admin can create a brand and send its owner an invitation.
+- [x] Owners and managers accept invitations and sign in with email or phone plus a password, through Supabase Auth.
+- [x] Staff memberships link a person to a role: Owner for a brand, Manager for a venue. Owners can act as a manager at any venue of their brand.
+- [x] An owner can create venues, and an owner or that venue's manager can add, renumber and deactivate tables.
+- [x] An owner or manager can see and download the Venue Link and a QR image of it.
+- [x] Row-level security and core checks prevent any staff member from reading or changing another brand's or venue's data. Core tests prove this for both reads and commands.
+- [x] Every management screen built here is usable on a phone.

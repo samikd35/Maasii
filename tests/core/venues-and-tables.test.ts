@@ -138,10 +138,10 @@ test("a Manager cannot touch another Venue's Tables, even in the same brand", as
     code: "not_allowed",
   });
   await expect(renumberTable(hana, { tableId: boleTable.id, number: 9 })).rejects.toMatchObject({
-    code: "not_allowed",
+    code: "not_found",
   });
   await expect(setTableActive(hana, { tableId: boleTable.id, active: false })).rejects.toMatchObject({
-    code: "not_allowed",
+    code: "not_found",
   });
   expect((await getVenueSetup(s.owner.actor, { venueId: s.venues.Bole.id })).tables).toEqual([
     { id: boleTable.id, number: 1, active: true },

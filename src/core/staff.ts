@@ -234,14 +234,20 @@ async function findInvitation(tx: Tx, token: string, now: Date): Promise<Invitat
   };
 }
 
-const refusals: Record<string, string> = {
-  not_found: "This invitation link is not valid. Ask for a new one.",
-  accepted: "This invitation has already been used. Sign in instead.",
-  accepted_already: "This invitation has already been used. Sign in instead.",
-  revoked: "This invitation was replaced by a newer one. Use the latest link you were sent.",
-  expired: "This invitation has expired. Ask for a new one.",
-  wrong_person: "This invitation was sent to someone else.",
-};
+const invitationUsed = ["This invitation has already been used. Sign in instead.", "invitationAccepted"] as const;
+const refusals = {
+  not_found: ["This invitation link is not valid. Ask for a new one.", "invitationNotFound"],
+  accepted: invitationUsed,
+  accepted_already: invitationUsed,
+  revoked: ["This invitation was replaced by a newer one. Use the latest link you were sent.", "invitationRevoked"],
+  expired: ["This invitation has expired. Ask for a new one.", "invitationExpired"],
+  wrong_person: ["This invitation was sent to someone else.", "invitationWrongPerson"],
+} as const;
+
+function refuseInvitation(outcome: keyof typeof refusals): never {
+  const [message, reason] = refusals[outcome];
+  throw new MaasiiError(outcome === "not_found" ? "not_found" : "not_allowed", message, reason);
+}
 
 /**
  * Accepts an invitation by setting a password. The person's Supabase Auth account is created for
@@ -259,27 +265,25 @@ export async function acceptInvitation(
       password: z.string().min(MIN_PASSWORD_LENGTH, `Choose a password of at least ${MIN_PASSWORD_LENGTH} characters.`),
     }),
     input,
+    "shortPassword",
   );
 
   const invitation = await inTransaction({ kind: "public" }, (tx) => findInvitation(tx, token, now));
-  if (!invitation) throw new MaasiiError("not_found", refusals.not_found);
-  if (invitation.status !== "pending") throw new MaasiiError("not_allowed", refusals[invitation.status]);
+  if (!invitation) refuseInvitation("not_found");
+  if (invitation.status !== "pending") refuseInvitation(invitation.status);
 
   const contact = parseStaffContact(invitation.contact);
-  const { userId, created } = await findOrCreateAuthUser(contact, password, invitation.name);
-  try {
-    const outcome = await inTransaction(staffActor(userId), async (tx) => {
-      const { rows } = await tx.query<{ outcome: string }>(
-        "select app.accept_invitation($1, $2) as outcome",
-        [hashToken(token), now],
-      );
-      return rows[0].outcome;
-    });
-    if (outcome !== "accepted") throw new MaasiiError("not_allowed", refusals[outcome] ?? refusals.not_found);
-  } catch (error) {
-    if (created) await createAdminClient().auth.admin.deleteUser(userId);
-    throw error;
-  }
+  const userId = await findOrCreateAuthUser(contact, password, invitation.name);
+  // Keep the Auth account if enrollment fails. A concurrent acceptance may already use it,
+  // and a retry can reuse its password. Only committed memberships grant access.
+  const outcome = await inTransaction(staffActor(userId), async (tx) => {
+    const { rows } = await tx.query<{ outcome: keyof typeof refusals }>(
+      "select app.accept_invitation($1, $2) as outcome",
+      [hashToken(token), now],
+    );
+    return rows[0].outcome;
+  });
+  if (outcome !== "accepted") refuseInvitation(outcome);
   return { userId, contact };
 }
 
@@ -287,7 +291,7 @@ async function findOrCreateAuthUser(
   contact: StaffContact,
   password: string,
   name: string,
-): Promise<{ userId: string; created: boolean }> {
+): Promise<string> {
   const identity =
     "email" in contact
       ? { email: contact.email, email_confirm: true }
@@ -297,7 +301,7 @@ async function findOrCreateAuthUser(
     password,
     user_metadata: { name },
   });
-  if (!error) return { userId: data.user.id, created: true };
+  if (!error) return data.user.id;
   if (error.code !== "email_exists" && error.code !== "phone_exists") throw error;
 
   const signIn = await createPublicAuthClient().auth.signInWithPassword({ ...contact, password });
@@ -305,9 +309,10 @@ async function findOrCreateAuthUser(
     throw new MaasiiError(
       "not_allowed",
       `${contactText(contact)} already has a Maasii account. Enter that account's password to accept.`,
+      "existingAccountPassword",
     );
   }
-  return { userId: signIn.data.user.id, created: false };
+  return signIn.data.user.id;
 }
 
 function hashToken(token: string): string {

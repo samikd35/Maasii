@@ -1,24 +1,31 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { signedInUserId } from "@/lib/session";
 import { Field } from "@/ui/field";
 import { ActionForm, SubmitButton } from "@/ui/staff-forms";
+import { StaffEntry } from "@/ui/staff-header";
 import { signIn } from "./actions";
 
-export const metadata: Metadata = { title: "Sign in · Maasii" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Staff");
+  return { title: `${t("signIn")} · Maasii` };
+}
 
 export default async function SignInPage() {
   if (await signedInUserId()) redirect("/manage");
+  const t = await getTranslations("StaffSignIn");
+  const staff = await getTranslations("Staff");
 
   return (
-    <main className="mx-auto max-w-sm px-5 py-12">
-      <h1 className="font-display text-3xl">Sign in to Maasii</h1>
-      <p className="mt-2 text-ink-muted">For owners and managers. Use the email or phone you were invited with.</p>
+    <StaffEntry>
+      <h1 className="font-display text-3xl">{t("heading")}</h1>
+      <p className="mt-2 text-ink-muted">{t("intro")}</p>
       <ActionForm action={signIn} className="mt-8 space-y-4">
-        <Field label="Email or phone" name="contact" autoComplete="username" required />
-        <Field label="Password" name="password" type="password" autoComplete="current-password" required />
-        <SubmitButton>Sign in</SubmitButton>
+        <Field label={staff("emailOrPhone")} name="contact" autoComplete="username" required />
+        <Field label={staff("password")} name="password" type="password" autoComplete="current-password" required />
+        <SubmitButton>{staff("signIn")}</SubmitButton>
       </ActionForm>
-    </main>
+    </StaffEntry>
   );
 }

@@ -1,4 +1,4 @@
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import {
   acceptInvitation,
   createBrand,
@@ -76,6 +76,44 @@ test("an invitation works once, and not after it expires a week later", async ()
     acceptInvitation(publicActor, { token: late.token, password: "injera-and-tea" }, { now: oneWeekLater }),
   ).rejects.toMatchObject({ code: "not_allowed", message: expect.stringMatching(/expired/) });
   await expect(signInWithPassword({ email, password: "injera-and-tea" })).rejects.toThrow();
+});
+
+test("two acceptances of the same invitation leave the winning account and membership intact", async () => {
+  const admin = await createPlatformAdmin();
+  const brand = await createBrand(admin.actor, { name: "Saba House" });
+  const email = uniqueEmail("selam");
+  const password = "injera-and-tea";
+  const { token } = await inviteOwner(admin.actor, { brandId: brand.id, name: "Selam", contact: email });
+
+  // Delay the first response after real Supabase Auth has created the account.
+  const created = Promise.withResolvers<void>();
+  const resume = Promise.withResolvers<void>();
+  const fetch = globalThis.fetch;
+  const delay = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const response = await fetch(input, init);
+    if (response.ok && init?.method === "POST" && new URL(response.url).pathname === "/auth/v1/admin/users") {
+      created.resolve();
+      await resume.promise;
+    }
+    return response;
+  });
+
+  const first = acceptInvitation(publicActor, { token, password });
+  try {
+    await Promise.race([created.promise, first]);
+    const { userId } = await acceptInvitation(publicActor, { token, password });
+    resume.resolve();
+    await expect(first).rejects.toMatchObject({ code: "not_allowed", message: expect.stringMatching(/already been used/) });
+
+    expect(await signInWithPassword({ email, password })).toBe(userId);
+    expect((await getMyAccess(staffActor(userId))).brands).toEqual([
+      expect.objectContaining({ id: brand.id, role: "owner" }),
+    ]);
+  } finally {
+    resume.resolve();
+    await Promise.allSettled([first]);
+    delay.mockRestore();
+  }
 });
 
 test("inviting the same person again replaces the earlier link", async () => {

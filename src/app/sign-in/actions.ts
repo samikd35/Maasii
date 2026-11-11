@@ -10,7 +10,7 @@ export async function signIn(_state: FormState, formData: FormData): Promise<For
     const contact = parseStaffContact(String(formData.get("contact") ?? ""));
     const supabase = await createSessionClient();
     const { error } = await supabase.auth.signInWithPassword({ ...contact, password: String(formData.get("password") ?? "") });
-    if (error) return { error: "That email, phone or password is not right." };
+    if (error) return { error: "badCredentials" };
     redirect("/manage");
   });
 }
