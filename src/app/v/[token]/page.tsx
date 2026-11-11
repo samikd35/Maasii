@@ -7,7 +7,7 @@ import { Price } from "@/ui/price";
 
 const loadMenu = cache(async (venueLinkToken: string) => {
   await connection();
-  return getPublishedMenu(publicActor, { venueLinkToken });
+  return getPublishedMenu(publicActor, { venueLinkToken, language: "en" });
 });
 
 export async function generateMetadata({ params }: PageProps<"/v/[token]">): Promise<Metadata> {

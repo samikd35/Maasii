@@ -3,6 +3,7 @@
 
 export { publicActor, staffActor, systemActor, type Actor } from "./actor";
 export { MaasiiError, type MaasiiErrorCode } from "./errors";
+export { languages, type Bilingual, type Language } from "./language";
 
 export { addTables, createBrand, createVenue, type Brand, type Table, type Venue } from "./brands";
 export { addBrandOwner } from "./staff";

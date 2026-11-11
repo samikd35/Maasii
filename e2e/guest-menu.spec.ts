@@ -85,7 +85,16 @@ test("publishing a new Menu version changes what guests see", async ({ page }) =
     brandId: s.brand.id,
     menu: {
       sections: [
-        { name: "Pastries", dishes: [{ name: "Jam Tart", description: "Sweet, tangy jam", priceSantim: 11_000 }] },
+        {
+          name: { en: "Pastries", am: "ፓስትሪዎች" },
+          dishes: [
+            {
+              name: { en: "Jam Tart", am: "የጃም ታርት" },
+              description: { en: "Sweet, tangy jam", am: "ጣፋጭ እና ኮምጠጥ ያለ ጃም" },
+              priceSantim: 11_000,
+            },
+          ],
+        },
       ],
     },
   });
