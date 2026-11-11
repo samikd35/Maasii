@@ -10,7 +10,14 @@ type RefusalReason =
   | "invitationExpired"
   | "invitationWrongPerson"
   | "existingAccountPassword"
-  | "shortPassword";
+  | "shortPassword"
+  | "invalidPin"
+  | "waiterNameRequired"
+  | "waiterJoinInvalid"
+  | "waiterJoinUsed"
+  | "waiterJoinExpired"
+  | "waiterRejoin"
+  | "wrongPin";
 
 /** A refusal the caller can act on, as opposed to a bug or an outage. */
 export class MaasiiError extends Error {

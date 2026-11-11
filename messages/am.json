@@ -134,7 +134,9 @@
     "invitationReady": "ሊንኩን ለጋበዙት ሰው ይላኩ። በ7 ቀናት ውስጥ አንድ ጊዜ መጠቀም ይቻላል።",
     "venueAdded": "{name} ተዘጋጅቷል። ጠረጴዛዎቹን ለመጨመር ይክፈቱት።",
     "tableAdded": "ጠረጴዛ {from} ተጨምሯል።",
-    "tablesAdded": "ከ{from} እስከ {to} ያሉት ጠረጴዛዎች ተጨምረዋል።"
+    "tablesAdded": "ከ{from} እስከ {to} ያሉት ጠረጴዛዎች ተጨምረዋል።",
+    "waiterJoinQr": "የአስተናጋጅ መቀላቀያ QR",
+    "waiterJoinReady": "ይህን QR በአስተናጋጁ ስልክ ያንብቡ። በ{minutes} ደቂቃ ውስጥ አንድ ጊዜ ብቻ ይሰራል።"
   },
   "StaffErrors": {
     "invalid_input": "ያስገቡትን መረጃ ፈትሸው እንደገና ይሞክሩ።",
@@ -152,6 +154,33 @@
     "invitationWrongPerson": "ይህ ግብዣ የተላከው ለሌላ ሰው ነው።",
     "existingAccountPassword": "ይህ ኢሜይል ወይም ስልክ ቁጥር የMaasii መለያ አለው። ግብዣውን ለመቀበል የዚያን መለያ የይለፍ ቃል ያስገቡ።",
     "shortPassword": "ቢያንስ 8 ቁምፊዎች ያሉት የይለፍ ቃል ይምረጡ።",
-    "signInRequired": "መጀመሪያ ወደ መለያዎ ይግቡ።"
+    "signInRequired": "መጀመሪያ ወደ መለያዎ ይግቡ።",
+    "invalidPin": "ባለ 4 አሃዝ PIN ያስገቡ።",
+    "waiterNameRequired": "እስከ 80 ፊደሎች የሚደርስ ስምዎን ያስገቡ።",
+    "waiterJoinInvalid": "ይህ የመቀላቀያ QR አይሰራም። አስተዳዳሪዎን አዲስ QR ይጠይቁ።",
+    "waiterJoinUsed": "ይህ የመቀላቀያ QR ጥቅም ላይ ውሏል። አስተዳዳሪዎን አዲስ QR ይጠይቁ።",
+    "waiterJoinExpired": "የዚህ መቀላቀያ QR ጊዜ አልፏል። አስተዳዳሪዎን አዲስ QR ይጠይቁ።",
+    "waiterRejoin": "አስተዳዳሪዎን አዲስ የመቀላቀያ QR ይጠይቁ።",
+    "wrongPin": "ያስገቡት PIN ትክክል አይደለም።"
+  },
+  "StaffWaiter": {
+    "waiters": "አስተናጋጆች",
+    "waiter": "አስተናጋጅ",
+    "noWaiters": "ገና አስተናጋጅ የለም።",
+    "waiterToConnect": "ስልኩን የሚያገናኙት አስተናጋጅ",
+    "newWaiter": "አዲስ አስተናጋጅ",
+    "showJoinQr": "የመቀላቀያ QR ያሳዩ",
+    "removeNamed": "{name}ን ያስወግዱ",
+    "joinTitle": "ቦታ ይቀላቀሉ",
+    "joinVenue": "{venue}ን ይቀላቀሉ",
+    "joinAgain": "ይህን ስልክ ለ{name} ያዘጋጁ።",
+    "choosePin": "ባለ 4 አሃዝ PIN ይምረጡ",
+    "join": "ቦታውን ይቀላቀሉ",
+    "unlockHeading": "Maasiiን ይክፈቱ",
+    "pin": "PIN",
+    "unlock": "ይክፈቱ",
+    "lock": "ይቆልፉ",
+    "rejoinHeading": "ስልክዎን ያገናኙ",
+    "menu": "ምናሌ"
   }
 }

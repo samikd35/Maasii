@@ -103,4 +103,8 @@ Interface messages live in `messages/en.json` and `messages/am.json`. The next-i
 
 To provision the first platform admin, create a confirmed Supabase Auth user with a password, then call `addPlatformAdmin(systemActor, { userId })` from a server script. At `/sign-in`, sign in and open **Platform admin** to create a Brand and copy its Owner invitation link. Owners create Venues and share Manager invitations from `/manage`. Invitation links are single-use and expire after seven days.
 
+In a Venue's **Waiters** section, show a QR for a new Waiter or select an existing Waiter to connect another phone. Each QR expires after five minutes and works once. Waiters open `/staff` on their enrolled phone and use their four-digit PIN to unlock. The unlock lasts up to eight hours in the current browser session. After five wrong PINs, the Manager needs to show a fresh QR. Removing a Waiter revokes every enrolled phone's Auth session.
+
+Staff language choices follow their account between phones. Amharic is the default.
+
 Set `MAASII_SITE_URL` on the server to the public origin when deploying so the Venue Links, QR images and invitation links use the same address.

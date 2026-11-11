@@ -68,6 +68,7 @@ test("the Owner sees each Venue's Managers and the invitations still waiting", a
 
   expect(await getVenueStaff(s.owner.actor, { venueId: s.venue.id })).toEqual({
     managers: [{ userId: s.managers.Hana.userId, name: "Hana" }],
+    waiters: [],
     invitations: [
       { invitationId: waiting.invitationId, name: "Abebe", contact: "+251911223344", expiresAt: waiting.expiresAt },
     ],

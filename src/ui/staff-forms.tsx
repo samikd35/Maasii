@@ -34,6 +34,11 @@ export function ActionForm({
           {t(state.done.key, state.done.values)}
         </p>
       )}
+      {state?.qr && (
+        // The short-lived QR is rendered once by the server action.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={state.qr} alt={t("waiterJoinQr")} width={240} height={240} className="mt-3 h-auto max-w-full border border-rule bg-white" />
+      )}
       {state?.link && <CopyField key={state.link} label={t("invitationLink")} value={state.link} />}
     </form>
   );

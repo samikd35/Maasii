@@ -1,10 +1,10 @@
 import { randomBytes } from "node:crypto";
-import QRCode from "qrcode";
 import { z } from "zod";
 import { requireBrandOwner, requirePlatformAdmin, requireSystem, requireVenueManager } from "./access";
 import type { Actor } from "./actor";
 import { inTransaction, type Tx } from "./db";
 import { MaasiiError } from "./errors";
+import { qrPng } from "./qr";
 import { parseInput } from "./validation";
 
 export type Brand = { id: string; name: string; logoUrl: string | null };
@@ -139,8 +139,7 @@ export async function getVenueLink(actor: Actor, input: { venueId: string; siteU
   });
   const url = new URL(`/v/${venue.linkToken}`, site).toString();
   // Margin and size suit printing: 4 modules of quiet zone, about 6 cm at 300 dpi.
-  const qrPng = await QRCode.toBuffer(url, { type: "png", errorCorrectionLevel: "M", margin: 4, width: 720 });
-  return { url, qrPng: new Uint8Array(qrPng), qrFileName: `${venue.linkToken}-qr.png` };
+  return { url, qrPng: await qrPng(url), qrFileName: `${venue.linkToken}-qr.png` };
 }
 
 async function findVenue(tx: Tx, venueId: string): Promise<Venue> {

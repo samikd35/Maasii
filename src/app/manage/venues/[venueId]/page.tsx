@@ -7,7 +7,7 @@ import { getVenueLink, getVenueSetup, getVenueStaff, MaasiiError, type Actor, ty
 import { requireStaff, siteUrl } from "@/lib/session";
 import { Field } from "@/ui/field";
 import { ActionForm, CopyField, SubmitButton } from "@/ui/staff-forms";
-import { addTableRange, inviteVenueManager, renumber, setActive } from "../../actions";
+import { addTableRange, inviteVenueManager, removeVenueWaiter, renumber, setActive, showWaiterJoinQr } from "../../actions";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("StaffManage");
@@ -34,6 +34,7 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
   const { venue, brand, tables, isOwner } = setup;
   const t = await getTranslations("StaffManage");
   const common = await getTranslations("Staff");
+  const waiter = await getTranslations("StaffWaiter");
 
   return (
     <>
@@ -42,6 +43,36 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
       </Link>
       <p className="mt-2 text-sm text-ink-muted">{brand.name}</p>
       <h1 className="font-display text-3xl">{venue.name}</h1>
+
+      <section aria-labelledby="waiters" className="mt-8">
+        <SectionHeading id="waiters">{waiter("waiters")}</SectionHeading>
+        {staff.waiters.length === 0 ? (
+          <p className="py-3 text-ink-muted">{waiter("noWaiters")}</p>
+        ) : (
+          <ul>
+            {staff.waiters.map(({ id, name }) => (
+              <li key={id} className="flex flex-wrap items-center justify-between gap-2 border-b border-rule py-2">
+                <span className="min-w-0 break-words">{name}</span>
+                <ActionForm action={removeVenueWaiter.bind(null, venue.id, id)}>
+                  <SubmitButton variant="quiet">{waiter("removeNamed", { name })}</SubmitButton>
+                </ActionForm>
+              </li>
+            ))}
+          </ul>
+        )}
+        <ActionForm action={showWaiterJoinQr.bind(null, venue.id)} className="mt-3 space-y-3">
+          {staff.waiters.length > 0 && (
+            <label className="block text-sm font-medium">
+              {waiter("waiterToConnect")}
+              <select name="waiterId" className="mt-1 block min-h-11 w-full rounded-md border border-ink/30 bg-white px-3 text-base">
+                <option value="">{waiter("newWaiter")}</option>
+                {staff.waiters.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
+              </select>
+            </label>
+          )}
+          <SubmitButton>{waiter("showJoinQr")}</SubmitButton>
+        </ActionForm>
+      </section>
 
       <section aria-labelledby="venue-link" className="mt-8">
         <SectionHeading id="venue-link">{t("venueLink")}</SectionHeading>

@@ -13,7 +13,7 @@ export function LanguageSwitch({ area, action }: { area: Area; action: (formData
     // System fonts here, so the "አማ" label never makes an English page download the Ethiopic web font.
     <LanguageForm
       action={action}
-      cookieName={LANGUAGE_COOKIE[area]}
+      cookieName={area === "guest" ? LANGUAGE_COOKIE.guest : undefined}
       role="group"
       aria-label={t("label")}
       className="flex font-system"

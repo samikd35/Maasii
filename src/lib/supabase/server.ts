@@ -1,5 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 /**
  * Supabase client bound to this request's session cookies, for signing staff in and out and reading
@@ -8,6 +8,7 @@ import { cookies } from "next/headers";
 export async function createSessionClient() {
   const cookieStore = await cookies();
   return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
+    cookieOptions: { httpOnly: true, secure: (await headers()).get("x-forwarded-proto") === "https" },
     cookies: {
       getAll: () => cookieStore.getAll(),
       setAll(cookiesToSet) {

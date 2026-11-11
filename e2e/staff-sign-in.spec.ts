@@ -1,6 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { acceptInvitation, inviteManager, publicActor } from "@/core";
+import jsQR from "jsqr";
+import { PNG } from "pngjs";
+import { acceptInvitation, createWaiterJoinCode, inviteManager, publicActor } from "@/core";
 import { LANCHA_LINK_TOKEN } from "../scripts/seed/bilos";
 import { scenario } from "../tests/support/scenario";
 import { createPlatformAdmin, TEST_PASSWORD, uniqueEmail, uniquePhone } from "../tests/support/users";
@@ -212,3 +214,94 @@ test("every management screen fits a phone, with touch targets of at least 44 by
     }
   }
 });
+
+test("a Manager enrolls a Waiter by QR and removes their access on two phones", async ({ page, browser }) => {
+  const s = await scenario().venue("Lancha").manager("Hana").publishedMenu().build();
+  await signIn(page, s.managers.Hana.email, s.managers.Hana.password);
+  await page.getByRole("link", { name: /Lancha/ }).click();
+  const waiters = page.getByRole("region", { name: "Waiters" });
+  const qr = waiters.getByRole("img", { name: "Waiter join QR" });
+  const showQr = waiters.getByRole("button", { name: "Show join QR" });
+  await showQr.click();
+  await expect(qr).toBeVisible();
+  const firstImage = (await qr.getAttribute("src"))!;
+
+  const firstPhone = await browser.newContext({ ...test.info().project.use });
+  const first = await firstPhone.newPage();
+  const firstUrl = decodeJoinQr(firstImage);
+  await first.goto(firstUrl);
+  await expect(first.locator("html")).toHaveAttribute("lang", "am");
+  await chooseEnglish(first);
+  await first.getByLabel("Name").fill("Sam");
+  await first.getByLabel("Choose a 4-digit PIN").fill("0427");
+  await first.getByRole("button", { name: "Join venue" }).click();
+  await expect(first.getByRole("heading", { level: 1 })).toHaveText("Lancha");
+  for (const name of ["Omelette", "ኦምሌት"]) {
+    await expect(first.getByText(name, { exact: true })).toBeVisible();
+  }
+
+  const storage = await firstPhone.storageState();
+  await firstPhone.close();
+  // Reopen the browser with its persistent cookies, leaving the previous unlock behind.
+  const reopenedPhone = await browser.newContext({
+    ...test.info().project.use,
+    storageState: { ...storage, cookies: storage.cookies.filter(({ expires }) => expires > 0) },
+  });
+  const reopened = await reopenedPhone.newPage();
+  await reopened.goto(new URL("/staff", firstUrl).toString());
+  await expect(reopened.getByRole("heading", { name: "Unlock Maasii" })).toBeVisible();
+  await expect(reopened.getByText("Omelette", { exact: true })).toHaveCount(0);
+  await reopened.getByLabel("PIN", { exact: true }).fill("1111");
+  await reopened.getByRole("button", { name: "Unlock" }).click();
+  await expect(reopened.getByRole("main").getByRole("alert")).toHaveText("That PIN is not right.");
+  await reopened.getByLabel("PIN", { exact: true }).fill("0427");
+  await reopened.getByRole("button", { name: "Unlock" }).click();
+  await expect(reopened.getByRole("heading", { level: 1 })).toHaveText("Lancha");
+
+  const secondPhone = await browser.newContext({ ...test.info().project.use });
+  const second = await secondPhone.newPage();
+  await second.goto(firstUrl);
+  await chooseEnglish(second);
+  await expect(second.getByRole("main").getByRole("alert")).toContainText("already been used");
+  await second.getByRole("button", { name: "አማ", exact: true }).click();
+  await expect(second.locator("html")).toHaveAttribute("lang", "am");
+
+  await page.reload();
+  await waiters.getByLabel("Waiter to connect").selectOption({ label: "Sam" });
+  await showQr.click();
+  await expect(qr).toBeVisible();
+  await second.goto(decodeJoinQr((await qr.getAttribute("src"))!));
+  await expect(second.locator("html")).toHaveAttribute("lang", "am");
+  await second.getByLabel("ባለ 4 አሃዝ PIN ይምረጡ").fill("1111");
+  await second.getByRole("button", { name: "ቦታውን ይቀላቀሉ" }).click();
+  // Sam's English preference follows their account, even though this phone used Amharic.
+  await expect(second.getByRole("heading", { level: 1 })).toHaveText("Lancha");
+  await expect(second.locator("html")).toHaveAttribute("lang", "en");
+
+  await waiters.getByRole("button", { name: "Remove Sam" }).click();
+  await expect(waiters.getByRole("button", { name: "Remove Sam" })).toHaveCount(0);
+  for (const phone of [reopened, second]) {
+    await phone.reload();
+    await expect(phone.getByRole("main").getByRole("alert")).toContainText(/fresh join QR|አዲስ የመቀላቀያ QR/);
+    await expect(phone.getByText("Omelette", { exact: true })).toHaveCount(0);
+  }
+  await reopenedPhone.close();
+  await secondPhone.close();
+});
+
+test("an expired Waiter join QR tells the phone to ask the Manager for a new code", async ({ page, baseURL }) => {
+  const s = await scenario().build();
+  const now = new Date(Date.now() - 6 * 60 * 1000);
+  const { url } = await createWaiterJoinCode(s.owner.actor, { venueId: s.venue.id, siteUrl: baseURL! }, { now });
+  await page.goto(url);
+  await chooseEnglish(page);
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("has expired");
+  await expect(page.getByLabel("Choose a 4-digit PIN")).toHaveCount(0);
+});
+
+function decodeJoinQr(src: string): string {
+  const { data, width, height } = PNG.sync.read(Buffer.from(src.split(",")[1], "base64"));
+  const decoded = jsQR(new Uint8ClampedArray(data), width, height);
+  expect(decoded?.data).toMatch(/\/join\/[\w-]+$/);
+  return decoded!.data;
+}
