@@ -2,6 +2,7 @@ import { isDeepStrictEqual } from "node:util";
 import { z } from "zod";
 import { requireBrandOwner } from "./access";
 import type { Actor } from "./actor";
+import { brandArtworkBucket, prepareBrandArtwork, uploadBrandArtwork } from "./brand-artwork";
 import { deriveBrandTheme } from "./brand-theme";
 import type { Brand } from "./brands";
 import { inTransaction, type Tx } from "./db";
@@ -26,25 +27,30 @@ const bilingualNameInput = bilingualInput.refine((name) => name.am !== "" || nam
 
 const santim = z.int().min(0).max(2_147_483_647);
 
-const choiceInput = z.object({
+const draftChoiceInput = z.object({
   /** Omit for a new choice. Pass a previously published choice's id so guests' Drafts still match it. */
   choiceId: z.uuid().optional(),
-  name: bilingualNameInput,
+  name: bilingualInput,
   priceChangeSantim: santim.default(0),
 });
 
-const optionGroupInput = z
+const draftOptionGroupInput = z
   .object({
     optionGroupId: z.uuid().optional(),
-    name: bilingualNameInput,
+    name: bilingualInput,
     kind: z.enum(["choose_one", "add_extras"]),
     /** Only a "choose one" group can be required. */
     required: z.boolean().default(false),
-    choices: z.array(choiceInput).min(1),
+    choices: z.array(draftChoiceInput),
   })
   .refine((group) => !group.required || group.kind === "choose_one", {
     message: 'Only a "choose one" Option Group can be required.',
   });
+
+const optionGroupInput = draftOptionGroupInput.safeExtend({
+  name: bilingualNameInput,
+  choices: z.array(draftChoiceInput.extend({ name: bilingualNameInput })).min(1),
+});
 
 const draftDishInput = z.object({
   /** Omit for a new dish. Pass the id of a previously published dish to keep its identity. */
@@ -55,12 +61,11 @@ const draftDishInput = z.object({
   fasting: z.boolean().default(false),
   photoUrl: z.string().trim().min(1).optional(),
   houseFavourite: z.boolean().default(false),
-  optionGroups: z.array(optionGroupInput).default([]),
+  optionGroups: z.array(draftOptionGroupInput).default([]),
 });
 
-const dishInput = draftDishInput.extend({ name: bilingualNameInput }).refine((dish) => !dish.houseFavourite || dish.photoUrl !== undefined, {
-  message: "The House favourite needs a photo.",
-});
+const dishInput = draftDishInput.extend({ name: bilingualNameInput, optionGroups: z.array(optionGroupInput).default([]) })
+  .refine((dish) => !dish.houseFavourite || dish.photoUrl !== undefined, { message: "The House favourite needs a photo." });
 
 const sectionInput = z.object({
   sectionId: z.uuid().optional(),
@@ -75,6 +80,7 @@ const menuInput = z.object({ sections: z.array(sectionInput) }).refine(
 
 const draftMenuInput = z.object({
   sections: z.array(sectionInput.extend({ name: bilingualInput, dishes: z.array(draftDishInput) })),
+  archivedDishes: z.array(z.object({ sectionId: z.uuid(), sectionName: bilingualInput, dish: draftDishInput })).optional(),
 });
 
 export type MenuInput = z.input<typeof menuInput>;
@@ -106,8 +112,23 @@ export async function publishMenu(
   { now = new Date() }: { now?: Date } = {},
 ): Promise<PublishedMenuVersion> {
   const menu = parseInput(menuInput, input.menu);
+  const existingDishIds = menu.sections.flatMap((section) => section.dishes)
+    .map((dish) => dish.dishId)
+    .filter((dishId) => dishId !== undefined);
   return inTransaction(actor, async (tx) => {
     await lockBrand(tx, actor, input.brandId);
+    if (existingDishIds.length > 0) {
+      const { rows } = await tx.query(
+        `select 1 from app.brand_menu_drafts d
+         cross join lateral jsonb_array_elements(d.published_archive) as entry
+         where d.brand_id = $1 and (entry->'dish'->>'dishId')::uuid = any($2::uuid[])
+         limit 1`,
+        [input.brandId, existingDishIds],
+      );
+      if (rows.length > 0) {
+        throw new MaasiiError("invalid_input", "Restore archived Dishes in the Menu draft before publishing them.");
+      }
+    }
     return writeMenuVersion(tx, actor, input.brandId, assignIdentities(menu), now, menu);
   });
 }
@@ -118,25 +139,36 @@ async function lockBrand(tx: Tx, actor: Actor, brandId: string) {
   if (locked.rowCount === 0) throw new MaasiiError("not_found", "Brand not found.");
 }
 
-function assignIdentities(menu: z.output<typeof draftMenuInput>) {
+function assignDishIdentities(dish: z.output<typeof draftDishInput>) {
   return {
-    sections: menu.sections.map((section) => ({
-      ...section,
-      sectionId: section.sectionId ?? crypto.randomUUID(),
-      dishes: section.dishes.map((dish) => ({
-        ...dish,
-        dishId: dish.dishId ?? crypto.randomUUID(),
-        optionGroups: dish.optionGroups.map((group) => ({
-          ...group,
-          optionGroupId: group.optionGroupId ?? crypto.randomUUID(),
-          choices: group.choices.map((choice) => ({ ...choice, choiceId: choice.choiceId ?? crypto.randomUUID() })),
-        })),
-      })),
+    ...dish,
+    dishId: dish.dishId ?? crypto.randomUUID(),
+    optionGroups: dish.optionGroups.map((group) => ({
+      ...group,
+      optionGroupId: group.optionGroupId ?? crypto.randomUUID(),
+      choices: group.choices.map((choice) => ({ ...choice, choiceId: choice.choiceId ?? crypto.randomUUID() })),
     })),
   };
 }
 
-export type MenuDraftContent = ReturnType<typeof assignIdentities>;
+function assignIdentities(menu: z.output<typeof draftMenuInput>): MenuDraftContent {
+  return {
+    sections: menu.sections.map((section) => ({
+      ...section,
+      sectionId: section.sectionId ?? crypto.randomUUID(),
+      dishes: section.dishes.map(assignDishIdentities),
+    })),
+    archivedDishes: (menu.archivedDishes ?? []).map((entry) => ({ ...entry, dish: assignDishIdentities(entry.dish) })),
+  };
+}
+
+type DraftDish = ReturnType<typeof assignDishIdentities>;
+export type MenuDraftContent = {
+  sections: { sectionId: string; name: Bilingual; dishes: DraftDish[] }[];
+  archivedDishes: { sectionId: string; sectionName: Bilingual; dish: DraftDish }[];
+};
+
+type DraftMenuInput = z.input<typeof draftMenuInput>;
 
 async function writeMenuVersion(
   tx: Tx,
@@ -301,13 +333,23 @@ async function ensureIdentities(
 
 // ---- Owner's Menu draft ------------------------------------------------------------------------
 
+/** Store validated artwork before the Owner attaches its URL to a draft Dish. */
+export async function uploadDishPhoto(actor: Actor, input: { brandId: string; photo: File }): Promise<string> {
+  const { brandId, photo } = parseInput(z.object({ brandId: z.uuid(), photo: z.file() }), input);
+  await inTransaction(actor, (tx) => requireBrandOwner(tx, actor, brandId));
+  const bytes = await prepareBrandArtwork(photo, 960, 960);
+  // ponytail: immutable URLs preserve old Menu versions. Prune unreferenced uploads if storage grows.
+  return uploadBrandArtwork(brandArtworkBucket(), `${brandId}/dish-${crypto.randomUUID()}.webp`, bytes);
+}
+
 type MenuDraftContext = {
   brand: Brand;
   venueName: string | null;
   versionId: string | null;
   lastPublishedAt: Date | null;
   draftRevision: string | null;
-  draftContent: MenuDraftContent | null;
+  draftContent: (Pick<MenuDraftContent, "sections"> & Partial<Pick<MenuDraftContent, "archivedDishes">>) | null;
+  publishedArchive: MenuDraftContent["archivedDishes"];
 };
 
 export type MenuDraft = {
@@ -326,7 +368,8 @@ async function readDraftContext(tx: Tx, brandId: string): Promise<MenuDraftConte
               'coverUrl', b.cover_url, 'displayFont', b.display_font) as brand,
             (select name from app.venues where brand_id = b.id order by created_at, id limit 1) as "venueName",
             b.published_menu_version_id as "versionId", v.published_at as "lastPublishedAt",
-            d.revision as "draftRevision", d.content as "draftContent"
+            d.revision as "draftRevision", d.content as "draftContent",
+            coalesce(d.published_archive, '[]') as "publishedArchive"
      from app.brands b
      left join app.menu_versions v on v.id = b.published_menu_version_id
      left join app.brand_menu_drafts d on d.brand_id = b.id
@@ -337,8 +380,16 @@ async function readDraftContext(tx: Tx, brandId: string): Promise<MenuDraftConte
   return rows[0];
 }
 
-async function readBrandMenu(tx: Tx, versionId: string | null): Promise<MenuDraftContent> {
-  return { sections: versionId ? await readMenuSections(tx, versionId, null) : [] };
+async function readBrandMenu(tx: Tx, context: MenuDraftContext): Promise<MenuDraftContent> {
+  return {
+    sections: context.versionId ? await readMenuSections(tx, context.versionId, null) : [],
+    archivedDishes: context.publishedArchive,
+  };
+}
+
+function savedDraft(context: MenuDraftContext): MenuDraftContent | null {
+  if (!context.draftContent) return null;
+  return { ...context.draftContent, archivedDishes: context.draftContent.archivedDishes ?? context.publishedArchive };
 }
 
 export async function getMenuDraft(
@@ -349,12 +400,13 @@ export async function getMenuDraft(
   const { brandId } = parseInput(z.object({ brandId: z.uuid() }), input);
   return inTransaction(actor, async (tx) => {
     await requireBrandOwner(tx, actor, brandId);
-    const { brand, venueName, versionId, lastPublishedAt, draftRevision, draftContent } = await readDraftContext(tx, brandId);
+    const context = await readDraftContext(tx, brandId);
+    const { brand, venueName, versionId, lastPublishedAt, draftRevision } = context;
     return {
       brand,
       venueName,
       lastPublishedAt,
-      menu: draftContent ?? await readBrandMenu(tx, versionId),
+      menu: savedDraft(context) ?? await readBrandMenu(tx, context),
       revision: draftRevision ?? versionId,
       hasUnpublishedChanges: draftRevision !== null,
       fastingDay: await isFastingDay(tx, now),
@@ -372,19 +424,21 @@ function checkDraftRevision(context: MenuDraftContext, revision: string | null) 
 
 export async function saveMenuDraft(
   actor: Actor,
-  input: { brandId: string; revision: string | null; menu: MenuInput },
+  input: { brandId: string; revision: string | null; menu: DraftMenuInput },
 ): Promise<string | null> {
   const { brandId, revision, menu } = parseInput(draftEditInput.required({ menu: true }), input);
-  const content = assignIdentities(menu);
   return inTransaction(actor, async (tx) => {
     await lockBrand(tx, actor, brandId);
     const context = await readDraftContext(tx, brandId);
     checkDraftRevision(context, revision);
-    if (isDeepStrictEqual(content, await readBrandMenu(tx, context.versionId))) {
-      await tx.query("delete from app.brand_menu_drafts where brand_id = $1", [brandId]);
+    const existing = savedDraft(context);
+    const content = assignIdentities({ ...menu, archivedDishes: menu.archivedDishes ?? existing?.archivedDishes ?? context.publishedArchive });
+    checkArchive(content);
+    if (isDeepStrictEqual(content, await readBrandMenu(tx, context))) {
+      await tx.query("update app.brand_menu_drafts set revision = null, content = null where brand_id = $1", [brandId]);
       return context.versionId;
     }
-    if (isDeepStrictEqual(content, context.draftContent)) return revision;
+    if (isDeepStrictEqual(content, existing)) return revision;
     const nextRevision = crypto.randomUUID();
     await tx.query(
       `insert into app.brand_menu_drafts (brand_id, revision, content) values ($1, $2, $3)
@@ -395,10 +449,18 @@ export async function saveMenuDraft(
   });
 }
 
+function checkArchive({ sections, archivedDishes }: MenuDraftContent) {
+  const ids = sections.flatMap((section) => section.dishes.map((dish) => dish.dishId));
+  for (const { dish } of archivedDishes) ids.push(dish.dishId);
+  if (new Set(ids).size !== ids.length) {
+    throw new MaasiiError("invalid_input", "The Menu lists the same Dish twice.");
+  }
+}
+
 /** Publishes the saved draft, or publishes the editor's current edits in the same transaction. */
 export async function publishMenuDraft(
   actor: Actor,
-  input: { brandId: string; revision: string | null; menu?: MenuInput },
+  input: { brandId: string; revision: string | null; menu?: DraftMenuInput },
   { now = new Date() }: { now?: Date } = {},
 ): Promise<PublishedMenuVersion> {
   const { brandId, revision, menu } = parseInput(draftEditInput, input);
@@ -406,10 +468,19 @@ export async function publishMenuDraft(
     await lockBrand(tx, actor, brandId);
     const context = await readDraftContext(tx, brandId);
     checkDraftRevision(context, revision);
-    const content = menu ?? context.draftContent ?? await readBrandMenu(tx, context.versionId);
-    const ready = parseInput(menuInput, content, "menuDraftInvalid");
-    const published = await writeMenuVersion(tx, actor, brandId, assignIdentities(ready), now);
-    await tx.query("delete from app.brand_menu_drafts where brand_id = $1", [brandId]);
+    const existing = savedDraft(context);
+    const content = menu ?? existing ?? await readBrandMenu(tx, context);
+    const ready = assignIdentities({
+      ...parseInput(menuInput, content, "menuDraftInvalid"),
+      archivedDishes: content.archivedDishes ?? existing?.archivedDishes ?? context.publishedArchive,
+    });
+    checkArchive(ready);
+    const published = await writeMenuVersion(tx, actor, brandId, ready, now);
+    await tx.query(
+      `insert into app.brand_menu_drafts (brand_id, published_archive) values ($1, $2)
+       on conflict (brand_id) do update set published_archive = excluded.published_archive, revision = null, content = null`,
+      [brandId, JSON.stringify(ready.archivedDishes)],
+    );
     return published;
   });
 }

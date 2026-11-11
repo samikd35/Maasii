@@ -80,6 +80,7 @@ export {
   publishMenu,
   publishMenuDraft,
   saveMenuDraft,
+  uploadDishPhoto,
   type GuestMenu,
   type GuestMenuDish,
   type GuestMenuSection,

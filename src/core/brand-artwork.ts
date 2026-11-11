@@ -7,8 +7,7 @@ const formats = { "image/jpeg": "jpeg", "image/png": "png", "image/webp": "webp"
 export const brandArtworkMimeTypes = Object.keys(formats);
 
 /** Verify the supplied type against the decoded raster, then strip metadata and compress it. */
-export async function prepareBrandArtwork(file: File | undefined, width: number, height: number) {
-  if (!file) return null;
+export async function prepareBrandArtwork(file: File, width: number, height: number) {
   try {
     const format = formats[file.type as keyof typeof formats];
     if (!format || file.size === 0 || file.size > MAX_BRAND_ARTWORK_BYTES) throw new Error("Unsupported file.");
@@ -27,4 +26,10 @@ export function brandArtworkBucket() {
   if (!url || !secret) throw new Error("Supabase Storage credentials are missing.");
   // Uploads go through the core so every public object passes raster validation.
   return createClient(url, secret, { auth: { persistSession: false, autoRefreshToken: false } }).storage.from("brand-artwork");
+}
+
+export async function uploadBrandArtwork(bucket: ReturnType<typeof brandArtworkBucket>, path: string, bytes: Buffer) {
+  const { error } = await bucket.upload(path, bytes, { contentType: "image/webp", cacheControl: "31536000" });
+  if (error) throw error;
+  return bucket.getPublicUrl(path).data.publicUrl;
 }

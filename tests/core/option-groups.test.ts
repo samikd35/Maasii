@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { getPublishedMenu, publicActor, publishMenu, type MenuInput } from "@/core";
+import { getMenuDraft, getPublishedMenu, publicActor, publishMenu, publishMenuDraft, saveMenuDraft, type MenuInput } from "@/core";
 import { scenario } from "../support/scenario";
 
 const bagelMenu: MenuInput = {
@@ -135,4 +135,35 @@ test("Option Groups and their choices keep their ids when the Menu is published 
   expect(bagelAgain.id).toBe(bagel.id);
   expect(bagelAgain.choices.map((c) => c.name)).toEqual(["Sesame", "Rye"]);
   expect(bagelAgain.choices[0].id).toBe(bagel.choices[1].id);
+});
+
+test("an Owner can save unfinished Option Groups and publish the completed choices with their original IDs", async () => {
+  const s = await scenario().publishedMenu(bagelMenu).build();
+  const actor = s.owner.actor;
+  const input = { brandId: s.brand.id };
+  const guestMenu = (language: "en" | "am") => getPublishedMenu(publicActor, { venueLinkToken: s.venue.linkToken, language });
+  const draft = await getMenuDraft(actor, input);
+  const [bagel, extras] = draft.menu.sections[0].dishes[0].optionGroups;
+  const group = {
+    optionGroupId: crypto.randomUUID(), name: { en: "", am: "" },
+    kind: "add_extras" as const, required: false, choices: [],
+  };
+  draft.menu.sections[0].dishes[0].optionGroups = [extras, group, bagel];
+  const revision = await saveMenuDraft(actor, { ...input, revision: draft.revision, menu: draft.menu });
+  await expect(publishMenuDraft(actor, { ...input, revision })).rejects.toMatchObject({ reason: "menuDraftInvalid" });
+  expect((await guestMenu("en"))?.sections[0].dishes[0].optionGroups.map((g) => g.name)).toEqual(["Bagel", "Extras"]);
+
+  const saved = await getMenuDraft(actor, input);
+  const [tuna] = saved.menu.sections[0].dishes;
+  const [savedExtras, newGroup] = tuna.optionGroups;
+  newGroup.name = { en: "Spreads", am: "ቅባቶች" };
+  newGroup.choices.push({ choiceId: crypto.randomUUID(), name: { en: "Butter", am: "ቅቤ" }, priceChangeSantim: 750 });
+  savedExtras.choices[0].name.am = "አይብ";
+  savedExtras.choices[0].priceChangeSantim = 4250;
+
+  await publishMenuDraft(actor, { ...input, revision, menu: saved.menu });
+  const groups = (await guestMenu("am"))!.sections[0].dishes[0].optionGroups;
+  expect(groups.map((g) => g.id)).toEqual([extras.optionGroupId, group.optionGroupId, bagel.optionGroupId]);
+  expect(groups[0].choices[0]).toMatchObject({ id: extras.choices[0].choiceId, name: "አይብ", priceChangeSantim: 4250 });
+  expect(groups[1]).toMatchObject({ name: "ቅባቶች", choices: [{ name: "ቅቤ", priceChangeSantim: 750 }] });
 });

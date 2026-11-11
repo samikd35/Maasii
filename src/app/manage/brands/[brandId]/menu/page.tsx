@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getMessages } from "next-intl/server";
-import { deriveBrandTheme, getMenuDraft, MaasiiError } from "@/core";
+import { brandArtworkMimeTypes, deriveBrandTheme, getMenuDraft, MaasiiError, MAX_BRAND_ARTWORK_BYTES } from "@/core";
 import { messages } from "@/i18n/messages";
 import { requireStaff } from "@/lib/session";
 import { NextIntlClientProvider } from "next-intl";
@@ -26,7 +26,12 @@ export default async function BrandMenuPage({ params }: PageProps<"/manage/brand
 
   return (
     <NextIntlClientProvider messages={{ MenuEditor: editorMessages, StaffErrors }}>
-      <MenuEditor initialDraft={draft} theme={deriveBrandTheme(draft.brand.colour)} guestMessages={guestMessages} />
+      <MenuEditor
+        initialDraft={draft}
+        theme={deriveBrandTheme(draft.brand.colour)}
+        guestMessages={guestMessages}
+        artwork={{ accept: brandArtworkMimeTypes.join(","), maxFileBytes: MAX_BRAND_ARTWORK_BYTES }}
+      />
     </NextIntlClientProvider>
   );
 }
