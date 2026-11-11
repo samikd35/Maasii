@@ -97,7 +97,7 @@ export default async function GuestMenuPage({ params }: PageProps<"/v/[token]">)
         )}
       </main>
       <NextIntlClientProvider messages={{ Ordering: orderingMessages, Price: priceMessages }}>
-        <Ordering venueLinkToken={menu.venue.linkToken} sections={menu.sections} />
+        <Ordering venueLinkToken={menu.venue.linkToken} sections={menu.sections} recordBrowsing />
       </NextIntlClientProvider>
     </div>
   );
