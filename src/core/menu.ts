@@ -376,11 +376,12 @@ export async function getPublishedMenu(
       photo_url: string | null;
       house_favourite: boolean;
     }>(
-      `select dish_id as id, section_id, name_en, name_am, description_en, description_am, price_santim,
-              fasting, photo_url, house_favourite
-       from app.menu_version_dishes
-       where menu_version_id = $1 order by position`,
-      [row.version_id],
+      `select d.dish_id as id, d.section_id, d.name_en, d.name_am, d.description_en, d.description_am,
+              coalesce(settings.price_santim, d.price_santim) as price_santim, d.fasting, d.photo_url, d.house_favourite
+       from app.menu_version_dishes d
+       left join app.venue_dish_settings settings on settings.venue_id = $2 and settings.dish_id = d.dish_id
+       where d.menu_version_id = $1 and settings.sold_out is not true order by d.position`,
+      [row.version_id, row.venue_id],
     );
     const groups = await tx.query<{
       id: string;

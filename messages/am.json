@@ -166,7 +166,23 @@
     "after": "ከለውጡ በኋላ",
     "system": "ሲስተም"
   },
+  "VenueMenu": {
+    "title": "የቦታው ምናሌ",
+    "empty": "ገና የታተመ ምግብ የለም።",
+    "brandPrice": "የብራንዱ ዋጋ {amount} {currency}",
+    "currentPrice": "ዋጋ {amount} {currency}",
+    "venuePrice": "የቦታው ዋጋ ({currency})",
+    "priceHelp": "የብራንዱን ዋጋ ለመጠቀም የቦታውን ዋጋ ባዶ ይተዉ።",
+    "savePrice": "ዋጋውን ያስቀምጡ",
+    "soldOutSwitch": "{name} አልቋል",
+    "soldOut": "አልቋል",
+    "available": "ይገኛል"
+  },
   "StaffForms": {
+    "venueDishSoldOut": "ምግቡ ማለቁ ተመዝግቧል።",
+    "venueDishAvailable": "ምግቡ እንደገና ይገኛል።",
+    "venuePriceSaved": "የቦታው ዋጋ ተቀምጧል።",
+    "brandPriceRestored": "የብራንዱ ዋጋ ተመልሷል።",
     "paymentOptionSaved": "የክፍያ አማራጩ ተቀምጧል።",
     "invitationLink": "የግብዣ ሊንክ",
     "copyLink": "ሊንኩን ይቅዱ",
