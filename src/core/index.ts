@@ -7,11 +7,25 @@ export { MaasiiError, type MaasiiErrorCode } from "./errors";
 export { addTables, createBrand, createVenue, type Brand, type Table, type Venue } from "./brands";
 export { addBrandOwner } from "./staff";
 export {
+  MAX_NOTE_LENGTH,
+  MAX_QUANTITY,
+  priceDraft,
+  priceDraftLine,
+  type DraftLine,
+  type DraftLineProblem,
+  type DraftMenu,
+  type PricedDraft,
+  type PricedDraftLine,
+} from "./draft";
+export {
   getPublishedMenu,
   publishMenu,
   type GuestMenu,
   type GuestMenuDish,
   type GuestMenuSection,
+  type GuestOptionChoice,
+  type GuestOptionGroup,
   type MenuInput,
+  type OptionGroupInput,
   type PublishedMenuVersion,
 } from "./menu";

@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { cache } from "react";
 import { getPublishedMenu, publicActor, type GuestMenuSection } from "@/core";
 import { Price } from "@/ui/price";
+import { OpenDishButton, Ordering } from "./ordering";
 
 const loadMenu = cache(async (venueLinkToken: string) => {
   await connection();
@@ -21,7 +22,7 @@ export default async function GuestMenuPage({ params }: PageProps<"/v/[token]">)
   if (!menu) notFound();
 
   return (
-    <div className="mx-auto max-w-xl pb-16">
+    <div className="mx-auto max-w-xl pb-28">
       <header className="flex min-h-16 items-center justify-between gap-3 px-5 pt-3">
         {menu.brand.logoUrl ? (
           // A plain <img>: next/image would add client JavaScript to a page with a tight weight budget.
@@ -51,6 +52,7 @@ export default async function GuestMenuPage({ params }: PageProps<"/v/[token]">)
           </>
         )}
       </main>
+      <Ordering venueLinkToken={menu.venue.linkToken} sections={menu.sections} />
     </div>
   );
 }
@@ -91,14 +93,23 @@ function MenuSection({ section }: { section: GuestMenuSection }) {
       </div>
       <ul>
         {section.dishes.map((dish) => (
-          <li key={dish.id} className="flex items-start justify-between gap-4 border-b border-rule py-3.5">
+          <li key={dish.id} className="relative flex items-start justify-between gap-4 border-b border-rule py-3.5">
             <div className="min-w-0">
-              <h3 className="text-[1.0625rem] leading-snug font-semibold">{dish.name}</h3>
+              <h3 id={`dish-${dish.id}-name`} className="text-[1.0625rem] leading-snug font-semibold">
+                {dish.name}
+              </h3>
               {dish.description && (
-                <p className="mt-0.5 text-sm leading-snug text-ink-muted">{dish.description}</p>
+                <p id={`dish-${dish.id}-description`} className="mt-0.5 text-sm leading-snug text-ink-muted">
+                  {dish.description}
+                </p>
               )}
             </div>
             <Price santim={dish.priceSantim} />
+            <OpenDishButton
+              dishId={dish.id}
+              labelledBy={`dish-${dish.id}-name`}
+              describedBy={dish.description ? `dish-${dish.id}-description` : undefined}
+            />
           </li>
         ))}
       </ul>
