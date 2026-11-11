@@ -240,14 +240,14 @@ test("the Owner reviews imported dishes and suggested text before publishing", a
   const edit = page.getByRole("region", { name: "Edit" });
   await edit.getByLabel("Paper Menu photos").setInputFiles({ name: "invalid.webp", mimeType: "image/webp", buffer: Buffer.from("invalid") });
   await edit.getByRole("button", { name: "Import photos" }).click();
-  await expect(page.getByRole("alert")).toHaveText("Choose a JPEG, PNG or WebP image up to 4 MB.");
+  await expect(page.locator("#brand-menu-editor").getByRole("alert")).toHaveText("Choose a JPEG, PNG or WebP image up to 4 MB.");
 
   await edit.getByRole("button", { name: "Keep section" }).click();
   const bread = edit.locator("details").filter({ hasText: "Honey bread" });
   await bread.locator("summary").click();
   await expect(bread.getByText("Suggested", { exact: true })).toHaveCount(2);
   await bread.getByRole("button", { name: "Accept suggestion for Dish name in Amharic" }).click();
-  await bread.getByLabel("Description in Amharic").fill("ጣፋጭ የማር ዳቦ");
+  await bread.getByRole("textbox", { name: "Description in Amharic", exact: true }).fill("ጣፋጭ የማር ዳቦ");
   await expect(bread.getByText("Suggested", { exact: true })).toHaveCount(0);
   await bread.getByRole("button", { name: "Keep dish" }).click();
   const toast = edit.locator("details").filter({ hasText: "Toast" });

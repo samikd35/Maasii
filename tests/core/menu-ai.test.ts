@@ -100,6 +100,15 @@ test("translation fills only missing languages in the draft and flags each field
     .rejects.toMatchObject({ reason: "menuAiReview" });
   const guestMenu = await getPublishedMenu(publicActor, { venueLinkToken: s.venue.linkToken, language: "en" });
   expect(guestMenu?.sections[0].dishes[0].description).toBe("በማር የተዘጋጀ");
+
+  const [reverted] = translated.menu.sections;
+  reverted.suggestedName = undefined;
+  reverted.name.am = "";
+  reverted.dishes[0].suggestedDescription = undefined;
+  reverted.dishes[0].description.en = "";
+  await expect(saveMenuDraft(actor, { ...input, revision: translated.revision, menu: translated.menu }))
+    .resolves.toBe(original.revision);
+  await expect(getMenuDraft(actor, input)).resolves.toMatchObject({ hasUnpublishedChanges: false });
 });
 
 test("the model receives no requests from a non-Owner or for an invalid image", async () => {

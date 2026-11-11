@@ -151,9 +151,12 @@ async function lockBrand(tx: Tx, actor: Actor, brandId: string) {
   if (locked.rowCount === 0) throw new MaasiiError("not_found", "Brand not found.");
 }
 
-function assignDishIdentities(dish: z.output<typeof draftDishInput>) {
+function assignDishIdentities({ imported, suggestedName, suggestedDescription, ...dish }: z.output<typeof draftDishInput>) {
   return {
     ...dish,
+    ...(imported && { imported }),
+    ...(suggestedName && { suggestedName }),
+    ...(suggestedDescription && { suggestedDescription }),
     dishId: dish.dishId ?? crypto.randomUUID(),
     optionGroups: dish.optionGroups.map((group) => ({
       ...group,
@@ -165,8 +168,10 @@ function assignDishIdentities(dish: z.output<typeof draftDishInput>) {
 
 function assignIdentities(menu: z.output<typeof draftMenuInput>): MenuDraftContent {
   return {
-    sections: menu.sections.map((section) => ({
+    sections: menu.sections.map(({ imported, suggestedName, ...section }) => ({
       ...section,
+      ...(imported && { imported }),
+      ...(suggestedName && { suggestedName }),
       sectionId: section.sectionId ?? crypto.randomUUID(),
       dishes: section.dishes.map(assignDishIdentities),
     })),

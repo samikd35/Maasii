@@ -448,8 +448,8 @@ function DishFields({ dish, open, index, count, acceptArtwork, onChange, onMove,
     <details open={open} className="min-w-0">
       <summary className="min-h-11 cursor-pointer py-3 font-medium">
         {dish.name[locale].trim() || named(dish.name) || t("untitledDish")}
-        {dish.imported && <span className="ml-2 text-xs text-amber-900">{t("imported")}</span>}
-        {missingTranslation(dish) && <span className="ml-2 text-xs text-amber-900">{t("missingTranslation")}</span>}
+        {dish.imported && <span className="ml-2 text-xs text-amber-900">{" "}{t("imported")}</span>}
+        {missingTranslation(dish) && <span className="ml-2 text-xs text-amber-900">{" "}{t("missingTranslation")}</span>}
       </summary>
       <div className="grid grid-cols-2 gap-3">
         {dishLanguages.map((language) => (
