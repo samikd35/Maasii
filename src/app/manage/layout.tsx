@@ -13,7 +13,7 @@ export default async function ManageLayout({ children }: LayoutProps<"/manage">)
     <>
       <StaffHeader home="/manage" label={t("manage")} />
       <StaffFormMessages>
-        <main className="mx-auto max-w-2xl px-5 pt-6 pb-16 has-[#brand-menu-editor]:max-w-7xl">{children}</main>
+        <main className="mx-auto max-w-2xl px-5 pt-6 pb-16 has-[#brand-menu-editor]:max-w-7xl has-[[data-live-floor]]:max-w-7xl">{children}</main>
       </StaffFormMessages>
     </>
   );

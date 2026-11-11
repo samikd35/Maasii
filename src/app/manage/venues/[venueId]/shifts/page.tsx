@@ -93,7 +93,7 @@ function RunningShift({ setup, shift }: { setup: ShiftSetup; shift: Shift }) {
       {setup.waiters.length > 0 && setup.tables.length > 0 && (
         <ul className="mb-4">
           {setup.tables.map((table) => (
-            <li key={table.id} className="border-b border-rule py-3">
+            <li key={table.id} id={`assignment-${table.id}`} className="border-b border-rule py-3">
               <ActionForm
                 action={saveAssignment.bind(null, { venueId: setup.venue.id, shiftId: shift.id, tableId: table.id })}
                 className="flex flex-wrap items-end gap-2"

@@ -114,6 +114,8 @@ export { acceptOrder, declineOrder, escalateOrders, getGuestOrders, getGuestPend
 export { consumeOrderNotificationWake, removeWaiterPushSubscription, sendOrderNotifications, setWaiterPushSubscription, type OrderNotification } from "./order-notifications";
 export { adjustVisitBill, closeVisitUnpaid, confirmPayment, flagUnconfirmedBills, getClosingReport, getPreparedBills, prepareBill, reopenBill, type Bill, type PreparedBill, type PaymentConfirmation } from "./bills";
 export { getGuestReviewForm, getWaiterRatings, submitGuestReview, type GuestReviewForm } from "./reviews";
+
+export { getLiveFloor } from "./floor";
 export { getVenueInsights, updateVenueService, type ServicePeriod } from "./insights";
 
 export { getOwnerVenuesInService, getWeeklyFinding, selectWeeklyFinding, weeklyThresholds } from "./weekly-finding";
