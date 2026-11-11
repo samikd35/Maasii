@@ -217,20 +217,22 @@ export function MenuEditor({
           </section>
         </div>
         <div id="menu-preview-panel" role="tabpanel" aria-labelledby="menu-preview-tab" className={tab === "preview" ? "min-w-0" : "hidden min-w-0 lg:block"}>
-          <section aria-label={t("previewLabel")} className="overflow-hidden rounded-xl border border-rule bg-paper lg:sticky lg:top-0">
+          <section aria-label={t("previewLabel")} className="overflow-clip rounded-xl border border-rule bg-paper lg:sticky lg:top-0 lg:max-h-dvh lg:overflow-y-auto">
             <p className="border-b border-rule bg-paper-deep px-5 py-2 text-sm font-semibold">{t("draft")}</p>
             <NextIntlClientProvider locale={previewLanguage} messages={guestMessages[previewLanguage]}>
-              <GuestMenuView
-                brand={saved.brand}
-                venueName={saved.venueName}
-                theme={theme}
-                sections={previewSections}
-                fastingDishes={saved.fastingDay ? previewDishes.filter((dish) => dish.fasting) : []}
-                houseFavourite={previewDishes.find((dish) => dish.id === favouriteId) ?? null}
-                languageSwitch={<PreviewLanguages selectLanguage={setPreviewLanguage} />}
-                ordering={<Ordering venueLinkToken="" sections={previewSections} recordBrowsing={false} preview />}
-                preview
-              />
+              <div lang={previewLanguage}>
+                <GuestMenuView
+                  brand={saved.brand}
+                  venueName={saved.venueName}
+                  theme={theme}
+                  sections={previewSections}
+                  fastingDishes={saved.fastingDay ? previewDishes.filter((dish) => dish.fasting) : []}
+                  houseFavourite={previewDishes.find((dish) => dish.id === favouriteId) ?? null}
+                  languageSwitch={<PreviewLanguages selectLanguage={setPreviewLanguage} />}
+                  ordering={<Ordering venueLinkToken="" sections={previewSections} recordBrowsing={false} preview />}
+                  preview
+                />
+              </div>
             </NextIntlClientProvider>
           </section>
         </div>
