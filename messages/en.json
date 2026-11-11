@@ -439,6 +439,28 @@
     "notificationUnsupported": "On iPhone, open Maasii from your Home Screen to enable notifications.",
     "notificationError": "Could not enable notifications. Try again."
   },
+  "Floor": {
+    "title": "Live floor",
+    "back": "Venue",
+    "exceptions": "Exceptions",
+    "none": "No exceptions.",
+    "sent": "Order waiting for acceptance",
+    "prepared": "Prepared Bill unconfirmed",
+    "unassigned": "No Waiter",
+    "difference": "Receipt Difference",
+    "sentAction": "View Table",
+    "preparedAction": "Open Bill",
+    "unassignedAction": "Assign Waiter",
+    "differenceAction": "View Receipt Difference",
+    "age": "{minutes, plural, one {# minute} other {# minutes}}",
+    "openTables": "Open Tables",
+    "noneOpen": "No open Tables.",
+    "sentStatus": "Order waiting",
+    "preparedStatus": "Bill prepared",
+    "inServiceStatus": "In service",
+    "noPending": "No Orders waiting",
+    "oldest": "Oldest unaccepted Order {minutes, plural, one {# minute} other {# minutes}}"
+  },
   "Closing": {
     "closedHistory": "Adjustments on closed Visits",
     "back": "Venue",

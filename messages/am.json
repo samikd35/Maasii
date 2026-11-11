@@ -439,6 +439,28 @@
     "notificationUnsupported": "በiPhone ላይ ማሳወቂያዎችን ለማብራት Maasiiን ከመነሻ ገጽዎ ይክፈቱ።",
     "notificationError": "ማሳወቂያዎችን ማብራት አልተቻለም። እንደገና ይሞክሩ።"
   },
+  "Floor": {
+    "title": "የጠረጴዛዎች ወቅታዊ ሁኔታ",
+    "back": "ቅርንጫፍ",
+    "exceptions": "ትኩረት የሚፈልጉ",
+    "none": "ትኩረት የሚፈልግ የለም።",
+    "sent": "ያልተቀበሉት ትዕዛዝ",
+    "prepared": "ያልተረጋገጠ የተዘጋጀ ሂሳብ",
+    "unassigned": "አስተናጋጅ የለም",
+    "difference": "የደረሰኝ ልዩነት",
+    "sentAction": "ጠረጴዛ ይመልከቱ",
+    "preparedAction": "ሂሳብ ይክፈቱ",
+    "unassignedAction": "አስተናጋጅ ይመድቡ",
+    "differenceAction": "የደረሰኝ ልዩነት ይመልከቱ",
+    "age": "{minutes} ደቂቃ",
+    "openTables": "ክፍት ጠረጴዛዎች",
+    "noneOpen": "ክፍት ጠረጴዛ የለም።",
+    "sentStatus": "ትዕዛዝ በመጠባበቅ ላይ",
+    "preparedStatus": "ሂሳብ ተዘጋጅቷል",
+    "inServiceStatus": "በአገልግሎት ላይ",
+    "noPending": "የሚጠብቅ ትዕዛዝ የለም",
+    "oldest": "ረጅም ጊዜ የጠበቀ ትዕዛዝ {minutes} ደቂቃ"
+  },
   "Closing": {
     "closedHistory": "በተዘጉ ጉብኝቶች ላይ የተደረጉ ለውጦች",
     "back": "ቅርንጫፍ",
