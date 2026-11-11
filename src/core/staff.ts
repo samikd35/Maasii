@@ -123,6 +123,43 @@ export async function getVenueStaff(
   });
 }
 
+export type BrandOwners = {
+  brand: { id: string; name: string };
+  owners: { userId: string; name: string | null }[];
+  /** Owner invitations not yet accepted, replaced or expired. */
+  invitations: VenueStaff["invitations"];
+};
+
+/** A Brand's Owners and waiting Owner invitations, for the platform admin. */
+export async function getBrandOwners(
+  actor: Actor,
+  input: { brandId: string },
+  { now = new Date() }: { now?: Date } = {},
+): Promise<BrandOwners> {
+  return inTransaction(actor, async (tx) => {
+    await requirePlatformAdmin(tx, actor);
+    const brand = z.uuid().safeParse(input.brandId).success
+      ? await tx.query<{ id: string; name: string }>("select id, name from app.brands where id = $1", [input.brandId])
+      : { rows: [] };
+    if (!brand.rows[0]) throw new MaasiiError("not_found", "Brand not found.");
+    const owners = await tx.query<{ userId: string; name: string | null }>(
+      `select user_id as "userId", name from app.memberships
+       where brand_id = $1 and role = 'owner' and active
+       order by name, created_at`,
+      [input.brandId],
+    );
+    const invitations = await tx.query<BrandOwners["invitations"][number]>(
+      `select id as "invitationId", name, coalesce(email, phone) as contact, expires_at as "expiresAt"
+       from app.invitations
+       where brand_id = $1 and role = 'owner'
+         and accepted_at is null and revoked_at is null and expires_at > $2
+       order by invited_at`,
+      [input.brandId, now],
+    );
+    return { brand: brand.rows[0], owners: owners.rows, invitations: invitations.rows };
+  });
+}
+
 async function findVenueBrand(tx: Tx, venueId: string): Promise<{ brandId: string }> {
   const { rows } = z.uuid().safeParse(venueId).success
     ? await tx.query<{ brandId: string }>(`select brand_id as "brandId" from app.venues where id = $1`, [venueId])
@@ -165,7 +202,7 @@ async function createInvitation(
       email,
       phone,
       hashToken(token),
-      actor.kind === "system" ? null : actor.userId,
+      "userId" in actor ? actor.userId : null,
       invitation.now,
       expiresAt,
     ],
