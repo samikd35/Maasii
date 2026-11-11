@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { publishMenu } from "@/core";
 import { LANCHA_LINK_TOKEN } from "../scripts/seed/bilos";
+import { SABA_LINK_TOKEN } from "../scripts/seed/saba";
 import { scenario } from "../tests/support/scenario";
 
 const bilosMenuLink = `/v/${LANCHA_LINK_TOKEN}`;
@@ -17,6 +18,36 @@ test("a guest opening Bilo's Venue Link sees the logo, section chips and dish ro
   await expect(omelette.getByRole("heading", { name: "Omelette" })).toBeVisible();
   await expect(omelette).toContainText("Start with our classic omelette and add your choice of extras");
   await expect(omelette.getByTestId("price")).toHaveText("240 ETB");
+});
+
+test("each seeded Brand shows its own artwork, display font and readable colours", async ({ page }) => {
+  await page.goto(bilosMenuLink);
+
+  const heading = page.getByRole("heading", { level: 1 });
+  const brand = page.getByRole("banner");
+  const language = brand.getByRole("button", { name: "EN", exact: true });
+  const cover = page.locator("main img");
+  await expect(cover).toHaveAttribute("src", "/brands/bilos/almond-cake.webp");
+  await expect.poll(() => cover.evaluate((photo) => (photo as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  await expect(brand).toHaveCSS("border-top-color", "rgb(236, 103, 40)");
+  const bilosColour = await heading.evaluate((el) => getComputedStyle(el).color);
+  const bilosFont = await heading.evaluate((el) => getComputedStyle(el).fontFamily);
+  expect(bilosColour).not.toBe("rgb(236, 103, 40)");
+  await expect(language).toHaveCSS("background-color", bilosColour);
+
+  await page.getByRole("button", { name: "Omelette" }).click();
+  await expect(page.getByRole("button", { name: "Add to order" })).toHaveCSS("background-color", bilosColour);
+  await page.getByRole("button", { name: "Add to order" }).click();
+  await expect(page.getByRole("button", { name: /Your Draft/ })).toHaveCSS("background-color", bilosColour);
+
+  await page.goto(`/v/${SABA_LINK_TOKEN}`);
+  await expect(brand.getByText("Saba House")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Buna" })).toBeVisible();
+  await expect(brand).toHaveCSS("border-top-color", "rgb(86, 143, 105)");
+  const sabaColour = await heading.evaluate((el) => getComputedStyle(el).color);
+  expect(sabaColour).not.toBe(bilosColour);
+  await expect(language).toHaveCSS("background-color", sabaColour);
+  expect(await heading.evaluate((el) => getComputedStyle(el).fontFamily)).not.toBe(bilosFont);
 });
 
 test("dish prices line up in one right-aligned column", async ({ page }) => {
