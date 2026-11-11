@@ -151,8 +151,10 @@ export default function OrderService({
   const latest = orders.at(-1);
   const visit = feed?.visit?.id === latest?.visitId ? feed?.visit : null;
   const billIsPrepared = Boolean(visit?.bill && !visit.closedAt) || error === "billPrepared";
-  const status = (order: LiveOrder) => order.state === "accepted"
-    ? t("accepted", { name: order.acceptedByName ?? "" }) : t("sent");
+  const status = (order: LiveOrder) => {
+    if (order.partyPending) return t("waitingForWaiter");
+    return order.state === "accepted" ? t("accepted", { name: order.acceptedByName ?? "" }) : t("sent");
+  };
   const isAvailable = feed?.available ?? false;
 
   return render({

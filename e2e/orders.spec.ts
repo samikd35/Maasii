@@ -213,3 +213,35 @@ test("a guest can browse while service is off and still sees Accept when Realtim
     await staff.context.close();
   }
 });
+
+test("a new phone can Send at a prepared Table while the Waiter confirms the previous party paid", async ({ page, browser, baseURL }) => {
+  const { waiter, context, url } = await service(browser, baseURL!, test.info().project.use);
+  const nextContext = await browser.newContext({ ...test.info().project.use, baseURL });
+  try {
+    const queue = waiter.getByRole("region", { name: "My tables" });
+    await pickDishAndSend(page, url);
+    await page.getByRole("button", { name: "Table 1", exact: true }).click();
+    await queue.getByRole("button", { name: "Accept", exact: true }).click();
+    await queue.getByRole("button", { name: "Prepare bill" }).click();
+    const original = page.getByRole("dialog");
+    await expect(original.getByText("Not a tax receipt")).toBeVisible();
+
+    const next = await nextContext.newPage();
+    await pickDishAndSend(next, url);
+    await next.getByRole("button", { name: "Table 1", exact: true }).click();
+    const nextSheet = next.getByRole("dialog");
+    await expect(nextSheet.getByText("Order sent. Your waiter will check the Table.")).toBeVisible();
+    await expect(nextSheet.getByText("Not a tax receipt")).toHaveCount(0);
+    await expect(queue.getByText("New party at Table 1?")).toBeVisible();
+    await queue.getByRole("button", { name: "Previous party paid" }).click();
+    await expect(queue.getByLabel("Official Receipt amount (ETB)")).toHaveValue("");
+    await queue.getByLabel("Method").selectOption({ label: "Cash" });
+    await queue.getByLabel("Official Receipt amount (ETB)").fill("220");
+    await queue.getByRole("button", { name: "Record Payment Confirmation" }).click();
+    await expect(original.getByText("Bill paid", { exact: true })).toBeVisible();
+    await expect(nextSheet.getByText("Sent", { exact: true })).toBeVisible();
+    await expect(nextSheet.getByText("Not a tax receipt")).toHaveCount(0);
+  } finally {
+    await Promise.all([context.close(), nextContext.close()]);
+  }
+});

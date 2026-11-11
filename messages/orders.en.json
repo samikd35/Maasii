@@ -1,4 +1,5 @@
 {
+  "waitingForWaiter": "Order sent. Your waiter will check the Table.",
   "send": "Send",
   "choose": "Which table are you at?",
   "table": "Table {number}",

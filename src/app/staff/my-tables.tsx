@@ -83,6 +83,7 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
   const visibleOrders = tableId ? orders.filter((order) => order.tableId === tableId) : orders;
   const bills = new Map(feed?.bills.map((bill) => [bill.visitId, bill]));
   const billVisitIds = new Set(feed?.billVisitIds);
+  const partyVisitIds = new Set(visibleOrders.filter(({ partyPending }) => partyPending).map(({ visitId }) => visitId));
   const firstAccepted = new Map(visibleOrders.filter(({ state, visitId }) => state === "accepted" && billVisitIds.has(visitId)).reverse()
     .map((order) => [order.visitId, order.id]));
 
@@ -114,7 +115,9 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
                 )}
               </div>
               {order.state === "sent" && (
-                <p role="status" className="text-sm font-semibold">{t(order.escalatedAt ? "escalatedOrder" : "newOrder")}</p>
+                <p role="status" className="text-sm font-semibold">
+                  {order.partyPending ? t("newParty", { number: order.tableNumber }) : t(order.escalatedAt ? "escalatedOrder" : "newOrder")}
+                </p>
               )}
               <ul className="space-y-2">
                 {order.lines.map((line, index) => (
@@ -134,7 +137,7 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
                 ))}
               </ul>
               {order.state === "sent" ? (
-                <button type="button" disabled={!!accepting || !!bill} onClick={() => void accept(order.id)}
+                <button type="button" disabled={!!accepting || !!bill || order.partyPending} onClick={() => void accept(order.id)}
                   className="min-h-11 rounded-lg bg-ink px-5 text-sm font-semibold text-paper disabled:opacity-50">
                   {t(accepting === order.id ? "accepting" : "accept")}
                 </button>
@@ -146,6 +149,7 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
                   key={bill?.preparedAt ?? order.visitId}
                   target={{ venueId: feed.venueId, visitId: order.visitId }}
                   bill={bill}
+                  partyPending={partyVisitIds.has(order.visitId)}
                   methods={feed.paymentOptions}
                   refresh={() => refresh.current()}
                 />

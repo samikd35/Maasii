@@ -1,6 +1,6 @@
 import { createECDH, randomBytes, randomUUID } from "node:crypto";
 import { expect, test } from "vitest";
-import { acceptOrder, escalateOrders, getMyTableOrders, getWaiterSession, guestActor, prepareBill, reopenBill, removeWaiter, removeWaiterPushSubscription, sendOrder, sendOrderNotifications, setWaiterPushSubscription, startShift, systemActor, type OrderNotification } from "@/core";
+import { acceptOrder, escalateOrders, flagUnconfirmedBills, getMyTableOrders, getWaiterSession, guestActor, prepareBill, reopenBill, removeWaiter, removeWaiterPushSubscription, sendOrder, sendOrderNotifications, setWaiterPushSubscription, startShift, systemActor, type OrderNotification } from "@/core";
 import { createPublicAuthClient } from "@/lib/supabase/public";
 import { scenario } from "../support/scenario";
 
@@ -139,4 +139,31 @@ test("a provider can retire an expired device subscription", async () => {
   await send(one.id);
   await sendOrderNotifications(systemActor, async () => "expired", { now: at, venueId: s.venue.id });
   await expect(getWaiterSession(sam.actor, { unlockToken })).resolves.toMatchObject({ hasPush: false });
+});
+
+test("a forgotten Bill sends one reminder to its Waiter after twenty minutes", async () => {
+  const { s, one, sam, hana, at, send } = await service();
+  const samPush = pushSubscription("sam");
+  await setWaiterPushSubscription(sam.actor, { subscription: samPush, unlockToken: sam.unlockToken }, { now: at });
+  await setWaiterPushSubscription(hana.actor, { subscription: pushSubscription("hana"), unlockToken: hana.unlockToken }, { now: at });
+  const order = await send(one.id);
+  await acceptOrder(sam.actor, { orderId: order.id, unlockToken: sam.unlockToken }, { now: at });
+  const target = { venueId: s.venue.id, visitId: order.visitId, unlockToken: sam.unlockToken };
+  await prepareBill(sam.actor, target, { now: at });
+  const due = new Date(at.getTime() + 20 * 60_000);
+  await Promise.all([
+    flagUnconfirmedBills(systemActor, { venueId: s.venue.id, now: due }),
+    flagUnconfirmedBills(systemActor, { venueId: s.venue.id, now: due }),
+  ]);
+
+  const deliveries: OrderNotification[] = [];
+  const deliver = async (notification: OrderNotification) => {
+    deliveries.push(notification);
+    return "sent" as const;
+  };
+  await sendOrderNotifications(systemActor, deliver, { venueId: s.venue.id, now: due });
+  expect(deliveries).toMatchObject([{ orderId: order.id, reason: "bill-reminder", subscription: samPush }]);
+  await reopenBill(sam.actor, target, { now: due });
+  await sendOrderNotifications(systemActor, deliver, { venueId: s.venue.id, now: due });
+  expect(deliveries).toHaveLength(1);
 });

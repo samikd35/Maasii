@@ -380,6 +380,8 @@
     "menu": "ምናሌ"
   },
   "StaffOrders": {
+    "newParty": "በጠረጴዛ {number} አዲስ እንግዶች ናቸው?",
+    "billReminder": "ተከፍሏል?",
     "heading": "ጠረጴዛዎቼ",
     "empty": "በጠረጴዛዎችዎ ላይ ትዕዛዝ የለም።",
     "table": "ጠረጴዛ {number}",
@@ -399,6 +401,9 @@
     "notificationError": "ማሳወቂያዎችን ማብራት አልተቻለም። እንደገና ይሞክሩ።"
   },
   "Bills": {
+    "paidQuestion": "ተከፍሏል?",
+    "previousPartyPaid": "የቀድሞዎቹ እንግዶች ከፍለዋል",
+    "sameParty": "ያው ቡድን ነው",
     "heading": "የተዘጋጁ ሂሳቦች",
     "table": "ጠረጴዛ {number}",
     "prepare": "ሂሳቡን ያዘጋጁ",
