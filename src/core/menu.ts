@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import { z } from "zod";
 import { requireBrandOwner } from "./access";
 import type { Actor } from "./actor";
@@ -5,15 +6,31 @@ import { deriveBrandTheme } from "./brand-theme";
 import type { Brand } from "./brands";
 import { inTransaction, type Tx } from "./db";
 import { MaasiiError } from "./errors";
-import { bilingualInput, bilingualNameInput, inLanguage, languages, type Bilingual, type Language } from "./language";
+import { localizeMenuSections } from "./menu-display";
+import { parseInput } from "./validation";
+import { languages, type Bilingual, type Language } from "./language";
 
 // ---- Publishing --------------------------------------------------------------------------------
+
+const text = z.string().trim().default("");
+
+// Accept plain English text from existing Menu callers.
+const bilingualInput = z.union([
+  z.object({ am: text, en: text }),
+  z.string().trim().transform((en) => ({ en, am: "" })),
+]);
+
+const bilingualNameInput = bilingualInput.refine((name) => name.am !== "" || name.en !== "", {
+  message: "Give a name in Amharic or English.",
+});
+
+const santim = z.int().min(0).max(2_147_483_647);
 
 const choiceInput = z.object({
   /** Omit for a new choice. Pass a previously published choice's id so guests' Drafts still match it. */
   choiceId: z.uuid().optional(),
   name: bilingualNameInput,
-  priceChangeSantim: z.number().int().nonnegative().default(0),
+  priceChangeSantim: santim.default(0),
 });
 
 const optionGroupInput = z
@@ -29,17 +46,19 @@ const optionGroupInput = z
     message: 'Only a "choose one" Option Group can be required.',
   });
 
-const dishInput = z.object({
+const draftDishInput = z.object({
   /** Omit for a new dish. Pass the id of a previously published dish to keep its identity. */
   dishId: z.uuid().optional(),
-  name: bilingualNameInput,
+  name: bilingualInput,
   description: bilingualInput.default({ am: "", en: "" }),
-  priceSantim: z.number().int().nonnegative(),
+  priceSantim: santim,
   fasting: z.boolean().default(false),
   photoUrl: z.string().trim().min(1).optional(),
   houseFavourite: z.boolean().default(false),
   optionGroups: z.array(optionGroupInput).default([]),
-}).refine((dish) => !dish.houseFavourite || dish.photoUrl !== undefined, {
+});
+
+const dishInput = draftDishInput.extend({ name: bilingualNameInput }).refine((dish) => !dish.houseFavourite || dish.photoUrl !== undefined, {
   message: "The House favourite needs a photo.",
 });
 
@@ -53,6 +72,10 @@ const menuInput = z.object({ sections: z.array(sectionInput) }).refine(
   (menu) => menu.sections.flatMap((section) => section.dishes).filter((dish) => dish.houseFavourite).length <= 1,
   { message: "The Menu can have only one House favourite." },
 );
+
+const draftMenuInput = z.object({
+  sections: z.array(sectionInput.extend({ name: bilingualInput, dishes: z.array(draftDishInput) })),
+});
 
 export type MenuInput = z.input<typeof menuInput>;
 export type OptionGroupInput = z.input<typeof optionGroupInput>;
@@ -76,27 +99,28 @@ export type PublishedMenuVersion = {
   }[];
 };
 
-/**
- * Publishes `menu` as the Brand's new, immutable Menu version. Every Venue of the Brand shows it
- * from then on. Ticket 22 changes the source of the content from `menu` to the owner's draft.
- */
+/** Publishes a complete Menu supplied by the caller, for seeding and imports. */
 export async function publishMenu(
   actor: Actor,
   input: { brandId: string; menu: MenuInput },
   { now = new Date() }: { now?: Date } = {},
 ): Promise<PublishedMenuVersion> {
-  const parsed = menuInput.safeParse(input.menu);
-  if (!parsed.success) {
-    throw new MaasiiError("invalid_input", `The Menu is not valid: ${z.prettifyError(parsed.error)}`);
-  }
-  const menu = parsed.data;
-
+  const menu = parseInput(menuInput, input.menu);
   return inTransaction(actor, async (tx) => {
-    await requireBrandOwner(tx, actor, input.brandId);
-    const locked = await tx.query("select id from app.brands where id = $1 for update", [input.brandId]);
-    if (locked.rowCount === 0) throw new MaasiiError("not_found", "Brand not found.");
+    await lockBrand(tx, actor, input.brandId);
+    return writeMenuVersion(tx, actor, input.brandId, assignIdentities(menu), now, menu);
+  });
+}
 
-    const sections = menu.sections.map((section) => ({
+async function lockBrand(tx: Tx, actor: Actor, brandId: string) {
+  await requireBrandOwner(tx, actor, brandId);
+  const locked = await tx.query("select id from app.brands where id = $1 for update", [brandId]);
+  if (locked.rowCount === 0) throw new MaasiiError("not_found", "Brand not found.");
+}
+
+function assignIdentities(menu: z.output<typeof draftMenuInput>) {
+  return {
+    sections: menu.sections.map((section) => ({
       ...section,
       sectionId: section.sectionId ?? crypto.randomUUID(),
       dishes: section.dishes.map((dish) => ({
@@ -108,162 +132,286 @@ export async function publishMenu(
           choices: group.choices.map((choice) => ({ ...choice, choiceId: choice.choiceId ?? crypto.randomUUID() })),
         })),
       })),
-    }));
-    const dishes = sections.flatMap((section) =>
-      section.dishes.map((dish, position) => ({ ...dish, sectionId: section.sectionId, position })),
-    );
-    const optionGroups = dishes.flatMap((dish) =>
-      dish.optionGroups.map((group, position) => ({ ...group, dishId: dish.dishId, position })),
-    );
-    const choices = optionGroups.flatMap((group) =>
-      group.choices.map((choice, position) => ({ ...choice, optionGroupId: group.optionGroupId, position })),
-    );
-    if (new Set(optionGroups.map((g) => g.optionGroupId)).size !== optionGroups.length) {
-      throw new MaasiiError("invalid_input", "The Menu lists the same Option Group twice.");
-    }
-    if (new Set(choices.map((c) => c.choiceId)).size !== choices.length) {
-      throw new MaasiiError("invalid_input", "The Menu lists the same Option Group choice twice.");
-    }
-
-    await ensureIdentities(tx, "menu_sections", input.brandId,
-      menu.sections.map((s) => s.sectionId), sections.map((s) => s.sectionId));
-    await ensureIdentities(tx, "dishes", input.brandId,
-      menu.sections.flatMap((s) => s.dishes.map((d) => d.dishId)), dishes.map((d) => d.dishId));
-
-    const { rows } = await tx.query<{ id: string; number: number; published_at: Date }>(
-      `insert into app.menu_versions (brand_id, number, published_at, published_by)
-       select $1, coalesce(max(number), 0) + 1, $2, $3 from app.menu_versions where brand_id = $1
-       returning id, number, published_at`,
-      [input.brandId, now, actor.kind === "staff" ? actor.userId : null],
-    );
-    const version = rows[0];
-
-    await tx.query(
-      `insert into app.menu_version_sections (menu_version_id, section_id, position, name_en, name_am)
-       select $1, s.id, s.position, s.name_en, s.name_am
-       from unnest($2::uuid[], $3::int[], $4::text[], $5::text[]) as s (id, position, name_en, name_am)`,
-      [
-        version.id,
-        sections.map((s) => s.sectionId),
-        sections.map((_, i) => i),
-        sections.map((s) => s.name.en),
-        sections.map((s) => s.name.am),
-      ],
-    );
-    await tx.query(
-      `insert into app.menu_version_dishes
-         (menu_version_id, dish_id, section_id, position,
-          name_en, name_am, description_en, description_am, price_santim, fasting, photo_url, house_favourite)
-       select $1, d.id, d.section_id, d.position, d.name_en, d.name_am, d.description_en, d.description_am,
-              d.price, d.fasting, d.photo_url, d.house_favourite
-       from unnest($2::uuid[], $3::uuid[], $4::int[], $5::text[], $6::text[], $7::text[], $8::text[],
-                   $9::int[], $10::boolean[], $11::text[], $12::boolean[])
-         as d (id, section_id, position, name_en, name_am, description_en, description_am, price, fasting, photo_url, house_favourite)`,
-      [
-        version.id,
-        dishes.map((d) => d.dishId),
-        dishes.map((d) => d.sectionId),
-        dishes.map((d) => d.position),
-        dishes.map((d) => d.name.en),
-        dishes.map((d) => d.name.am),
-        dishes.map((d) => d.description.en),
-        dishes.map((d) => d.description.am),
-        dishes.map((d) => d.priceSantim),
-        dishes.map((d) => d.fasting),
-        dishes.map((d) => d.photoUrl ?? null),
-        dishes.map((d) => d.houseFavourite),
-      ],
-    );
-    await tx.query(
-      `insert into app.menu_version_option_groups
-         (menu_version_id, option_group_id, dish_id, position, kind, required, name_en, name_am)
-       select $1, g.id, g.dish_id, g.position, g.kind, g.required, g.name_en, g.name_am
-       from unnest($2::uuid[], $3::uuid[], $4::int[], $5::text[], $6::boolean[], $7::text[], $8::text[])
-         as g (id, dish_id, position, kind, required, name_en, name_am)`,
-      [
-        version.id,
-        optionGroups.map((g) => g.optionGroupId),
-        optionGroups.map((g) => g.dishId),
-        optionGroups.map((g) => g.position),
-        optionGroups.map((g) => g.kind),
-        optionGroups.map((g) => g.required),
-        optionGroups.map((g) => g.name.en),
-        optionGroups.map((g) => g.name.am),
-      ],
-    );
-    await tx.query(
-      `insert into app.menu_version_option_choices
-         (menu_version_id, choice_id, option_group_id, position, name_en, name_am, price_change_santim)
-       select $1, c.id, c.option_group_id, c.position, c.name_en, c.name_am, c.price_change
-       from unnest($2::uuid[], $3::uuid[], $4::int[], $5::text[], $6::text[], $7::int[])
-         as c (id, option_group_id, position, name_en, name_am, price_change)`,
-      [
-        version.id,
-        choices.map((c) => c.choiceId),
-        choices.map((c) => c.optionGroupId),
-        choices.map((c) => c.position),
-        choices.map((c) => c.name.en),
-        choices.map((c) => c.name.am),
-        choices.map((c) => c.priceChangeSantim),
-      ],
-    );
-    await tx.query("update app.brands set published_menu_version_id = $2 where id = $1", [
-      input.brandId,
-      version.id,
-    ]);
-
-    return {
-      menuVersionId: version.id,
-      number: version.number,
-      publishedAt: version.published_at,
-      sections: sections.map((s) => ({
-        sectionId: s.sectionId,
-        name: s.name,
-        dishes: s.dishes.map((d) => ({
-          dishId: d.dishId,
-          name: d.name,
-          optionGroups: d.optionGroups.map((g) => ({
-            optionGroupId: g.optionGroupId,
-            name: g.name,
-            choices: g.choices.map((c) => ({ choiceId: c.choiceId, name: c.name })),
-          })),
-        })),
-      })),
-    };
-  });
+    })),
+  };
 }
 
-/**
- * Checks that every id the caller passed belongs to this Brand, then creates identities for the
- * new ones. `given` holds the caller's ids (undefined for new), `all` the final id of each entry.
- */
+export type MenuDraftContent = ReturnType<typeof assignIdentities>;
+
+async function writeMenuVersion(
+  tx: Tx,
+  actor: Actor,
+  brandId: string,
+  { sections }: MenuDraftContent,
+  now: Date,
+  importedMenu?: z.output<typeof menuInput>,
+): Promise<PublishedMenuVersion> {
+  const dishes = sections.flatMap((section) =>
+    section.dishes.map((dish, position) => ({ ...dish, sectionId: section.sectionId, position })),
+  );
+  const optionGroups = dishes.flatMap((dish) =>
+    dish.optionGroups.map((group, position) => ({ ...group, dishId: dish.dishId, position })),
+  );
+  const choices = optionGroups.flatMap((group) =>
+    group.choices.map((choice, position) => ({ ...choice, optionGroupId: group.optionGroupId, position })),
+  );
+  if (new Set(optionGroups.map((g) => g.optionGroupId)).size !== optionGroups.length) {
+    throw new MaasiiError("invalid_input", "The Menu lists the same Option Group twice.");
+  }
+  if (new Set(choices.map((c) => c.choiceId)).size !== choices.length) {
+    throw new MaasiiError("invalid_input", "The Menu lists the same Option Group choice twice.");
+  }
+
+  await ensureIdentities(tx, "menu_sections", brandId, sections.map((s) => s.sectionId),
+    importedMenu?.sections.map((s) => s.sectionId));
+  await ensureIdentities(tx, "dishes", brandId, dishes.map((d) => d.dishId),
+    importedMenu?.sections.flatMap((s) => s.dishes.map((d) => d.dishId)));
+
+  const { rows } = await tx.query<{ id: string; number: number; published_at: Date }>(
+    `insert into app.menu_versions (brand_id, number, published_at, published_by)
+     select $1, coalesce(max(number), 0) + 1, $2, $3 from app.menu_versions where brand_id = $1
+     returning id, number, published_at`,
+    [brandId, now, actor.kind === "staff" ? actor.userId : null],
+  );
+  const version = rows[0];
+
+  await tx.query(
+    `insert into app.menu_version_sections (menu_version_id, section_id, position, name_en, name_am)
+     select $1, s.id, s.position, s.name_en, s.name_am
+     from unnest($2::uuid[], $3::int[], $4::text[], $5::text[]) as s (id, position, name_en, name_am)`,
+    [
+      version.id,
+      sections.map((s) => s.sectionId),
+      sections.map((_, i) => i),
+      sections.map((s) => s.name.en),
+      sections.map((s) => s.name.am),
+    ],
+  );
+  await tx.query(
+    `insert into app.menu_version_dishes
+       (menu_version_id, dish_id, section_id, position,
+        name_en, name_am, description_en, description_am, price_santim, fasting, photo_url, house_favourite)
+     select $1, d.id, d.section_id, d.position, d.name_en, d.name_am, d.description_en, d.description_am,
+            d.price, d.fasting, d.photo_url, d.house_favourite
+     from unnest($2::uuid[], $3::uuid[], $4::int[], $5::text[], $6::text[], $7::text[], $8::text[],
+                 $9::int[], $10::boolean[], $11::text[], $12::boolean[])
+       as d (id, section_id, position, name_en, name_am, description_en, description_am, price, fasting, photo_url, house_favourite)`,
+    [
+      version.id,
+      dishes.map((d) => d.dishId),
+      dishes.map((d) => d.sectionId),
+      dishes.map((d) => d.position),
+      dishes.map((d) => d.name.en),
+      dishes.map((d) => d.name.am),
+      dishes.map((d) => d.description.en),
+      dishes.map((d) => d.description.am),
+      dishes.map((d) => d.priceSantim),
+      dishes.map((d) => d.fasting),
+      dishes.map((d) => d.photoUrl ?? null),
+      dishes.map((d) => d.houseFavourite),
+    ],
+  );
+  await tx.query(
+    `insert into app.menu_version_option_groups
+       (menu_version_id, option_group_id, dish_id, position, kind, required, name_en, name_am)
+     select $1, g.id, g.dish_id, g.position, g.kind, g.required, g.name_en, g.name_am
+     from unnest($2::uuid[], $3::uuid[], $4::int[], $5::text[], $6::boolean[], $7::text[], $8::text[])
+       as g (id, dish_id, position, kind, required, name_en, name_am)`,
+    [
+      version.id,
+      optionGroups.map((g) => g.optionGroupId),
+      optionGroups.map((g) => g.dishId),
+      optionGroups.map((g) => g.position),
+      optionGroups.map((g) => g.kind),
+      optionGroups.map((g) => g.required),
+      optionGroups.map((g) => g.name.en),
+      optionGroups.map((g) => g.name.am),
+    ],
+  );
+  await tx.query(
+    `insert into app.menu_version_option_choices
+       (menu_version_id, choice_id, option_group_id, position, name_en, name_am, price_change_santim)
+     select $1, c.id, c.option_group_id, c.position, c.name_en, c.name_am, c.price_change
+     from unnest($2::uuid[], $3::uuid[], $4::int[], $5::text[], $6::text[], $7::int[])
+       as c (id, option_group_id, position, name_en, name_am, price_change)`,
+    [
+      version.id,
+      choices.map((c) => c.choiceId),
+      choices.map((c) => c.optionGroupId),
+      choices.map((c) => c.position),
+      choices.map((c) => c.name.en),
+      choices.map((c) => c.name.am),
+      choices.map((c) => c.priceChangeSantim),
+    ],
+  );
+  await tx.query("update app.brands set published_menu_version_id = $2 where id = $1", [
+    brandId,
+    version.id,
+  ]);
+
+  return {
+    menuVersionId: version.id,
+    number: version.number,
+    publishedAt: version.published_at,
+    sections: sections.map((s) => ({
+      sectionId: s.sectionId,
+      name: s.name,
+      dishes: s.dishes.map((d) => ({
+        dishId: d.dishId,
+        name: d.name,
+        optionGroups: d.optionGroups.map((g) => ({
+          optionGroupId: g.optionGroupId,
+          name: g.name,
+          choices: g.choices.map((c) => ({ choiceId: c.choiceId, name: c.name })),
+        })),
+      })),
+    })),
+  };
+}
+
+/** A draft carries newly assigned ids. Direct publishers may only supply existing ids. */
 async function ensureIdentities(
   tx: Tx,
   table: "menu_sections" | "dishes",
   brandId: string,
-  given: (string | undefined)[],
-  all: string[],
+  ids: string[],
+  importedIds?: (string | undefined)[],
 ): Promise<void> {
-  if (new Set(all).size !== all.length) {
-    throw new MaasiiError("invalid_input", `The Menu lists the same ${table === "dishes" ? "dish" : "section"} twice.`);
+  const kind = table === "dishes" ? "dish" : "section";
+  if (new Set(ids).size !== ids.length) {
+    throw new MaasiiError("invalid_input", `The Menu lists the same ${kind} twice.`);
   }
-  const existing = given.filter((id): id is string => id !== undefined);
-  if (existing.length > 0) {
-    const { rowCount } = await tx.query(
-      `select 1 from app.${table} where brand_id = $1 and id = any($2::uuid[])`,
-      [brandId, existing],
-    );
-    if (rowCount !== existing.length) {
-      throw new MaasiiError("invalid_input", `The Menu refers to ${table === "dishes" ? "a dish" : "a section"} this Brand does not have.`);
-    }
-  }
-  const fresh = all.filter((id) => !existing.includes(id));
+  if (ids.length === 0) return;
+  const fresh = ids.filter((_, i) => !importedIds?.[i]);
   if (fresh.length > 0) {
     await tx.query(
-      `insert into app.${table} (id, brand_id) select id, $1 from unnest($2::uuid[]) as id`,
+      `insert into app.${table} (id, brand_id) select id, $1 from unnest($2::uuid[]) as id
+       on conflict (id) do nothing`,
       [brandId, fresh],
     );
   }
+  const { rowCount } = await tx.query(
+    `select 1 from app.${table} where brand_id = $1 and id = any($2::uuid[])`,
+    [brandId, ids],
+  );
+  if (rowCount !== ids.length) {
+    throw new MaasiiError("invalid_input", `The Menu refers to a ${kind} this Brand does not have.`);
+  }
+}
+
+// ---- Owner's Menu draft ------------------------------------------------------------------------
+
+type MenuDraftContext = {
+  brand: Brand;
+  venueName: string | null;
+  versionId: string | null;
+  lastPublishedAt: Date | null;
+  draftRevision: string | null;
+  draftContent: MenuDraftContent | null;
+};
+
+export type MenuDraft = {
+  brand: Brand;
+  venueName: string | null;
+  menu: MenuDraftContent;
+  revision: string | null;
+  hasUnpublishedChanges: boolean;
+  lastPublishedAt: Date | null;
+  fastingDay: boolean;
+};
+
+async function readDraftContext(tx: Tx, brandId: string): Promise<MenuDraftContext> {
+  const { rows } = await tx.query<MenuDraftContext>(
+    `select jsonb_build_object('id', b.id, 'name', b.name, 'logoUrl', b.logo_url, 'colour', b.colour,
+              'coverUrl', b.cover_url, 'displayFont', b.display_font) as brand,
+            (select name from app.venues where brand_id = b.id order by created_at, id limit 1) as "venueName",
+            b.published_menu_version_id as "versionId", v.published_at as "lastPublishedAt",
+            d.revision as "draftRevision", d.content as "draftContent"
+     from app.brands b
+     left join app.menu_versions v on v.id = b.published_menu_version_id
+     left join app.brand_menu_drafts d on d.brand_id = b.id
+     where b.id = $1`,
+    [brandId],
+  );
+  if (!rows[0]) throw new MaasiiError("not_found", "Brand not found.");
+  return rows[0];
+}
+
+async function readBrandMenu(tx: Tx, versionId: string | null): Promise<MenuDraftContent> {
+  return { sections: versionId ? await readMenuSections(tx, versionId, null) : [] };
+}
+
+export async function getMenuDraft(
+  actor: Actor,
+  input: { brandId: string },
+  { now = new Date() }: { now?: Date } = {},
+): Promise<MenuDraft> {
+  const { brandId } = parseInput(z.object({ brandId: z.uuid() }), input);
+  return inTransaction(actor, async (tx) => {
+    await requireBrandOwner(tx, actor, brandId);
+    const { brand, venueName, versionId, lastPublishedAt, draftRevision, draftContent } = await readDraftContext(tx, brandId);
+    return {
+      brand,
+      venueName,
+      lastPublishedAt,
+      menu: draftContent ?? await readBrandMenu(tx, versionId),
+      revision: draftRevision ?? versionId,
+      hasUnpublishedChanges: draftRevision !== null,
+      fastingDay: await isFastingDay(tx, now),
+    };
+  });
+}
+
+const draftEditInput = z.object({ brandId: z.uuid(), revision: z.uuid().nullable(), menu: draftMenuInput.optional() });
+
+function checkDraftRevision(context: MenuDraftContext, revision: string | null) {
+  if ((context.draftRevision ?? context.versionId) !== revision) {
+    throw new MaasiiError("invalid_input", "The Menu changed since it was opened. Reload it to see the latest changes.", "menuDraftChanged");
+  }
+}
+
+export async function saveMenuDraft(
+  actor: Actor,
+  input: { brandId: string; revision: string | null; menu: MenuInput },
+): Promise<string | null> {
+  const { brandId, revision, menu } = parseInput(draftEditInput.required({ menu: true }), input);
+  const content = assignIdentities(menu);
+  return inTransaction(actor, async (tx) => {
+    await lockBrand(tx, actor, brandId);
+    const context = await readDraftContext(tx, brandId);
+    checkDraftRevision(context, revision);
+    if (isDeepStrictEqual(content, await readBrandMenu(tx, context.versionId))) {
+      await tx.query("delete from app.brand_menu_drafts where brand_id = $1", [brandId]);
+      return context.versionId;
+    }
+    if (isDeepStrictEqual(content, context.draftContent)) return revision;
+    const nextRevision = crypto.randomUUID();
+    await tx.query(
+      `insert into app.brand_menu_drafts (brand_id, revision, content) values ($1, $2, $3)
+       on conflict (brand_id) do update set revision = excluded.revision, content = excluded.content`,
+      [brandId, nextRevision, content],
+    );
+    return nextRevision;
+  });
+}
+
+/** Publishes the saved draft, or publishes the editor's current edits in the same transaction. */
+export async function publishMenuDraft(
+  actor: Actor,
+  input: { brandId: string; revision: string | null; menu?: MenuInput },
+  { now = new Date() }: { now?: Date } = {},
+): Promise<PublishedMenuVersion> {
+  const { brandId, revision, menu } = parseInput(draftEditInput, input);
+  return inTransaction(actor, async (tx) => {
+    await lockBrand(tx, actor, brandId);
+    const context = await readDraftContext(tx, brandId);
+    checkDraftRevision(context, revision);
+    const content = menu ?? context.draftContent ?? await readBrandMenu(tx, context.versionId);
+    const ready = parseInput(menuInput, content, "menuDraftInvalid");
+    const published = await writeMenuVersion(tx, actor, brandId, assignIdentities(ready), now);
+    await tx.query("delete from app.brand_menu_drafts where brand_id = $1", [brandId]);
+    return published;
+  });
 }
 
 // ---- Reading -----------------------------------------------------------------------------------
@@ -310,7 +458,6 @@ export async function getPublishedMenu(
 ): Promise<GuestMenu | null> {
   const language = z.enum(languages).default("en").safeParse(input.language);
   if (!language.success) throw new MaasiiError("invalid_input", "The Menu is only available in Amharic and English.");
-  const text = (en: string, am: string) => inLanguage({ en, am }, language.data);
 
   return inTransaction(actor, async (tx) => {
     const { rows } = await tx.query<{
@@ -359,93 +506,93 @@ export async function getPublishedMenu(
     };
     if (!row.version_id) return menu;
 
-    const sections = await tx.query<{ id: string; name_en: string; name_am: string }>(
-      `select section_id as id, name_en, name_am from app.menu_version_sections
-       where menu_version_id = $1 order by position`,
-      [row.version_id],
-    );
-    const dishes = await tx.query<{
-      id: string;
-      section_id: string;
-      name_en: string;
-      name_am: string;
-      description_en: string;
-      description_am: string;
-      price_santim: number;
-      fasting: boolean;
-      photo_url: string | null;
-      house_favourite: boolean;
-    }>(
-      `select d.dish_id as id, d.section_id, d.name_en, d.name_am, d.description_en, d.description_am,
-              coalesce(settings.price_santim, d.price_santim) as price_santim, d.fasting, d.photo_url, d.house_favourite
-       from app.menu_version_dishes d
-       left join app.venue_dish_settings settings on settings.venue_id = $2 and settings.dish_id = d.dish_id
-       where d.menu_version_id = $1 and settings.sold_out is not true order by d.position`,
-      [row.version_id, row.venue_id],
-    );
-    const groups = await tx.query<{
-      id: string;
-      dish_id: string;
-      name_en: string;
-      name_am: string;
-      kind: GuestOptionGroup["kind"];
-      required: boolean;
-    }>(
-      `select option_group_id as id, dish_id, name_en, name_am, kind, required
-       from app.menu_version_option_groups
-       where menu_version_id = $1 order by position`,
-      [row.version_id],
-    );
-    const choices = await tx.query<{
-      id: string;
-      option_group_id: string;
-      name_en: string;
-      name_am: string;
-      price_change_santim: number;
-    }>(
-      `select choice_id as id, option_group_id, name_en, name_am, price_change_santim
-       from app.menu_version_option_choices
-       where menu_version_id = $1 order by position`,
-      [row.version_id],
-    );
-    const optionGroupsOf = (dishId: string): GuestOptionGroup[] =>
-      groups.rows
-        .filter((group) => group.dish_id === dishId)
-        .map((group) => ({
-          id: group.id,
-          name: text(group.name_en, group.name_am),
-          kind: group.kind,
-          required: group.required,
-          choices: choices.rows
-            .filter((choice) => choice.option_group_id === group.id)
-            .map((choice) => ({
-              id: choice.id,
-              name: text(choice.name_en, choice.name_am),
-              priceChangeSantim: choice.price_change_santim,
-            })),
-        }));
-    menu.sections = sections.rows.map((section) => ({
-      id: section.id,
-      name: text(section.name_en, section.name_am),
-      dishes: dishes.rows
-        .filter((dish) => dish.section_id === section.id)
-        .map((dish) => ({
-          id: dish.id,
-          name: text(dish.name_en, dish.name_am),
-          description: text(dish.description_en, dish.description_am),
-          priceSantim: dish.price_santim,
-          fasting: dish.fasting,
-          photoUrl: dish.photo_url,
-          optionGroups: optionGroupsOf(dish.id),
-        })),
-    }));
+    const content = await readMenuSections(tx, row.version_id, row.venue_id);
+    menu.sections = localizeMenuSections(content, language.data);
     const guestDishes = menu.sections.flatMap((section) => section.dishes);
-    const favouriteId = dishes.rows.find((dish) => dish.house_favourite)?.id;
+    const favouriteId = content.flatMap((section) => section.dishes).find((dish) => dish.houseFavourite)?.dishId;
     menu.houseFavourite = guestDishes.find((dish) => dish.id === favouriteId) ?? null;
     const fastingDishes = guestDishes.filter((dish) => dish.fasting);
     if (fastingDishes.length > 0 && await isFastingDay(tx, now)) menu.fastingDishes = fastingDishes;
     return menu;
   });
+}
+
+/** A null Venue reads the Brand's base prices and full Menu. */
+export async function readMenuSections(tx: Tx, versionId: string, venueId: string | null): Promise<MenuDraftContent["sections"]> {
+  const sections = await tx.query<{ id: string; name_en: string; name_am: string }>(
+    `select section_id as id, name_en, name_am from app.menu_version_sections
+     where menu_version_id = $1 order by position`,
+    [versionId],
+  );
+  const dishes = await tx.query<{
+    id: string;
+    section_id: string;
+    name_en: string;
+    name_am: string;
+    description_en: string;
+    description_am: string;
+    price_santim: number;
+    fasting: boolean;
+    photo_url: string | null;
+    house_favourite: boolean;
+  }>(
+    `select d.dish_id as id, d.section_id, d.name_en, d.name_am, d.description_en, d.description_am,
+            coalesce(settings.price_santim, d.price_santim) as price_santim, d.fasting, d.photo_url, d.house_favourite
+     from app.menu_version_dishes d
+     left join app.venue_dish_settings settings on settings.venue_id = $2 and settings.dish_id = d.dish_id
+     where d.menu_version_id = $1 and settings.sold_out is not true order by d.position`,
+    [versionId, venueId],
+  );
+  const groups = await tx.query<{
+    id: string;
+    dish_id: string;
+    name_en: string;
+    name_am: string;
+    kind: GuestOptionGroup["kind"];
+    required: boolean;
+  }>(
+    `select option_group_id as id, dish_id, name_en, name_am, kind, required
+     from app.menu_version_option_groups
+     where menu_version_id = $1 order by position`,
+    [versionId],
+  );
+  const choices = await tx.query<{
+    id: string;
+    option_group_id: string;
+    name_en: string;
+    name_am: string;
+    price_change_santim: number;
+  }>(
+    `select choice_id as id, option_group_id, name_en, name_am, price_change_santim
+     from app.menu_version_option_choices
+     where menu_version_id = $1 order by position`,
+    [versionId],
+  );
+  const name = (row: { name_en: string; name_am: string }) => ({ en: row.name_en, am: row.name_am });
+  return sections.rows.map((section) => ({
+    sectionId: section.id,
+    name: name(section),
+    dishes: dishes.rows.filter((dish) => dish.section_id === section.id).map((dish) => ({
+      dishId: dish.id,
+      name: name(dish),
+      description: { en: dish.description_en, am: dish.description_am },
+      priceSantim: dish.price_santim,
+      fasting: dish.fasting,
+      ...(dish.photo_url ? { photoUrl: dish.photo_url } : {}),
+      houseFavourite: dish.house_favourite,
+      optionGroups: groups.rows.filter((group) => group.dish_id === dish.id).map((group) => ({
+        optionGroupId: group.id,
+        name: name(group),
+        kind: group.kind,
+        required: group.required,
+        choices: choices.rows.filter((choice) => choice.option_group_id === group.id).map((choice) => ({
+          choiceId: choice.id,
+          name: name(choice),
+          priceChangeSantim: choice.price_change_santim,
+        })),
+      })),
+    })),
+  }));
 }
 
 async function isFastingDay(tx: Tx, now: Date): Promise<boolean> {

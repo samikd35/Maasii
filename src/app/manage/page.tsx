@@ -14,6 +14,7 @@ export default async function ManageHome() {
   const access = await getMyAccess(actor);
   const t = await getTranslations("StaffManage");
   const staff = await getTranslations("Staff");
+  const menu = await getTranslations("MenuEditor");
   const nothing = access.brands.length === 0 && access.venues.length === 0;
 
   return (
@@ -38,9 +39,14 @@ export default async function ManageHome() {
             </h2>
             <span className="text-sm text-ink-muted">{staff("owner")}</span>
           </div>
-          <Link href={`/manage/brands/${brand.id}/branding`} className="inline-flex min-h-11 items-center text-sm font-medium underline">
-            {t("branding")}
-          </Link>
+          <div className="flex flex-wrap gap-x-5">
+            <Link href={`/manage/brands/${brand.id}/menu`} className="inline-flex min-h-11 items-center text-sm font-medium underline">
+              {menu("nav")}
+            </Link>
+            <Link href={`/manage/brands/${brand.id}/branding`} className="inline-flex min-h-11 items-center text-sm font-medium underline">
+              {t("branding")}
+            </Link>
+          </div>
           <VenueList venues={brand.venues} />
           <ActionForm action={addVenue.bind(null, brand.id)} className="mt-4 flex flex-wrap items-end gap-3">
             <Field label={t("venueName")} name="name" required className="min-w-0 flex-1" />

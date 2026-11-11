@@ -6,10 +6,10 @@
 
 **Status:** ready-for-agent
 
-- [ ] Owners can create, rename, reorder and remove sections, and create, edit and reorder dishes, in a draft that guests cannot see.
-- [ ] The dish form shows the Amharic and English name and description side by side, plus base price, fasting label and House favourite.
-- [ ] On wide screens the form and a live guest preview sit side by side. On phones there are Edit and Preview tabs. The preview is labelled Draft and uses the real guest layout and theme.
-- [ ] Preview sessions record no browsing events.
-- [ ] Publish turns the draft into a new immutable Menu version used by all venues of the brand. The editor shows when the last publish happened and whether there are unpublished changes.
-- [ ] A dish missing a translation is flagged before publishing, and the owner can still publish.
+- [x] Owners can create, rename, reorder and remove sections, and create, edit and reorder dishes, in a draft that guests cannot see.
+- [x] The dish form shows the Amharic and English name and description side by side, plus base price, fasting label and House favourite.
+- [x] On wide screens the form and a live guest preview sit side by side. On phones there are Edit and Preview tabs. The preview is labelled Draft and uses the real guest layout and theme.
+- [x] Preview sessions record no browsing events.
+- [x] Publish turns the draft into a new immutable Menu version used by all venues of the brand. The editor shows when the last publish happened and whether there are unpublished changes.
+- [x] A dish missing a translation is flagged before publishing, and the owner can still publish.
 - [ ] Core tests cover draft invisibility to guests, publishing, stable dish identifiers across versions, and Order line snapshots staying unchanged after a publish.
