@@ -37,7 +37,10 @@ const dishInput = z.object({
   priceSantim: z.number().int().nonnegative(),
   fasting: z.boolean().default(false),
   photoUrl: z.string().trim().min(1).optional(),
+  houseFavourite: z.boolean().default(false),
   optionGroups: z.array(optionGroupInput).default([]),
+}).refine((dish) => !dish.houseFavourite || dish.photoUrl !== undefined, {
+  message: "The House favourite needs a photo.",
 });
 
 const sectionInput = z.object({
@@ -46,7 +49,10 @@ const sectionInput = z.object({
   dishes: z.array(dishInput),
 });
 
-const menuInput = z.object({ sections: z.array(sectionInput) });
+const menuInput = z.object({ sections: z.array(sectionInput) }).refine(
+  (menu) => menu.sections.flatMap((section) => section.dishes).filter((dish) => dish.houseFavourite).length <= 1,
+  { message: "The Menu can have only one House favourite." },
+);
 
 export type MenuInput = z.input<typeof menuInput>;
 export type OptionGroupInput = z.input<typeof optionGroupInput>;
@@ -147,12 +153,12 @@ export async function publishMenu(
     await tx.query(
       `insert into app.menu_version_dishes
          (menu_version_id, dish_id, section_id, position,
-          name_en, name_am, description_en, description_am, price_santim, fasting, photo_url)
+          name_en, name_am, description_en, description_am, price_santim, fasting, photo_url, house_favourite)
        select $1, d.id, d.section_id, d.position, d.name_en, d.name_am, d.description_en, d.description_am,
-              d.price, d.fasting, d.photo_url
+              d.price, d.fasting, d.photo_url, d.house_favourite
        from unnest($2::uuid[], $3::uuid[], $4::int[], $5::text[], $6::text[], $7::text[], $8::text[],
-                   $9::int[], $10::boolean[], $11::text[])
-         as d (id, section_id, position, name_en, name_am, description_en, description_am, price, fasting, photo_url)`,
+                   $9::int[], $10::boolean[], $11::text[], $12::boolean[])
+         as d (id, section_id, position, name_en, name_am, description_en, description_am, price, fasting, photo_url, house_favourite)`,
       [
         version.id,
         dishes.map((d) => d.dishId),
@@ -165,6 +171,7 @@ export async function publishMenu(
         dishes.map((d) => d.priceSantim),
         dishes.map((d) => d.fasting),
         dishes.map((d) => d.photoUrl ?? null),
+        dishes.map((d) => d.houseFavourite),
       ],
     );
     await tx.query(
@@ -287,6 +294,9 @@ export type GuestMenu = {
   /** Null until the Brand publishes its first Menu. */
   menuVersion: { id: string; number: number; publishedAt: Date } | null;
   sections: GuestMenuSection[];
+  /** The dishes to feature today, in Menu order. Empty when today is a non-fasting day. */
+  fastingDishes: GuestMenuDish[];
+  houseFavourite: GuestMenuDish | null;
 };
 
 /**
@@ -296,6 +306,7 @@ export type GuestMenu = {
 export async function getPublishedMenu(
   actor: Actor,
   input: { venueLinkToken: string; language?: Language },
+  { now = new Date() }: { now?: Date } = {},
 ): Promise<GuestMenu | null> {
   const language = z.enum(languages).default("en").safeParse(input.language);
   if (!language.success) throw new MaasiiError("invalid_input", "The Menu is only available in Amharic and English.");
@@ -343,6 +354,8 @@ export async function getPublishedMenu(
         ? null
         : { id: row.version_id, number: row.version_number, publishedAt: row.published_at },
       sections: [],
+      fastingDishes: [],
+      houseFavourite: null,
     };
     if (!row.version_id) return menu;
 
@@ -361,12 +374,14 @@ export async function getPublishedMenu(
       price_santim: number;
       fasting: boolean;
       photo_url: string | null;
+      house_favourite: boolean;
     }>(
-      `select dish_id as id, section_id, name_en, name_am, description_en, description_am, price_santim,
-              fasting, photo_url
-       from app.menu_version_dishes
-       where menu_version_id = $1 order by position`,
-      [row.version_id],
+      `select d.dish_id as id, d.section_id, d.name_en, d.name_am, d.description_en, d.description_am,
+              coalesce(settings.price_santim, d.price_santim) as price_santim, d.fasting, d.photo_url, d.house_favourite
+       from app.menu_version_dishes d
+       left join app.venue_dish_settings settings on settings.venue_id = $2 and settings.dish_id = d.dish_id
+       where d.menu_version_id = $1 and settings.sold_out is not true order by d.position`,
+      [row.version_id, row.venue_id],
     );
     const groups = await tx.query<{
       id: string;
@@ -424,6 +439,24 @@ export async function getPublishedMenu(
           optionGroups: optionGroupsOf(dish.id),
         })),
     }));
+    const guestDishes = menu.sections.flatMap((section) => section.dishes);
+    const favouriteId = dishes.rows.find((dish) => dish.house_favourite)?.id;
+    menu.houseFavourite = guestDishes.find((dish) => dish.id === favouriteId) ?? null;
+    const fastingDishes = guestDishes.filter((dish) => dish.fasting);
+    if (fastingDishes.length > 0 && await isFastingDay(tx, now)) menu.fastingDishes = fastingDishes;
     return menu;
   });
+}
+
+async function isFastingDay(tx: Tx, now: Date): Promise<boolean> {
+  // A non-fasting exception wins if dated periods overlap.
+  const { rows } = await tx.query<{ fasting: boolean }>(
+    `select coalesce(
+       (select bool_and(fasting) from app.fasting_calendar_periods where local.day between starts_on and ends_on),
+       extract(isodow from local.day) in (3, 5)
+     ) as fasting
+     from (select ($1::timestamptz at time zone 'Africa/Addis_Ababa')::date as day) as local`,
+    [now],
+  );
+  return rows[0].fasting;
 }

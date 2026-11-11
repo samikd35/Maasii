@@ -7,6 +7,7 @@ import { scenario } from "../tests/support/scenario";
 const bilosMenuLink = `/v/${LANCHA_LINK_TOKEN}`;
 
 test("a guest opening Bilo's Venue Link sees the logo, section chips and dish rows", async ({ page }) => {
+  await page.setExtraHTTPHeaders({ "x-maasii-test-now": "2026-10-08T12:00:00Z" });
   await page.goto(bilosMenuLink);
 
   await expect(page.getByRole("banner").getByRole("img", { name: "Bilo's Pastry" })).toBeVisible();
@@ -18,6 +19,57 @@ test("a guest opening Bilo's Venue Link sees the logo, section chips and dish ro
   await expect(omelette.getByRole("heading", { name: "Omelette" })).toBeVisible();
   await expect(omelette).toContainText("Start with our classic omelette and add your choice of extras");
   await expect(omelette.getByTestId("price")).toHaveText("240 ETB");
+});
+
+test("the Addis Ababa fast puts every labelled fasting dish in the first section", async ({ page }) => {
+  await page.setExtraHTTPHeaders({ "x-maasii-test-now": "2026-10-06T21:00:00Z" });
+  await page.goto(bilosMenuLink);
+
+  const chips = page.getByRole("navigation", { name: "Menu sections" }).getByRole("link");
+  const firstSection = page.getByRole("region").first();
+  await expect(chips.first()).toHaveText("Fasting dishes");
+  await expect(firstSection).toHaveAccessibleName("Fasting dishes");
+  const dishes = firstSection.getByRole("heading", { level: 3 });
+  await expect(dishes).toHaveText([
+    "Vegan Oatmeal", "Vegan Macchiato", "Mixed Juice", "Avocado Juice", "Mango Juice", "Papaya Juice", "Pineapple Juice",
+  ]);
+  await expect(firstSection.getByText("Fasting", { exact: true })).toHaveCount(7);
+
+  await page.getByRole("button", { name: "አማ" }).click();
+  await expect(page.getByRole("region").first()).toHaveAccessibleName("የጾም ምግቦች");
+  await expect(page.getByRole("region").first().getByText("የጾም", { exact: true })).toHaveCount(7);
+  await page.getByRole("button", { name: "EN" }).click();
+  await expect(chips.first()).toHaveText("Fasting dishes");
+
+  await page.setExtraHTTPHeaders({ "x-maasii-test-now": "2026-10-07T21:00:00Z" });
+  await page.reload();
+  await expect(chips.first()).toHaveText("Breakfast");
+  await expect(firstSection).toHaveAccessibleName("Breakfast");
+  await expect(page.getByRole("region", { name: "Fasting dishes" })).toHaveCount(0);
+  await expect(firstSection.getByRole("listitem").filter({ hasText: "Vegan Oatmeal" })).toContainText("Fasting");
+});
+
+test("one House favourite appears above the first section and opens its dish", async ({ page }) => {
+  const s = await scenario().publishedMenu({
+    sections: [{
+      name: "Cakes",
+      dishes: [{
+        name: "Almond Cake", priceSantim: 20_000, photoUrl: "/brands/bilos/almond-cake.webp", houseFavourite: true,
+      }],
+    }],
+  }).build();
+  await page.goto(`/v/${s.venue.linkToken}`);
+
+  const card = page.getByRole("article", { name: "House favourite" });
+  await expect(card).toHaveCount(1);
+  await expect(card.locator("img")).toHaveAttribute("src", "/brands/bilos/almond-cake.webp");
+  const firstSection = page.getByRole("region", { name: "Cakes" });
+  expect((await card.boundingBox())!.y).toBeLessThan((await firstSection.boundingBox())!.y);
+  await card.getByRole("button", { name: "Almond Cake" }).click();
+  await expect(page.getByRole("dialog")).toHaveAccessibleName("Almond Cake");
+
+  await page.goto(bilosMenuLink);
+  await expect(card).toHaveCount(0);
 });
 
 test("each seeded Brand shows its own artwork, display font and readable colours", async ({ page }) => {

@@ -93,3 +93,4 @@ export {
   type PaymentOptionChange,
   type PaymentOptionKind,
 } from "./payment-options";
+export { getVenueMenuSettings, listVenueDishChanges, setVenueDishPrice, setVenueDishSoldOut, type VenueMenuDish } from "./venue-menu";
