@@ -1,8 +1,9 @@
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { requireBrandOwner, requirePlatformAdmin, requireSystem, requireVenueManager } from "./access";
 import type { Actor } from "./actor";
-import { brandColourInput, defaultBrandColour, displayFonts, type DisplayFont } from "./brand-theme";
+import { brandArtworkBucket, prepareBrandArtwork } from "./brand-artwork";
+import { brandColourError, brandColourPattern, defaultBrandColour, displayFonts, type DisplayFont } from "./brand-theme";
 import { inTransaction, type Tx } from "./db";
 import { MaasiiError } from "./errors";
 import { qrPng } from "./qr";
@@ -18,6 +19,8 @@ export type Brand = {
 };
 export type Venue = { id: string; brandId: string; name: string; linkToken: string };
 export type Table = { id: string; number: number };
+
+const brandColourInput = z.string().regex(brandColourPattern, brandColourError).toUpperCase();
 
 const brandInput = z.object({
   name: z.string().trim().min(1, "Give the brand a name."),
@@ -41,6 +44,68 @@ export async function createBrand(
       [name, logoUrl ?? null, colour, coverUrl ?? null, displayFont],
     );
     return rows[0];
+  });
+}
+
+export async function getBranding(actor: Actor, input: { brandId: string }): Promise<Brand> {
+  const brandId = parseInput(z.uuid(), input.brandId);
+  return inTransaction(actor, async (tx) => {
+    await requireBrandOwner(tx, actor, brandId);
+    const { rows } = await tx.query<Brand>(
+      `select id, name, logo_url as "logoUrl", colour, cover_url as "coverUrl", display_font as "displayFont"
+       from app.brands where id = $1`,
+      [brandId],
+    );
+    if (!rows[0]) throw new MaasiiError("not_found", "Brand not found.");
+    return rows[0];
+  });
+}
+
+const brandingInput = z.object({
+  brandId: z.uuid(),
+  colour: brandColourInput,
+  displayFont: z.enum(displayFonts),
+  logo: z.file().optional(),
+  cover: z.file().optional(),
+});
+
+/** Change the look of every Venue of a Brand. */
+export async function updateBranding(actor: Actor, input: z.input<typeof brandingInput>): Promise<Brand> {
+  const { brandId, colour, displayFont, logo, cover } = parseInput(brandingInput, input);
+  return inTransaction(actor, async (tx) => {
+    await requireBrandOwner(tx, actor, brandId);
+    const [logoBytes, coverBytes] = await Promise.all([
+      prepareBrandArtwork(logo, 512, 192),
+      prepareBrandArtwork(cover, 1440, 960),
+    ]);
+    const bucket = logoBytes || coverBytes ? brandArtworkBucket() : null;
+    const uploaded: string[] = [];
+    async function upload(kind: "logo" | "cover", bytes: Buffer | null) {
+      if (!bytes || !bucket) return null;
+      const path = `${brandId}/${kind}-${randomUUID()}.webp`;
+      uploaded.push(path);
+      const { error } = await bucket.upload(path, bytes, { contentType: "image/webp", cacheControl: "31536000" });
+      if (error) throw error;
+      return bucket.getPublicUrl(path).data.publicUrl;
+    }
+
+    try {
+      // ponytail: keep superseded files for cached menus. Prune unreferenced artwork if storage grows.
+      const logoUrl = await upload("logo", logoBytes);
+      const coverUrl = await upload("cover", coverBytes);
+      const { rows } = await tx.query<Brand>(
+        `update app.brands
+         set colour = $2, display_font = $3, logo_url = coalesce($4, logo_url), cover_url = coalesce($5, cover_url)
+         where id = $1
+         returning id, name, logo_url as "logoUrl", colour, cover_url as "coverUrl", display_font as "displayFont"`,
+        [brandId, colour, displayFont, logoUrl, coverUrl],
+      );
+      if (!rows[0]) throw new MaasiiError("not_found", "Brand not found.");
+      return rows[0];
+    } catch (error) {
+      if (bucket && uploaded.length) await bucket.remove(uploaded).catch(() => {});
+      throw error;
+    }
   });
 }
 

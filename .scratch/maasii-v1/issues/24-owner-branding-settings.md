@@ -6,8 +6,8 @@
 
 **Status:** ready-for-agent
 
-- [ ] Owners can upload a logo and cover photo, pick a brand colour, and choose a display font from the curated list.
-- [ ] A preview shows the guest menu header, a dish row and the slip in the chosen theme before saving.
-- [ ] When the chosen colour has to be deepened for readability, the screen shows both the original and the adjusted shade and explains why, in plain words.
-- [ ] Saving applies the new theme to the guest menu at every venue of the brand.
-- [ ] Only owners can change branding.
+- [x] Owners can upload a logo and cover photo, pick a brand colour, and choose a display font from the curated list.
+- [x] A preview shows the guest menu header, a dish row and the slip in the chosen theme before saving.
+- [x] When the chosen colour has to be deepened for readability, the screen shows both the original and the adjusted shade and explains why, in plain words.
+- [x] Saving applies the new theme to the guest menu at every venue of the brand.
+- [x] Only owners can change branding.

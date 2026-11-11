@@ -1,5 +1,7 @@
+import { readFileSync } from "node:fs";
 import { expect, test } from "vitest";
-import { createBrand, createVenue, deriveBrandTheme, getPublishedMenu, publicActor, systemActor } from "@/core";
+import { createBrand, createVenue, deriveBrandTheme, getBranding, getPublishedMenu, publicActor, systemActor, updateBranding } from "@/core";
+import { scenario } from "../support/scenario";
 
 test("the Venue Link returns its Brand's artwork, display font and readable orange", async () => {
   const brand = await createBrand(systemActor, {
@@ -47,6 +49,60 @@ test("a Brand cannot be created with an unrecognised font or an invalid colour",
   await expect(createBrand(systemActor, { name: "Saba House", colour: "red" })).rejects.toMatchObject({ code: "invalid_input" });
   // @ts-expect-error Simulate an untyped caller sending a font outside the curated list.
   await expect(createBrand(systemActor, { name: "Saba House", displayFont: "Papyrus" })).rejects.toMatchObject({ code: "invalid_input" });
+});
+
+test("an Owner's branding takes effect at every Venue without publishing the Menu", async () => {
+  const s = await scenario().venue("Lancha").venue("Bole").publishedMenu().build();
+
+  await updateBranding(s.owner.actor, {
+    brandId: s.brand.id,
+    colour: "#ec6728",
+    displayFont: "noto-serif-ethiopic",
+  });
+
+  for (const venue of Object.values(s.venues)) {
+    const menu = await getPublishedMenu(publicActor, { venueLinkToken: venue.linkToken });
+    expect(menu?.brand).toMatchObject({ colour: "#EC6728", displayFont: "noto-serif-ethiopic" });
+    expect(menu?.sections[0]?.dishes[0]?.name).toBe("Omelette");
+  }
+});
+
+test("only an Owner of the Brand can open or change its branding settings", async () => {
+  const s = await scenario().manager("Hana").build();
+  const other = await scenario().build();
+  const fields = { brandId: s.brand.id, colour: "#EC6728", displayFont: "noto-serif-ethiopic" } as const;
+
+  for (const actor of [publicActor, s.managers.Hana.actor, other.owner.actor]) {
+    await expect(getBranding(actor, { brandId: s.brand.id })).rejects.toMatchObject({ code: "not_allowed" });
+    await expect(updateBranding(actor, fields)).rejects.toMatchObject({ code: "not_allowed" });
+  }
+  await expect(getBranding(s.owner.actor, { brandId: s.brand.id })).resolves.toEqual(s.brand);
+});
+
+test("branding accepts raster artwork and rejects corrupt, mismatched and oversized files before saving", async () => {
+  const s = await scenario().build();
+  const fields = { brandId: s.brand.id, colour: "#EC6728", displayFont: "noto-serif-ethiopic" } as const;
+  const logoBytes = readFileSync(new URL("../../public/brands/bilos/logo.webp", import.meta.url));
+  const logo = new File([logoBytes], "logo.webp", { type: "image/webp" });
+  const invalidCovers = [
+    new File([logoBytes.subarray(0, 20)], "broken.webp", { type: "image/webp" }),
+    new File([logoBytes], "wrong.png", { type: "image/png" }),
+    new File([new Uint8Array(4 * 1024 * 1024 + 1)], "large.webp", { type: "image/webp" }),
+  ];
+  for (const cover of invalidCovers) {
+    await expect(updateBranding(s.owner.actor, { ...fields, logo, cover })).rejects.toMatchObject({
+      code: "invalid_input", reason: "invalidBrandArtwork",
+    });
+  }
+  await expect(getBranding(s.owner.actor, { brandId: s.brand.id })).resolves.toEqual(s.brand);
+
+  await updateBranding(s.owner.actor, { ...fields, logo });
+  await updateBranding(s.owner.actor, { ...fields, colour: "#244638" });
+  const menu = await getPublishedMenu(publicActor, { venueLinkToken: s.venue.linkToken });
+  expect(menu?.brand.logoUrl).toBeTruthy();
+  const response = await fetch(menu!.brand.logoUrl!);
+  expect(response.ok).toBe(true);
+  expect(response.headers.get("content-type")).toBe("image/webp");
 });
 
 // WCAG 2.2 relative luminance and contrast ratio: https://www.w3.org/TR/WCAG22/#dfn-contrast-ratio

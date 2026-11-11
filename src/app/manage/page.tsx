@@ -38,6 +38,9 @@ export default async function ManageHome() {
             </h2>
             <span className="text-sm text-ink-muted">{staff("owner")}</span>
           </div>
+          <Link href={`/manage/brands/${brand.id}/branding`} className="inline-flex min-h-11 items-center text-sm font-medium underline">
+            {t("branding")}
+          </Link>
           <VenueList venues={brand.venues} />
           <ActionForm action={addVenue.bind(null, brand.id)} className="mt-4 flex flex-wrap items-end gap-3">
             <Field label={t("venueName")} name="name" required className="min-w-0 flex-1" />

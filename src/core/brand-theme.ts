@@ -1,10 +1,10 @@
-import { z } from "zod";
-import { parseInput } from "./validation";
+import { MaasiiError } from "./errors";
 
 export const displayFonts = ["noto-sans-ethiopic", "noto-serif-ethiopic"] as const;
 export type DisplayFont = (typeof displayFonts)[number];
 
-export const brandColourInput = z.string().regex(/^#[0-9a-f]{6}$/i, "Use a six-digit hex colour.").toUpperCase();
+export const brandColourPattern = /^#[0-9a-f]{6}$/i;
+export const brandColourError = "Use a six-digit hex colour.";
 export const defaultBrandColour = "#1C1917";
 
 const paper = "#FBF7F0";
@@ -14,7 +14,10 @@ const maximumLuminance = (luminance(linearRgb(paperDeep)) + 0.05) / 4.5 - 0.05;
 
 /** The original accent is decorative. Use `readable` on paper or behind paper-coloured text. */
 export function deriveBrandTheme(colour: string) {
-  const accent = parseInput(brandColourInput, colour);
+  if (typeof colour !== "string" || !brandColourPattern.test(colour)) {
+    throw new MaasiiError("invalid_input", brandColourError);
+  }
+  const accent = colour.toUpperCase();
   return { accent, readable: readableShade(accent), paper, paperDeep };
 }
 

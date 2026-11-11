@@ -98,6 +98,7 @@
     "inviteOwner": "Invite owner"
   },
   "StaffManage": {
+    "branding": "Branding",
     "yourVenues": "Your venues",
     "greeting": "Hello, {name}",
     "noAccess": "You don't manage any venue yet. Ask your brand's owner for an invitation.",
@@ -193,9 +194,27 @@
     "soldOut": "Sold Out",
     "available": "Available"
   },
+  "StaffBranding": {
+    "heading": "Branding",
+    "logo": "Logo",
+    "cover": "Cover photo",
+    "imageHelp": "JPEG, PNG or WebP. Up to 4 MB each.",
+    "colour": "Brand colour",
+    "font": "Display font",
+    "noto-sans-ethiopic": "Noto Sans Ethiopic",
+    "noto-serif-ethiopic": "Noto Serif Ethiopic",
+    "original": "Your colour {colour}",
+    "adjusted": "Readable shade {colour}",
+    "contrast": "Maasii uses the darker shade for text and buttons so they are easier to read. Your colour still appears in details like the line at the top.",
+    "save": "Save branding",
+    "preview": "Guest menu preview",
+    "exampleDish": "Macchiato",
+    "exampleDescription": "Espresso with a dash of milk"
+  },
   "StaffForms": {
     "usualTablesSaved": "Usual Tables saved.",
     "assignmentSaved": "Table Assignment saved.",
+    "brandingSaved": "Branding saved at every venue.",
     "venueDishSoldOut": "Dish marked Sold Out.",
     "venueDishAvailable": "Dish available again.",
     "venuePriceSaved": "Venue price saved.",
@@ -212,6 +231,7 @@
     "waiterJoinReady": "Scan this QR on the waiter's phone. It works once within {minutes} minutes."
   },
   "StaffErrors": {
+    "invalidBrandArtwork": "Choose a JPEG, PNG or WebP image up to 4 MB.",
     "paymentDestinationRequired": "Enter the provider, recipient name and account number or merchant code.",
     "paymentOptionChanged": "This Payment Option changed while you were editing. Reload the page and review the current details.",
     "paymentCodeConfirmationRequired": "Compare the previous and new values and confirm the change.",

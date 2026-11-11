@@ -19,6 +19,7 @@ import {
   type PricedDraft,
   type PricedDraftLine,
 } from "@/core/browser";
+import { DraftSlipContents, draftSlipClass } from "@/ui/guest-menu-parts";
 import { formatBirr, Price } from "@/ui/price";
 
 type Line = DraftLine & { lineId: string };
@@ -133,7 +134,6 @@ export function Ordering({ venueLinkToken, sections, recordBrowsing }: {
   recordBrowsing: boolean;
 }) {
   const t = useTranslations("Ordering");
-  const price = useTranslations("Price");
   const key = draftKey(venueLinkToken);
   const lines = useSyncExternalStore(subscribe, () => readDraft(key), () => noLines);
   const [sheet, setSheet] = useState<SheetRequest | null>(null);
@@ -229,17 +229,9 @@ export function Ordering({ venueLinkToken, sections, recordBrowsing }: {
             type="button"
             aria-haspopup="dialog"
             onClick={() => setSheet({ draft: true })}
-            className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl bg-brand-readable px-5 py-2.5 text-left text-paper shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className={draftSlipClass}
           >
-            <span className="flex flex-col">
-              <span className="font-semibold">
-                {t("yourDraft")} · {t("dishCount", { count: draft.dishCount })}
-              </span>
-              {draft.linesNeedingAttention > 0 && (
-                <span className="text-sm">{t("needAttention", { count: draft.linesNeedingAttention })}</span>
-              )}
-            </span>
-            <span className="font-semibold whitespace-nowrap tabular-nums">{formatBirr(draft.totalSantim)} {price("currency")}</span>
+            <DraftSlipContents dishCount={draft.dishCount} linesNeedingAttention={draft.linesNeedingAttention} totalSantim={draft.totalSantim} />
           </button>
         </div>
       )}

@@ -98,6 +98,7 @@
     "inviteOwner": "ባለቤት ይጋብዙ"
   },
   "StaffManage": {
+    "branding": "የብራንድ ገጽታ",
     "yourVenues": "የእርስዎ ቦታዎች",
     "greeting": "ሰላም፣ {name}",
     "noAccess": "ገና የሚያስተዳድሩት ቦታ የለም። ግብዣ እንዲልኩልዎ የብራንዱን ባለቤት ይጠይቁ።",
@@ -193,9 +194,27 @@
     "soldOut": "አልቋል",
     "available": "ይገኛል"
   },
+  "StaffBranding": {
+    "heading": "የብራንድ ገጽታ",
+    "logo": "አርማ",
+    "cover": "የሽፋን ፎቶ",
+    "imageHelp": "JPEG፣ PNG ወይም WebP። እያንዳንዱ እስከ 4 ሜጋባይት።",
+    "colour": "የብራንድ ቀለም",
+    "font": "የርዕስ ፊደል ቅርጽ",
+    "noto-sans-ethiopic": "Noto Sans Ethiopic",
+    "noto-serif-ethiopic": "Noto Serif Ethiopic",
+    "original": "የመረጡት ቀለም {colour}",
+    "adjusted": "ለንባብ የተስተካከለ ቀለም {colour}",
+    "contrast": "ጽሑፍና አዝራሮች በቀላሉ እንዲነበቡ Maasii ጠቆር ያለውን ቀለም ይጠቀማል። የመረጡት ቀለም ከላይ ባለው መስመር በመሳሰሉት ዝርዝሮች ይታያል።",
+    "save": "የብራንድ ገጽታ አስቀምጥ",
+    "preview": "የእንግዳ ምናሌ ቅድመ እይታ",
+    "exampleDish": "ማኪያቶ",
+    "exampleDescription": "ኤስፕሬሶ በትንሽ ወተት"
+  },
   "StaffForms": {
     "usualTablesSaved": "መደበኛ ጠረጴዛዎቹ ተቀምጠዋል።",
     "assignmentSaved": "የጠረጴዛ ምደባው ተቀምጧል።",
+    "brandingSaved": "የብራንዱ ገጽታ በሁሉም ቦታዎች ተቀምጧል።",
     "venueDishSoldOut": "ምግቡ ማለቁ ተመዝግቧል።",
     "venueDishAvailable": "ምግቡ እንደገና ይገኛል።",
     "venuePriceSaved": "የቦታው ዋጋ ተቀምጧል።",
@@ -212,6 +231,7 @@
     "waiterJoinReady": "ይህን QR በአስተናጋጁ ስልክ ያንብቡ። በ{minutes} ደቂቃ ውስጥ አንድ ጊዜ ብቻ ይሰራል።"
   },
   "StaffErrors": {
+    "invalidBrandArtwork": "እስከ 4 ሜጋባይት የሆነ JPEG፣ PNG ወይም WebP ምስል ይምረጡ።",
     "paymentDestinationRequired": "የአቅራቢውን ስም፣ የተቀባዩን ስም እና የሒሳብ ቁጥር ወይም የነጋዴ ኮድ ያስገቡ።",
     "paymentOptionChanged": "የክፍያ አማራጩ በሚያርትዑበት ጊዜ ተቀይሯል። ገጹን ዳግም ይጫኑና የአሁኑን መረጃ ይመልከቱ።",
     "paymentCodeConfirmationRequired": "የቀድሞውንና አዲሱን መረጃ አነጻጽረው ለውጡን ያረጋግጡ።",
