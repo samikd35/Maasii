@@ -119,4 +119,5 @@ export { changeGuestTable, getMoveHistory, moveOrder, moveVisit } from "./moves"
 export { getLiveFloor } from "./floor";
 export { getVenueInsights, updateVenueService, type ServicePeriod } from "./insights";
 
+export { addWaiterOrder, correctWaiterOrderLine, getOrderCorrections, getWaiterQuickAdd } from "./waiter-orders";
 export { getOwnerVenuesInService, getWeeklyFinding, selectWeeklyFinding, weeklyThresholds } from "./weekly-finding";

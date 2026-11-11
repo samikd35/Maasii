@@ -1,10 +1,10 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import QRCode from "qrcode";
-import { addPaymentOption, createWaiterJoinCode, endShift, getShiftSetup, startShift } from "@/core";
-import { scenario } from "../tests/support/scenario";
+import { addPaymentOption, createWaiterJoinCode, endShift, getShiftSetup, startShift, type MenuInput } from "@/core";
+import { sampleMenu, scenario } from "../tests/support/scenario";
 
-async function service(browser: Browser, baseURL: string, use: object) {
-  const s = await scenario().venue("Lancha", { tables: 2 }).publishedMenu().build();
+async function service(browser: Browser, baseURL: string, use: object, menu?: MenuInput) {
+  const s = await scenario().venue("Lancha", { tables: 2 }).publishedMenu(menu).build();
   const { url } = await createWaiterJoinCode(s.owner.actor, { venueId: s.venue.id, siteUrl: baseURL });
   const context = await browser.newContext({ ...use, baseURL });
   const waiter = await context.newPage();
@@ -338,6 +338,44 @@ test("an Owner adjusts a live Bill and reconciles the typed receipt at closing",
     await expect(owner.getByText("Discount: 20 ETB · Service recovery")).toBeVisible();
   } finally {
     await Promise.all([context.close(), management.close()]);
+  }
+});
+
+test("a Waiter quick-adds a spoken Order with options and corrects its running Bill", async ({ browser, baseURL }) => {
+  const menu = structuredClone(sampleMenu);
+  menu.sections[0].dishes[0].optionGroups = [{
+    name: "Egg preparation", kind: "choose_one", required: true,
+    choices: [{ name: "Soft", priceChangeSantim: 1_000 }, { name: "Firm" }],
+  }];
+  const { waiter, context } = await service(browser, baseURL!, test.info().project.use, menu);
+  try {
+    await waiter.getByRole("link", { name: "Table 1", exact: true }).click();
+    await waiter.getByRole("link", { name: "Quick-add" }).click();
+    await waiter.getByLabel("Search Dishes").fill("ኦምሌት");
+    await expect(waiter.getByRole("button", { name: /Chechebsa/ })).toHaveCount(0);
+    await waiter.getByRole("button", { name: /Omelette/ }).click();
+    await waiter.getByLabel("Egg preparation").selectOption({ label: "Soft (+10)" });
+    await waiter.getByLabel("Quantity").fill("2");
+    await waiter.getByLabel("Note", { exact: true }).fill("Serve together");
+    await waiter.getByRole("button", { name: "Add Order" }).click();
+    await expect(waiter.getByText("Waiter-entered Order", { exact: true })).toBeVisible();
+    await expect(waiter.getByText("Accepted by Sam", { exact: true })).toBeVisible();
+    await expect(waiter.getByText("Serve together")).toBeVisible();
+    await expect(waiter.getByText(/460 ETB/)).toBeVisible();
+    await waiter.getByText("Correct line", { exact: true }).click();
+    await waiter.getByLabel("Quantity").fill("1");
+    await waiter.getByLabel("Reason", { exact: true }).fill("Guest only needs one");
+    await waiter.getByRole("button", { name: "Save quantity" }).click();
+    await expect(waiter.getByText(/230 ETB/)).toBeVisible();
+
+    await waiter.getByRole("link", { name: "Quick-add" }).click();
+    await expect(waiter.getByRole("listitem").first().getByRole("button", { name: /Omelette/ })).toBeVisible();
+    await waiter.getByRole("link", { name: "Table 1", exact: true }).click();
+    await waiter.getByRole("button", { name: "Prepare bill" }).click();
+    await expect(waiter.getByRole("link", { name: "Quick-add" })).toHaveCount(0);
+    await expect(waiter.getByText("Correct line", { exact: true })).toHaveCount(0);
+  } finally {
+    await context.close();
   }
 });
 

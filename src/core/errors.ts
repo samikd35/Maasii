@@ -37,6 +37,7 @@ type RefusalReason =
   | "orderTableUnavailable"
   | "orderDraftChanged"
   | "orderRequestConflict"
+  | "orderLineUnavailable"
   | "orderAllLinesDropped"
   | "orderAlreadyDecided"
   | "orderUndoExpired"

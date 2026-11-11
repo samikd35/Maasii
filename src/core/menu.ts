@@ -699,7 +699,8 @@ export async function readPublishedMenu(
   );
   if (!row) return null;
 
-  const sections = localizeMenuSections(menuSectionsFromRows(row), language.data);
+  const menuSections = menuSectionsFromRows(row);
+  const sections = localizeMenuSections(menuSections, language.data);
   const guestDishes = sections.flatMap((section) => section.dishes);
   const favouriteId = row.dishes.find((dish) => dish.house_favourite)?.id;
   const fastingDishes = guestDishes.filter((dish) => dish.fasting);
@@ -721,7 +722,7 @@ export async function readPublishedMenu(
     houseFavourite: guestDishes.find((dish) => dish.id === favouriteId) ?? null,
     fastingDishes: fastingDishes.length > 0 && await isFastingDay(tx, now) ? fastingDishes : [],
   };
-  return { menu, dishes: row.dishes, choices: row.choices };
+  return { menu, menuSections, dishes: row.dishes, choices: row.choices };
 }
 
 /** A null Venue reads the Brand's base prices and full Menu. */
