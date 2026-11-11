@@ -123,3 +123,88 @@ test("desktop Owners arrange sections and dishes beside the live guest Menu", as
   await expect(page.getByRole("heading", { name: "Jam Tart" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Drinks" })).toHaveCount(0);
 });
+
+test("an Owner edits Dish photos and Option Groups, then archives and restores the Dish", async ({ page, context }) => {
+  const s = await scenario().publishedMenu().build();
+  const guest = await context.newPage();
+  const venue = `/v/${s.venue.linkToken}`;
+  await signIn(page, s.owner);
+  await page.getByRole("link", { name: "Brand menu" }).click();
+
+  const edit = page.getByRole("region", { name: "Edit" });
+  const dish = edit.locator("details").filter({ hasText: "Omelette" });
+  await dish.locator("summary").click();
+  await dish.getByLabel("Upload photo").setInputFiles("public/brands/bilos/almond-cake.webp");
+  const photo = dish.locator("img");
+  await expect(photo).toHaveAttribute("src", /\/storage\/v1\/object\/public\/brand-artwork\/.*\.webp$/);
+  const original = await photo.getAttribute("src");
+  await dish.getByLabel("Replace photo").setInputFiles("public/brands/bilos/logo.webp");
+  await expect(photo).not.toHaveAttribute("src", original!);
+  const replacement = await photo.getAttribute("src");
+
+  await dish.getByRole("button", { name: "Add Option Group" }).click();
+  const group = dish.getByRole("group", { name: "New Option Group" });
+  await group.getByLabel("Option Group name in English").fill("Bread");
+  const bread = dish.getByRole("group", { name: "Bread" });
+  await bread.getByLabel("Option Group name in Amharic").fill("ዳቦ");
+  await bread.getByLabel("Required", { exact: true }).check();
+  await bread.getByRole("button", { name: "Add choice" }).click();
+  await bread.getByLabel("Choice name in English").fill("Rye");
+  await bread.getByLabel("Choice name in Amharic").fill("ራይ");
+  await bread.getByLabel("Price change (ETB)").fill("12.50");
+
+  await dish.getByRole("button", { name: "Add Option Group" }).click();
+  await group.getByLabel("Option Group name in English").fill("Extras");
+  const extras = dish.getByRole("group", { name: "Extras" });
+  await extras.getByLabel("Option Group name in Amharic").fill("ተጨማሪዎች");
+  await extras.getByLabel("Kind").selectOption("add_extras");
+  await expect(extras.getByLabel("Required", { exact: true })).toHaveCount(0);
+  await extras.getByRole("button", { name: "Add choice" }).click();
+  await extras.getByLabel("Choice name in English").fill("Cheese");
+  await extras.getByLabel("Choice name in Amharic").fill("አይብ");
+  await extras.getByRole("button", { name: "Move up" }).first().click();
+
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByText("Draft saved.", { exact: true })).toBeVisible();
+  await page.reload();
+  await page.getByRole("tab", { name: "Preview" }).click();
+  const preview = page.getByRole("region", { name: "Guest preview" });
+  await preview.getByRole("button", { name: "Omelette", exact: true }).click();
+  const previewDish = preview.getByRole("dialog");
+  await expect(previewDish.locator("img")).toHaveAttribute("src", replacement!);
+  await expect(previewDish.locator("legend")).toHaveText(["Extras", "Bread"]);
+  await expect(previewDish.getByRole("button", { name: "Add to order" })).toBeDisabled();
+  await previewDish.getByRole("button", { name: "Close" }).click();
+
+  await guest.goto(venue);
+  await guest.getByRole("button", { name: "Omelette", exact: true }).click();
+  const guestDish = guest.getByRole("dialog");
+  await expect(guestDish.locator("img")).toHaveCount(0);
+  await expect(guestDish.getByText("Rye")).toHaveCount(0);
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect(page.getByText("Menu published.", { exact: true })).toBeVisible();
+  await guest.reload();
+  await guest.getByRole("button", { name: "Omelette", exact: true }).click();
+  await expect(guestDish.locator("img")).toHaveAttribute("src", replacement!);
+  await expect(guestDish.getByRole("radio", { name: "Rye +12.5 ETB" })).toBeVisible();
+
+  await page.getByRole("tab", { name: "Edit" }).click();
+  await dish.locator("summary").click();
+  await dish.getByRole("button", { name: "Remove photo" }).click();
+  await extras.getByRole("button", { name: "Remove Option Group" }).click();
+  await dish.getByRole("button", { name: "Archive dish" }).click();
+  await expect(edit.getByRole("heading", { name: "Archived dishes" })).toBeVisible();
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect(page.getByText("Menu published.", { exact: true })).toBeVisible();
+  await guest.reload();
+  await expect(guest.getByRole("button", { name: "Omelette", exact: true })).toHaveCount(0);
+
+  await page.reload();
+  await edit.getByRole("button", { name: "Restore Omelette" }).click();
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect(page.getByText("Menu published.", { exact: true })).toBeVisible();
+  await guest.reload();
+  await guest.getByRole("button", { name: "Omelette", exact: true }).click();
+  await expect(guestDish.locator("img")).toHaveCount(0);
+  await expect(guestDish.locator("legend")).toHaveText(["Bread"]);
+});

@@ -190,3 +190,52 @@ test("a stale editor cannot overwrite a newer draft and an incomplete draft cann
   expect(guest?.menuVersion?.number).toBe(1);
   expect(guest?.sections[0].dishes[0].name).toBe("Omelette");
 });
+
+test("publishing an archive hides the Dish while its Order and stable identity survive restoration", async () => {
+  const s = await scenario().publishedMenu().build();
+  const actor = s.owner.actor;
+  const input = { brandId: s.brand.id };
+  const { id: venueId, linkToken: venueLinkToken } = s.venue;
+  const guestMenu = () => getPublishedMenu(publicActor, { venueLinkToken });
+  const draft = await getMenuDraft(actor, input);
+  const [section] = draft.menu.sections;
+  const [dish] = section.dishes;
+  await startShift(actor, { venueId, assignments: [] });
+  const { data, error } = await createPublicAuthClient().auth.signInAnonymously();
+  if (error) throw error;
+  const guest = guestActor(data.user!.id);
+  const order = {
+    venueLinkToken, tableId: s.venue.tables[0].id, requestId: randomUUID(),
+    lines: [{ dishId: dish.dishId, choiceIds: [], quantity: 1, note: "" }],
+  };
+  const sent = await sendOrder(guest, order);
+
+  const archivedDishes = [{ sectionId: section.sectionId, sectionName: section.name, dish }];
+  section.dishes.shift();
+  const revision = await saveMenuDraft(actor, {
+    ...input, revision: draft.revision, menu: { ...draft.menu, archivedDishes },
+  });
+  await expect(getMenuDraft(actor, input)).resolves.toMatchObject({ menu: { archivedDishes } });
+  expect((await guestMenu())?.sections[0].dishes.map((d) => d.name)).toContain("Omelette");
+
+  await publishMenuDraft(actor, { ...input, revision });
+  expect((await guestMenu())?.sections[0].dishes.map((d) => d.name)).not.toContain("Omelette");
+  await expect(sendOrder(guest, { ...order, requestId: randomUUID() }))
+    .rejects.toMatchObject({ reason: "orderDraftChanged" });
+  expect(sent.lines[0]).toMatchObject({ dishId: dish.dishId, name: { en: "Omelette" }, unitPriceSantim: 22_000 });
+  await expect(getGuestOrders(guest, { venueLinkToken })).resolves.toEqual([sent]);
+
+  const after = await getMenuDraft(actor, input);
+  expect(after).toMatchObject({ hasUnpublishedChanges: false, menu: { archivedDishes } });
+  after.menu.sections[0].dishes.push(after.menu.archivedDishes[0].dish);
+  after.menu.archivedDishes = [];
+  const restored = await saveMenuDraft(actor, { ...input, revision: after.revision, menu: after.menu });
+  expect((await guestMenu())?.sections[0].dishes.map((d) => d.name)).not.toContain("Omelette");
+  await publishMenuDraft(actor, { ...input, revision: restored });
+  expect((await guestMenu())?.sections[0].dishes).toContainEqual(expect.objectContaining({
+    id: s.dishId("Omelette"), name: "Omelette",
+  }));
+  await expect(getMenuDraft(actor, input)).resolves.toMatchObject({
+    hasUnpublishedChanges: false, menu: { archivedDishes: [] },
+  });
+});

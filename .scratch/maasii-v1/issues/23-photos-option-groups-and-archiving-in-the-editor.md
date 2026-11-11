@@ -6,9 +6,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] Owners can upload, replace and remove a dish photo. Uploads are resized and compressed for the guest menu, and stored in Supabase Storage.
-- [ ] Owners can add, edit, reorder and remove Option Groups on a dish: choose the kind, whether a "choose one" group is required, and the choices with bilingual names and optional price changes.
-- [ ] All of these changes stay in the draft until published.
-- [ ] Archiving a dish removes it from the next published Menu, while past Orders, Dish Reviews and insights still show its name.
-- [ ] An archived dish can be restored into the draft.
-- [ ] Core tests cover Option Group validation, archiving and restoring, and that history survives archiving.
+- [x] Owners can upload, replace and remove a dish photo. Uploads are resized and compressed for the guest menu, and stored in Supabase Storage.
+- [x] Owners can add, edit, reorder and remove Option Groups on a dish: choose the kind, whether a "choose one" group is required, and the choices with bilingual names and optional price changes.
+- [x] All of these changes stay in the draft until published.
+- [x] Archiving a dish removes it from the next published Menu, while past Orders, Dish Reviews and insights still show its name.
+- [x] An archived dish can be restored into the draft.
+- [x] Core tests cover Option Group validation, archiving and restoring, and that history survives archiving.

@@ -2,7 +2,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { requireBrandOwner, requirePlatformAdmin, requireSystem, requireVenueManager } from "./access";
 import type { Actor } from "./actor";
-import { brandArtworkBucket, prepareBrandArtwork } from "./brand-artwork";
+import { brandArtworkBucket, prepareBrandArtwork, uploadBrandArtwork } from "./brand-artwork";
 import { brandColourError, brandColourPattern, defaultBrandColour, displayFonts, type DisplayFont } from "./brand-theme";
 import { inTransaction, lockVenueShifts, type Tx } from "./db";
 import { MaasiiError } from "./errors";
@@ -75,18 +75,16 @@ export async function updateBranding(actor: Actor, input: z.input<typeof brandin
   return inTransaction(actor, async (tx) => {
     await requireBrandOwner(tx, actor, brandId);
     const [logoBytes, coverBytes] = await Promise.all([
-      prepareBrandArtwork(logo, 512, 192),
-      prepareBrandArtwork(cover, 1440, 960),
+      logo && prepareBrandArtwork(logo, 512, 192),
+      cover && prepareBrandArtwork(cover, 1440, 960),
     ]);
     const bucket = logoBytes || coverBytes ? brandArtworkBucket() : null;
     const uploaded: string[] = [];
-    async function upload(kind: "logo" | "cover", bytes: Buffer | null) {
+    async function upload(kind: "logo" | "cover", bytes: Buffer | undefined) {
       if (!bytes || !bucket) return null;
       const path = `${brandId}/${kind}-${randomUUID()}.webp`;
       uploaded.push(path);
-      const { error } = await bucket.upload(path, bytes, { contentType: "image/webp", cacheControl: "31536000" });
-      if (error) throw error;
-      return bucket.getPublicUrl(path).data.publicUrl;
+      return uploadBrandArtwork(bucket, path, bytes);
     }
 
     try {

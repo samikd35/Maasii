@@ -9,10 +9,13 @@ import { Field } from "@/ui/field";
 import { GuestMenuView } from "@/ui/guest-menu-view";
 import { languageButtonClass } from "@/ui/language-switch";
 import { Ordering } from "@/app/v/[token]/ordering";
-import { persistMenuDraft } from "./actions";
+import { persistMenuDraft, prepareDishPhoto } from "./actions";
 
 type Section = MenuDraftContent["sections"][number];
 type Dish = Section["dishes"][number];
+type OptionGroup = Dish["optionGroups"][number];
+type ArchivedDish = MenuDraftContent["archivedDishes"][number];
+type Artwork = { accept: string; maxFileBytes: number };
 type GuestMessages = Pick<Messages, "GuestMenu" | "LanguageSwitch" | "Ordering" | "Price">;
 
 const emptyText = { en: "", am: "" };
@@ -24,8 +27,13 @@ function named(name: Bilingual) {
   return name.am.trim() || name.en.trim();
 }
 
-function missingTranslation({ name, description }: Dish) {
-  return !name.am.trim() || !name.en.trim() || Boolean(description.am.trim()) !== Boolean(description.en.trim());
+function missingName({ am, en }: Bilingual) {
+  return !am.trim() || !en.trim();
+}
+
+function missingTranslation({ name, description, optionGroups }: Dish) {
+  return missingName(name) || Boolean(description.am.trim()) !== Boolean(description.en.trim())
+    || optionGroups.some((group) => missingName(group.name) || group.choices.some((choice) => missingName(choice.name)));
 }
 
 function move<T>(items: T[], index: number, step: number) {
@@ -38,10 +46,12 @@ export function MenuEditor({
   initialDraft,
   theme,
   guestMessages,
+  artwork,
 }: {
   initialDraft: MenuDraft;
   theme: GuestMenu["theme"];
   guestMessages: Record<Language, GuestMessages>;
+  artwork: Artwork;
 }) {
   const t = useTranslations("MenuEditor");
   const errors = useTranslations("StaffErrors");
@@ -57,8 +67,8 @@ export function MenuEditor({
   const dirty = menu !== saved.menu && JSON.stringify(menu) !== JSON.stringify(saved.menu);
   const needsTranslation = menu.sections.flatMap(({ dishes }) => dishes).filter(missingTranslation).length;
 
-  function changeSections(sections: Section[]) {
-    setMenu({ sections });
+  function changeSections(sections: Section[], archivedDishes = menu.archivedDishes) {
+    setMenu({ sections, archivedDishes });
     setStatus(undefined);
   }
 
@@ -74,6 +84,37 @@ export function MenuEditor({
         houseFavourite: dish.dishId === dishId && checked,
       })),
     })));
+  }
+
+  function archiveDish(section: Section, dish: Dish) {
+    changeSections(menu.sections.map((candidate) => candidate.sectionId === section.sectionId
+      ? { ...section, dishes: section.dishes.filter(({ dishId }) => dishId !== dish.dishId) }
+      : candidate), [...menu.archivedDishes, { sectionId: section.sectionId, sectionName: section.name, dish }]);
+  }
+
+  function restoreDish({ sectionId, sectionName, dish }: ArchivedDish) {
+    const hasFavourite = menu.sections.some((section) => section.dishes.some((candidate) => candidate.houseFavourite));
+    const restored = { ...dish, houseFavourite: dish.houseFavourite && !hasFavourite };
+    const sections = menu.sections.some((section) => section.sectionId === sectionId)
+      ? menu.sections.map((section) => section.sectionId === sectionId ? { ...section, dishes: [...section.dishes, restored] } : section)
+      : [...menu.sections, { sectionId, name: sectionName, dishes: [restored] }];
+    changeSections(sections, menu.archivedDishes.filter((entry) => entry.dish.dishId !== dish.dishId));
+    setOpenedDish(dish.dishId);
+  }
+
+  function uploadPhoto(file: File, onUploaded: (photoUrl: string) => void) {
+    setError(undefined);
+    if (file.size > artwork.maxFileBytes) {
+      setError("invalidBrandArtwork");
+      return;
+    }
+    const form = new FormData();
+    form.set("photo", file);
+    startTransition(async () => {
+      const result = await prepareDishPhoto(saved.brand.id, form);
+      if (result.photoUrl) onUploaded(result.photoUrl);
+      else setError(result.error ?? "invalid_input");
+    });
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -95,7 +136,15 @@ export function MenuEditor({
 
   const previewSections = localizeMenuSections(menu.sections
     .filter((section) => named(section.name))
-    .map((section) => ({ ...section, dishes: section.dishes.filter((dish) => named(dish.name)) })), previewLanguage);
+    .map((section) => ({
+      ...section,
+      dishes: section.dishes.filter((dish) => named(dish.name)).map((dish) => ({
+        ...dish,
+        optionGroups: dish.optionGroups.filter((group) => named(group.name))
+          .map((group) => ({ ...group, choices: group.choices.filter((choice) => named(choice.name)) }))
+          .filter((group) => group.choices.length > 0),
+      })),
+    })), previewLanguage);
   const previewDishes = previewSections.flatMap((section) => section.dishes);
   const favouriteId = menu.sections.flatMap(({ dishes }) => dishes).find((dish) => dish.houseFavourite)?.dishId;
   const lastPublish = saved.lastPublishedAt && new Intl.DateTimeFormat(locale, {
@@ -190,11 +239,16 @@ export function MenuEditor({
                           open={openedDish === dish.dishId || undefined}
                           index={dishIndex}
                           count={section.dishes.length}
+                          acceptArtwork={artwork.accept}
                           onChange={(patch) => updateSection(sectionIndex, {
                             dishes: section.dishes.map((candidate, i) => i === dishIndex ? { ...candidate, ...patch } : candidate),
                           })}
                           onMove={(step) => updateSection(sectionIndex, { dishes: move(section.dishes, dishIndex, step) })}
                           onFavourite={(checked) => setFavourite(dish.dishId, checked)}
+                          onArchive={() => archiveDish(section, dish)}
+                          onPhoto={(file) => uploadPhoto(file, (photoUrl) => updateSection(sectionIndex, {
+                            dishes: section.dishes.map((candidate) => candidate.dishId === dish.dishId ? { ...candidate, photoUrl } : candidate),
+                          }))}
                         />
                       ))}
                     </div>
@@ -212,6 +266,20 @@ export function MenuEditor({
                     </button>
                   </fieldset>
                 ))}
+                {menu.archivedDishes.length > 0 && (
+                  <section className="rounded-xl border border-rule bg-white/35 p-4">
+                    <h2 className="font-semibold">{t("archivedDishes")}</h2>
+                    <ul className="mt-2 divide-y divide-rule">
+                      {menu.archivedDishes.map((entry) => (
+                        <li key={entry.dish.dishId} className="py-2">
+                          <button type="button" className={editorButton} onClick={() => restoreDish(entry)}>
+                            {t("restoreDish", { dish: entry.dish.name[locale].trim() || named(entry.dish.name) || t("untitledDish") })}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
               </fieldset>
             </form>
           </section>
@@ -251,14 +319,17 @@ function MoveButtons({ index, count, onMove }: { index: number; count: number; o
   );
 }
 
-function DishFields({ dish, open, index, count, onChange, onMove, onFavourite }: {
+function DishFields({ dish, open, index, count, acceptArtwork, onChange, onMove, onFavourite, onArchive, onPhoto }: {
   dish: Dish;
   open?: boolean;
   index: number;
   count: number;
+  acceptArtwork: string;
   onChange: (patch: Partial<Dish>) => void;
   onMove: (step: number) => void;
   onFavourite: (checked: boolean) => void;
+  onArchive: () => void;
+  onPhoto: (file: File) => void;
 }) {
   const t = useTranslations("MenuEditor");
   const locale = useLocale();
@@ -306,10 +377,129 @@ function DishFields({ dish, open, index, count, onChange, onMove, onFavourite }:
         </label>
       </div>
       {!dish.photoUrl && <p className="mt-1 text-xs text-ink-muted">{t("needsPhoto")}</p>}
-      <div className="mt-3 flex gap-2 pb-3">
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        {dish.photoUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={dish.photoUrl} alt="" loading="lazy" decoding="async" className="size-20 rounded-md object-cover" />
+        )}
+        <input id={`photo-${dish.dishId}`} type="file" accept={acceptArtwork} className="peer sr-only" onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          event.currentTarget.value = "";
+          if (file) onPhoto(file);
+        }} />
+        <label htmlFor={`photo-${dish.dishId}`} className={`${editorButton} inline-flex cursor-pointer items-center peer-focus-visible:outline-2`}>
+          {t(dish.photoUrl ? "replacePhoto" : "uploadPhoto")}
+        </label>
+        {dish.photoUrl && (
+          <button type="button" className={editorButton} onClick={() => onChange({ photoUrl: undefined, houseFavourite: false })}>
+            {t("removePhoto")}
+          </button>
+        )}
+      </div>
+      <fieldset className="mt-5 min-w-0 space-y-3">
+        <legend className="text-sm font-semibold">{t("optionGroups")}</legend>
+        {dish.optionGroups.map((group, groupIndex) => (
+          <OptionGroupFields key={group.optionGroupId} group={group} index={groupIndex} count={dish.optionGroups.length}
+            onChange={(patch) => onChange({
+              optionGroups: dish.optionGroups.map((entry, i) => i === groupIndex ? { ...entry, ...patch } : entry),
+            })}
+            onMove={(step) => onChange({ optionGroups: move(dish.optionGroups, groupIndex, step) })}
+            onRemove={() => onChange({ optionGroups: dish.optionGroups.filter((_, i) => i !== groupIndex) })}
+          />
+        ))}
+        <button type="button" className={editorButton} onClick={() => onChange({
+          optionGroups: [...dish.optionGroups, {
+            optionGroupId: crypto.randomUUID(), name: emptyText, kind: "choose_one", required: false, choices: [],
+          }],
+        })}>
+          {t("addGroup")}
+        </button>
+      </fieldset>
+      <div className="mt-3 flex flex-wrap gap-2 pb-3">
         <MoveButtons index={index} count={count} onMove={onMove} />
+        <button type="button" className={editorButton} onClick={onArchive}>{t("archiveDish")}</button>
       </div>
     </details>
+  );
+}
+
+function OptionGroupFields({ group, index, count, onChange, onMove, onRemove }: {
+  group: OptionGroup;
+  index: number;
+  count: number;
+  onChange: (patch: Partial<OptionGroup>) => void;
+  onMove: (step: number) => void;
+  onRemove: () => void;
+}) {
+  const t = useTranslations("MenuEditor");
+  const locale = useLocale();
+  return (
+    <fieldset className="min-w-0 space-y-3 rounded-md border border-rule p-3">
+      <legend className="px-2 text-sm font-semibold">{group.name[locale].trim() || named(group.name) || t("untitledGroup")}</legend>
+      <div className="grid grid-cols-2 gap-3">
+        {dishLanguages.map((language) => (
+          <Field key={language} label={t(language === "am" ? "groupNameAm" : "groupNameEn")} lang={language}
+            value={group.name[language]} onChange={(event) => onChange({ name: { ...group.name, [language]: event.target.value } })} />
+        ))}
+      </div>
+      <div className="flex flex-wrap items-end gap-x-4">
+        <label className="block text-sm font-medium">
+          {t("groupKind")}
+          <select value={group.kind} onChange={(event) => {
+            const kind = event.target.value === "add_extras" ? "add_extras" : "choose_one";
+            onChange({ kind, required: false });
+          }} className="mt-1 block min-h-11 rounded-md border border-ink/30 bg-white px-3 text-base font-normal">
+            <option value="choose_one">{t("chooseOne")}</option>
+            <option value="add_extras">{t("addExtras")}</option>
+          </select>
+        </label>
+        {group.kind === "choose_one" && (
+          <label className="flex min-h-11 items-center gap-2 text-sm font-medium">
+            <input type="checkbox" checked={group.required} onChange={(event) => onChange({ required: event.target.checked })} className="size-5 accent-ink" />
+            {t("groupRequired")}
+          </label>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <MoveButtons index={index} count={count} onMove={onMove} />
+        <button type="button" className={editorButton} onClick={onRemove}>{t("removeGroup")}</button>
+      </div>
+      {group.choices.map((choice, choiceIndex) => {
+        function changeChoice(patch: Partial<OptionGroup["choices"][number]>) {
+          onChange({ choices: group.choices.map((entry, i) => i === choiceIndex ? { ...entry, ...patch } : entry) });
+        }
+        return (
+          <fieldset key={choice.choiceId} className="min-w-0 space-y-3 rounded-md border border-rule p-3">
+            <legend className="px-2 text-sm font-medium">{choice.name[locale].trim() || named(choice.name) || t("untitledChoice")}</legend>
+            <div className="grid grid-cols-2 gap-3">
+              {dishLanguages.map((language) => (
+                <Field key={language} label={t(language === "am" ? "choiceNameAm" : "choiceNameEn")} lang={language}
+                  value={choice.name[language]} onChange={(event) => changeChoice({ name: { ...choice.name, [language]: event.target.value } })} />
+              ))}
+            </div>
+            <Field label={t("priceChange")} type="number" min="0" max="21474836.47" step="0.01" inputMode="decimal"
+              defaultValue={choice.priceChangeSantim ? choice.priceChangeSantim / 100 : ""}
+              className="max-w-40"
+              onChange={(event) => {
+                if (event.target.validity.valid) changeChoice({
+                  priceChangeSantim: event.target.value ? Math.round(event.target.valueAsNumber * 100) : 0,
+                });
+              }} />
+            <div className="flex flex-wrap gap-2">
+              <MoveButtons index={choiceIndex} count={group.choices.length} onMove={(step) => onChange({
+                choices: move(group.choices, choiceIndex, step),
+              })} />
+              <button type="button" className={editorButton} onClick={() => onChange({
+                choices: group.choices.filter((_, i) => i !== choiceIndex),
+              })}>{t("removeChoice")}</button>
+            </div>
+          </fieldset>
+        );
+      })}
+      <button type="button" className={editorButton} onClick={() => onChange({
+        choices: [...group.choices, { choiceId: crypto.randomUUID(), name: emptyText, priceChangeSantim: 0 }],
+      })}>{t("addChoice")}</button>
+    </fieldset>
   );
 }
 
