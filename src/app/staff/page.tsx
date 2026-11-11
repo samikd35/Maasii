@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { z } from "zod";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { getWaiterSession } from "@/core";
@@ -8,13 +10,15 @@ import { ActionForm, SubmitButton } from "@/ui/staff-forms";
 import { StaffEntry, StaffHeader } from "@/ui/staff-header";
 import { lock, unlock } from "./actions";
 import { MyTables } from "./my-tables";
+import { Notifications } from "./notifications";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("StaffWaiter");
   return { title: `${t("waiter")} · Maasii`, robots: { index: false } };
 }
 
-export default async function WaiterPage() {
+export default async function WaiterPage({ searchParams }: PageProps<"/staff">) {
+  const table = z.uuid().safeParse((await searchParams).table);
   const actor = await getSessionActor();
   const device = actor && await getWaiterSession(actor, { unlockToken: await waiterUnlockToken() });
   const t = await getTranslations("StaffWaiter");
@@ -24,6 +28,7 @@ export default async function WaiterPage() {
       <StaffEntry>
         <h1 className="font-display text-3xl">{t("unlockHeading")}</h1>
         <ActionForm action={unlock} className="mt-6 space-y-4">
+          {table.success && <input name="tableId" type="hidden" value={table.data} />}
           <PinField label={t("pin")} />
           <SubmitButton>{t("unlock")}</SubmitButton>
         </ActionForm>
@@ -41,6 +46,8 @@ export default async function WaiterPage() {
     );
   }
 
+  if (table.success) redirect(`/staff/tables/${table.data}`);
+
   const [locale, { StaffOrders, StaffErrors, Bills }] = await Promise.all([getLocale(), getMessages()]);
   const other = locale === "am" ? "en" : "am";
   return (
@@ -57,6 +64,7 @@ export default async function WaiterPage() {
           </form>
         </div>
         <NextIntlClientProvider messages={{ StaffOrders, StaffErrors, Bills }}>
+          <Notifications vapidKey={process.env.MAASII_VAPID_PUBLIC_KEY} subscribed={device.hasPush} />
           <MyTables />
         </NextIntlClientProvider>
         {device.dishes.length > 0 && (
