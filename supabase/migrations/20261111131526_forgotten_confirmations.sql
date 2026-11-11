@@ -5,7 +5,7 @@ create index on app.orders (visit_id) where party_pending;
 alter policy "guests read Orders in their chosen open or paid Visit" on app.orders
   using (not party_pending
     and visit_id in (select visit_id from app.guest_table_choices)
-    and visit_id in (select id from app.visits where closed_at is null or closed_reason = 'paid'));
+    and visit_id in (select id from app.visits where closed_at is null or closed_reason in ('paid', 'all_declined')));
 
 create or replace function app.visit_matches_send(p_venue_id uuid, p_visit_id uuid) returns boolean
 language sql stable security definer set search_path = '' as $$
