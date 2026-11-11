@@ -9,6 +9,7 @@ import { inTransaction, type Tx } from "./db";
 import type { Bilingual } from "./language";
 import { MaasiiError } from "./errors";
 import { qrPng } from "./qr";
+import { closeWaiterAssignments, lockVenueShifts } from "./shifts";
 import { parseInput } from "./validation";
 
 export const WAITER_JOIN_MINUTES = 5;
@@ -163,6 +164,7 @@ export async function joinWaiter(
     await tx.query("update app.waiter_join_codes set used_at = $2 where id = $1", [code.id, at]);
     return {
       actor: staffActor(userId, sessionId),
+      waiterId,
       session: { access_token: data.session.access_token, refresh_token: data.session.refresh_token },
       unlockToken,
     };
@@ -282,13 +284,19 @@ export async function lockWaiter(actor: Actor): Promise<void> {
   });
 }
 
-export async function removeWaiter(actor: Actor, input: { venueId: string; waiterId: string }): Promise<void> {
+export async function removeWaiter(
+  actor: Actor,
+  input: { venueId: string; waiterId: string },
+  { now }: { now?: Date } = {},
+): Promise<void> {
   const { venueId, waiterId } = parseInput(z.object({ venueId: z.uuid(), waiterId: z.uuid() }), input);
   await inTransaction(actor, async (tx) => {
     await requireVenueManager(tx, actor, venueId);
-    await tx.query(
+    await lockVenueShifts(tx, venueId);
+    const { rowCount } = await tx.query(
       "update app.memberships set active = false where id = $1 and venue_id = $2 and role = 'waiter' and active",
       [waiterId, venueId],
     );
+    if (rowCount) await closeWaiterAssignments(tx, venueId, waiterId, now ?? new Date());
   });
 }

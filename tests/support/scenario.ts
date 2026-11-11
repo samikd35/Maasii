@@ -4,7 +4,9 @@ import {
   addTables,
   createBrand,
   createVenue,
+  createWaiterJoinCode,
   inviteManager,
+  joinWaiter,
   publicActor,
   publishMenu,
   staffActor,
@@ -40,6 +42,8 @@ export type Scenario = {
   venues: Record<string, ScenarioVenue>;
   /** Managers by name. Each accepted an Owner's invitation and can sign in with `TEST_PASSWORD`. */
   managers: Record<string, TestUser>;
+  /** Waiters by name, enrolled through a QR code. */
+  waiters: Record<string, Awaited<ReturnType<typeof joinWaiter>>>;
   /** The Menu version published by `.publishedMenu()`, if it was called. */
   menu: PublishedMenuVersion | null;
   /** The stable id of a published dish, looked up by its Amharic or English name. */
@@ -80,6 +84,7 @@ class ScenarioBuilder {
   private brandName = "Test Brand";
   private venuePlans: { name: string; tables: number }[] = [];
   private managerPlans: { name: string; venue?: string }[] = [];
+  private waiterPlans: { name: string; venue?: string }[] = [];
   private menuToPublish: MenuInput | null = null;
 
   brand(name: string) {
@@ -96,6 +101,11 @@ class ScenarioBuilder {
   /** Adds a Manager, invited by the Owner, at the named Venue (the first Venue by default). */
   manager(name: string, { venue }: { venue?: string } = {}) {
     this.managerPlans.push({ name, venue });
+    return this;
+  }
+
+  waiter(name: string, { venue }: { venue?: string } = {}) {
+    this.waiterPlans.push({ name, venue });
     return this;
   }
 
@@ -128,6 +138,14 @@ class ScenarioBuilder {
       managers[plan.name] = { userId, email, password: TEST_PASSWORD, actor: staffActor(userId) };
     }
 
+    const waiters: Scenario["waiters"] = {};
+    for (const plan of this.waiterPlans) {
+      const venue = venues[plan.venue ?? plans[0].name];
+      if (!venue) throw new Error(`No venue called "${plan.venue}" in this scenario.`);
+      const { token } = await createWaiterJoinCode(owner.actor, { venueId: venue.id, siteUrl: "https://maasii.test" });
+      waiters[plan.name] = await joinWaiter(publicActor, { token, name: plan.name, pin: "0427" });
+    }
+
     const menu = this.menuToPublish
       ? await publishMenu(owner.actor, { brandId: brand.id, menu: this.menuToPublish })
       : null;
@@ -138,6 +156,7 @@ class ScenarioBuilder {
       venue: venues[plans[0].name],
       venues,
       managers,
+      waiters,
       menu,
       dishId(name) {
         const dish = menu?.sections.flatMap((s) => s.dishes).find((d) => d.name.en === name || d.name.am === name);

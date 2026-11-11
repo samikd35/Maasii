@@ -127,6 +127,21 @@
     "inviteHeading": "አስተዳዳሪ ለመጋበዝ",
     "inviteManager": "አስተዳዳሪ ይጋብዙ"
   },
+  "Shifts": {
+    "title": "ፈረቃዎች",
+    "usualTables": "መደበኛ ጠረጴዛዎች",
+    "suggestedAssignments": "የተጠቆሙ የጠረጴዛ ምደባዎች",
+    "runningShift": "እየተካሄደ ያለ ፈረቃ",
+    "unassignedTables": "አስተናጋጅ ያልተመደበላቸው ጠረጴዛዎች",
+    "unassigned": "አልተመደበም",
+    "allAssigned": "ሁሉም አገልግሎት ላይ ያሉ ጠረጴዛዎች አስተናጋጅ ተመድቦላቸዋል።",
+    "noActiveTables": "በዚህ ቦታ አገልግሎት ላይ ያለ ጠረጴዛ የለም።",
+    "start": "ፈረቃ ጀምር",
+    "started": "የተጀመረው {time} (አዲስ አበባ)",
+    "end": "ፈረቃ ጨርስ",
+    "saveUsual": "መደበኛ ጠረጴዛዎችን አስቀምጥ",
+    "saveAssignment": "ምደባውን አስቀምጥ"
+  },
   "PaymentOptions": {
     "title": "የክፍያ አማራጮች",
     "addHeading": "የክፍያ አማራጭ ለመጨመር",
@@ -165,6 +180,8 @@
     "system": "ሲስተም"
   },
   "StaffForms": {
+    "usualTablesSaved": "መደበኛ ጠረጴዛዎቹ ተቀምጠዋል።",
+    "assignmentSaved": "የጠረጴዛ ምደባው ተቀምጧል።",
     "paymentOptionSaved": "የክፍያ አማራጩ ተቀምጧል።",
     "invitationLink": "የግብዣ ሊንክ",
     "copyLink": "ሊንኩን ይቅዱ",
@@ -180,6 +197,8 @@
     "paymentDestinationRequired": "የአቅራቢውን ስም፣ የተቀባዩን ስም እና የሒሳብ ቁጥር ወይም የነጋዴ ኮድ ያስገቡ።",
     "paymentOptionChanged": "የክፍያ አማራጩ በሚያርትዑበት ጊዜ ተቀይሯል። ገጹን ዳግም ይጫኑና የአሁኑን መረጃ ይመልከቱ።",
     "paymentCodeConfirmationRequired": "የቀድሞውንና አዲሱን መረጃ አነጻጽረው ለውጡን ያረጋግጡ።",
+    "shiftAlreadyRunning": "ፈረቃ አስቀድሞ ተጀምሯል። የጠረጴዛ ምደባዎቹን ለማየት ገጹን ያድሱ።",
+    "shiftChanged": "የነበረው ፈረቃ ተለውጧል። የአሁኑን ፈረቃ ለማየት ገጹን ያድሱ።",
     "invalidPaymentQr": "እስከ 256 ኪባ የሆነ PNG፣ JPEG ወይም WebP ምስል ይምረጡ።",
     "invalid_input": "ያስገቡትን መረጃ ፈትሸው እንደገና ይሞክሩ።",
     "not_allowed": "ይህን ለማድረግ ፈቃድ የለዎትም።",
