@@ -40,7 +40,7 @@ pnpm dev                                # then open http://localhost:3000/v/bilo
 - `pnpm supabase stack list` shows every local stack on the machine. `pnpm db:stop` frees memory and keeps data. `pnpm supabase stack destroy --yes` deletes this checkout's data.
 - The first `db:start` on a machine downloads images and can fail with `Owner response unavailable`. Run it again.
 - Schema changes go in a new migration: `pnpm supabase migration new <name>`, then `pnpm db:reset`. Never edit a migration that has been merged.
-- Ports for the app: `pnpm dev` uses `PORT` (default 3000). `pnpm test:e2e` builds and serves on a port derived from the checkout path (4000-4999), or `E2E_PORT`. Set `E2E_REUSE_SERVER=1` to test against a server you already started on that port.
+- Ports for the app: `pnpm dev` uses `PORT` (default 3000). `pnpm test:e2e` builds and serves on a port derived from the checkout path (4000-4999), or `E2E_PORT`. Set `E2E_REUSE_SERVER=1` to test against a server you already started on that port. For tests with controlled dates, start the server with `NODE_OPTIONS='--import ./e2e/support/server-clock.mjs' pnpm start -p <port>`.
 
 ## Layout
 

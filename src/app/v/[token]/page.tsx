@@ -31,7 +31,15 @@ export default async function GuestMenuPage({ params }: PageProps<"/v/[token]">)
   const [menu, t] = await Promise.all([loadMenu((await params).token), getTranslations("GuestMenu")]);
   if (!menu) notFound();
   const { Ordering: orderingMessages, Price: priceMessages } = await getMessages();
-  const { brand, theme } = menu;
+  const { brand, theme, fastingDishes, houseFavourite } = menu;
+  const sections = fastingDishes.length > 0
+    ? [
+        { id: "fasting", name: t("fastingSection"), dishes: fastingDishes },
+        ...menu.sections
+          .map((section) => ({ ...section, dishes: section.dishes.filter((dish) => !dish.fasting) }))
+          .filter((section) => section.dishes.length > 0),
+      ]
+    : menu.sections;
   const colours = {
     "--color-paper": theme.paper,
     "--color-paper-deep": theme.paperDeep,
@@ -58,18 +66,31 @@ export default async function GuestMenuPage({ params }: PageProps<"/v/[token]">)
             {brand.name} · {menu.venue.name}
           </p>
           <h1 className="mt-1 font-display text-4xl leading-tight text-brand-readable">{t("heading")}</h1>
-          {brand.coverUrl && (
+          {brand.coverUrl && brand.coverUrl !== houseFavourite?.photoUrl && (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={brand.coverUrl} alt="" loading="lazy" decoding="async" className="mt-4 aspect-[3/1] w-full rounded-lg bg-paper-deep object-cover" />
           )}
         </div>
 
-        {menu.sections.length === 0 ? (
+        {houseFavourite?.photoUrl && (
+          <article aria-labelledby="house-favourite-label" className="relative mx-5 mt-4 flex items-center gap-4 overflow-hidden rounded-lg border border-rule bg-paper-deep">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={houseFavourite.photoUrl} alt="" loading="lazy" decoding="async" className="size-28 shrink-0 object-cover" />
+            <div className="py-3 pr-3">
+              <p id="house-favourite-label" className="text-xs font-semibold tracking-wide text-brand-readable uppercase">{t("houseFavourite")}</p>
+              <h2 id="house-favourite-name" className="mt-1 font-display text-xl leading-tight">{houseFavourite.name}</h2>
+              <Price santim={houseFavourite.priceSantim} />
+            </div>
+            <OpenDishButton dishId={houseFavourite.id} labelledBy="house-favourite-name" />
+          </article>
+        )}
+
+        {sections.length === 0 ? (
           <p className="px-5 pt-6 text-ink-muted">{t("comingSoon")}</p>
         ) : (
           <>
-            <SectionChips sections={menu.sections} />
-            {menu.sections.map((section) => (
+            <SectionChips sections={sections} />
+            {sections.map((section) => (
               <MenuSection key={section.id} section={section} />
             ))}
           </>
@@ -107,6 +128,7 @@ function SectionChips({ sections }: { sections: GuestMenuSection[] }) {
 
 function MenuSection({ section }: { section: GuestMenuSection }) {
   const t = useTranslations("Price");
+  const ordering = useTranslations("Ordering");
   const headingId = `section-${section.id}-heading`;
   return (
     <section id={`section-${section.id}`} aria-labelledby={headingId} className="scroll-mt-36 px-5 pt-8">
@@ -122,9 +144,14 @@ function MenuSection({ section }: { section: GuestMenuSection }) {
         {section.dishes.map((dish) => (
           <li key={dish.id} className="relative flex items-start justify-between gap-4 border-b border-rule py-3.5">
             <div className="min-w-0">
-              <h3 id={`dish-${dish.id}-name`} className="text-[1.0625rem] leading-snug font-semibold">
+              <h3 id={`dish-${dish.id}-name`} className="mr-2 inline text-[1.0625rem] leading-snug font-semibold">
                 {dish.name}
               </h3>
+              {dish.fasting && (
+                <span id={`dish-${dish.id}-fasting`} className="inline-block rounded-full border border-brand-readable px-2 text-xs font-medium text-brand-readable">
+                  {ordering("fasting")}
+                </span>
+              )}
               {dish.description && (
                 <p id={`dish-${dish.id}-description`} className="mt-0.5 text-sm leading-snug text-ink-muted">
                   {dish.description}
@@ -135,7 +162,10 @@ function MenuSection({ section }: { section: GuestMenuSection }) {
             <OpenDishButton
               dishId={dish.id}
               labelledBy={`dish-${dish.id}-name`}
-              describedBy={dish.description ? `dish-${dish.id}-description` : undefined}
+              describedBy={[
+                dish.fasting && `dish-${dish.id}-fasting`,
+                dish.description && `dish-${dish.id}-description`,
+              ].filter(Boolean).join(" ") || undefined}
             />
           </li>
         ))}

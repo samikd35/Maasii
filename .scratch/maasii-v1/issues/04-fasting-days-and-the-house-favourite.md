@@ -6,9 +6,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] Dishes have a fasting flag, shown as a labelled tag (with a word, not just a colour) on dish rows.
-- [ ] A fasting calendar holds Wednesdays and Fridays by default, plus dated seasons and dated exceptions such as non-fasting periods. Seed data covers the current year.
-- [ ] Core tests confirm whether a given date in Addis Ababa time is a fasting day, including season and exception cases.
-- [ ] On a fasting day the guest menu shows a fasting section first, containing every fasting dish. On other days sections appear in their normal order.
-- [ ] A dish marked House favourite appears as one photo card above the first section. With none marked, no card appears.
-- [ ] A Playwright test with a controlled date checks the fasting section's position on a fasting day and a normal day.
+- [x] Dishes have a fasting flag, shown as a labelled tag (with a word, not just a colour) on dish rows.
+- [x] A fasting calendar holds Wednesdays and Fridays by default, plus dated seasons and dated exceptions such as non-fasting periods. Seed data covers the current year.
+- [x] Core tests confirm whether a given date in Addis Ababa time is a fasting day, including season and exception cases.
+- [x] On a fasting day the guest menu shows a fasting section first, containing every fasting dish. On other days sections appear in their normal order.
+- [x] A dish marked House favourite appears as one photo card above the first section. With none marked, no card appears.
+- [x] A Playwright test with a controlled date checks the fasting section's position on a fasting day and a normal day.

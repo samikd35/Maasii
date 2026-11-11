@@ -10,6 +10,7 @@ const sectionChips = (page: Page) => page.getByRole("navigation", { name: /Menu 
 const dishRow = (page: Page, name: string) => page.getByRole("listitem").filter({ has: page.getByRole("heading", { name }) });
 
 test("a guest switches the menu to Amharic and back, and the choice survives a reload", async ({ page }) => {
+  await page.setExtraHTTPHeaders({ "x-maasii-test-now": "2026-10-08T12:00:00Z" });
   await page.goto(bilosMenuLink);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Our menu");
 
@@ -156,6 +157,7 @@ test("Saba House's English menu weighs under 250 KB and only downloads its Latin
 });
 
 async function weighMenu(page: Page, link = bilosMenuLink) {
+  await page.setExtraHTTPHeaders({ "x-maasii-test-now": "2026-10-06T21:00:00Z" });
   const pending: Promise<{ font: boolean; size: number }>[] = [];
   page.on("requestfinished", (request) => {
     if (request.resourceType() === "image") return;
