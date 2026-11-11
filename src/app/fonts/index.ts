@@ -20,3 +20,30 @@ export const ethiopic = localFont({
     },
   ],
 });
+
+// The alternate Brand theme uses one Ethiopic face for both headings and body copy. Its small
+// Latin subset is loaded only for Latin headings. Both subsets are Noto Serif Ethiopic (OFL.txt).
+export const serifEthiopic = localFont({
+  src: "./noto-serif-ethiopic-400-ethiopic.woff2",
+  weight: "400",
+  display: "swap",
+  preload: false,
+  adjustFontFallback: false,
+  variable: "--font-ethiopic",
+  declarations: [
+    { prop: "size-adjust", value: "108%" },
+    {
+      prop: "unicode-range",
+      value: "U+30E, U+1200-1399, U+2D80-2DDE, U+AB01-AB2E, U+1E7E0-1E7E6, U+1E7E8-1E7EB, U+1E7ED-1E7EE, U+1E7F0-1E7FE",
+    },
+  ],
+});
+
+export const serifLatin = localFont({
+  src: "./noto-serif-ethiopic-400-latin.woff2",
+  weight: "400",
+  display: "swap",
+  preload: false,
+  adjustFontFallback: false,
+  variable: "--font-display-latin",
+});

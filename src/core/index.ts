@@ -4,6 +4,7 @@
 export { adminActor, publicActor, staffActor, systemActor, type Actor } from "./actor";
 export { MaasiiError, type MaasiiErrorCode } from "./errors";
 export { languages, type Bilingual, type Language } from "./language";
+export { deriveBrandTheme, displayFonts, type DisplayFont } from "./brand-theme";
 
 export {
   addTables,

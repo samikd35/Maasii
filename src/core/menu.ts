@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { requireBrandOwner } from "./access";
 import type { Actor } from "./actor";
+import { deriveBrandTheme } from "./brand-theme";
+import type { Brand } from "./brands";
 import { inTransaction, type Tx } from "./db";
 import { MaasiiError } from "./errors";
 import { bilingualInput, bilingualNameInput, inLanguage, languages, type Bilingual, type Language } from "./language";
@@ -279,7 +281,8 @@ export type GuestMenuDish = {
 };
 export type GuestMenuSection = { id: string; name: string; dishes: GuestMenuDish[] };
 export type GuestMenu = {
-  brand: { id: string; name: string; logoUrl: string | null };
+  brand: Brand;
+  theme: ReturnType<typeof deriveBrandTheme>;
   venue: { id: string; name: string; linkToken: string };
   /** Null until the Brand publishes its first Menu. */
   menuVersion: { id: string; number: number; publishedAt: Date } | null;
@@ -299,9 +302,22 @@ export async function getPublishedMenu(
   const text = (en: string, am: string) => inLanguage({ en, am }, language.data);
 
   return inTransaction(actor, async (tx) => {
-    const { rows } = await tx.query(
+    const { rows } = await tx.query<{
+      venue_id: string;
+      venue_name: string;
+      link_token: string;
+      brand_id: string;
+      brand_name: string;
+      logo_url: string | null;
+      colour: string;
+      cover_url: string | null;
+      display_font: Brand["displayFont"];
+    } & (
+      | { version_id: string; version_number: number; published_at: Date }
+      | { version_id: null; version_number: null; published_at: null }
+    )>(
       `select v.id as venue_id, v.name as venue_name, v.link_token,
-              b.id as brand_id, b.name as brand_name, b.logo_url,
+              b.id as brand_id, b.name as brand_name, b.logo_url, b.colour, b.cover_url, b.display_font,
               mv.id as version_id, mv.number as version_number, mv.published_at
        from app.venues v
        join app.brands b on b.id = v.brand_id
@@ -313,11 +329,19 @@ export async function getPublishedMenu(
     if (!row) return null;
 
     const menu: GuestMenu = {
-      brand: { id: row.brand_id, name: row.brand_name, logoUrl: row.logo_url },
+      brand: {
+        id: row.brand_id,
+        name: row.brand_name,
+        logoUrl: row.logo_url,
+        colour: row.colour,
+        coverUrl: row.cover_url,
+        displayFont: row.display_font,
+      },
+      theme: deriveBrandTheme(row.colour),
       venue: { id: row.venue_id, name: row.venue_name, linkToken: row.link_token },
-      menuVersion: row.version_id
-        ? { id: row.version_id, number: row.version_number, publishedAt: row.published_at }
-        : null,
+      menuVersion: row.version_id === null
+        ? null
+        : { id: row.version_id, number: row.version_number, publishedAt: row.published_at },
       sections: [],
     };
     if (!row.version_id) return menu;
