@@ -94,7 +94,7 @@ const newLineId = () => `${Date.now().toString(36)}-${Math.random().toString(36)
 
 // ---- Opening a dish from its server-rendered row -----------------------------------------------
 
-let openSheet: ((request: SheetRequest) => void) | undefined;
+let openSheet: ((dishId: string) => void) | undefined;
 
 /** An invisible button over a dish row that opens the dish sheet. */
 export function OpenDishButton({ dishId, labelledBy, describedBy }: { dishId: string; labelledBy: string; describedBy?: string }) {
@@ -104,7 +104,7 @@ export function OpenDishButton({ dishId, labelledBy, describedBy }: { dishId: st
       aria-haspopup="dialog"
       aria-labelledby={labelledBy}
       aria-describedby={describedBy}
-      onClick={() => openSheet?.({ dishId })}
+      onClick={() => openSheet?.(dishId)}
       className="absolute inset-0 w-full cursor-pointer focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
     />
   );
@@ -112,7 +112,26 @@ export function OpenDishButton({ dishId, labelledBy, describedBy }: { dishId: st
 
 // ---- The island --------------------------------------------------------------------------------
 
-export function Ordering({ venueLinkToken, sections }: { venueLinkToken: string; sections: GuestMenuSection[] }) {
+// This module's memory survives a locale refresh and is recreated on a document load.
+let browsingPage: { venueLinkToken: string; pageLoadId: string } | undefined;
+
+function sendBrowsingEvent(venueLinkToken: string, pageLoadId: string, dishId?: string) {
+  void fetch(`/v/${encodeURIComponent(venueLinkToken)}/browsing-events`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "omit",
+    referrerPolicy: "no-referrer",
+    keepalive: true,
+    priority: "low",
+    body: JSON.stringify({ kind: dishId ? "dish_opened" : "menu_opened", pageLoadId, dishId }),
+  }).catch(() => {});
+}
+
+export function Ordering({ venueLinkToken, sections, recordBrowsing }: {
+  venueLinkToken: string;
+  sections: GuestMenuSection[];
+  recordBrowsing: boolean;
+}) {
   const t = useTranslations("Ordering");
   const price = useTranslations("Price");
   const key = draftKey(venueLinkToken);
@@ -121,11 +140,24 @@ export function Ordering({ venueLinkToken, sections }: { venueLinkToken: string;
   const [announcement, setAnnouncement] = useState("");
 
   useEffect(() => {
-    openSheet = setSheet;
+    if (recordBrowsing && browsingPage?.venueLinkToken !== venueLinkToken) {
+      const pageLoadId = globalThis.crypto?.randomUUID?.();
+      if (pageLoadId) {
+        browsingPage = { venueLinkToken, pageLoadId };
+        sendBrowsingEvent(venueLinkToken, pageLoadId);
+      }
+    }
+
+    openSheet = (dishId) => {
+      setSheet({ dishId });
+      if (recordBrowsing && browsingPage?.venueLinkToken === venueLinkToken) {
+        sendBrowsingEvent(venueLinkToken, browsingPage.pageLoadId, dishId);
+      }
+    };
     return () => {
       openSheet = undefined;
     };
-  }, []);
+  }, [recordBrowsing, venueLinkToken]);
 
   const menu: DraftMenu = { sections };
   const draft = priceDraft(menu, lines);
