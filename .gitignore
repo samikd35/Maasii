@@ -1,1 +1,31 @@
 .DS_Store
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# next.js
+/.next/
+/out/
+/build
+next-env.d.ts
+*.tsbuildinfo
+
+# tests
+/coverage
+/.vitest/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# env files: generated per worktree by `pnpm db:env`, never committed
+.env*
+!.env.example
+
+# misc
+*.pem
+npm-debug.log*
+.pnpm-debug.log*
+.vercel

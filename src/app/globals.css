@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+/* Paper & Ink: warm paper, dark ink, hairline rules. Brand accents arrive with branding settings (ticket 03). */
+@theme {
+  --color-paper: #fbf7f0;
+  --color-paper-deep: #f3ece0;
+  --color-ink: #1c1917;
+  --color-ink-muted: #57534e;
+  --color-rule: #e4dccd;
+
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Ethiopic", sans-serif;
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Noto Serif Ethiopic", serif;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-text-size-adjust: 100%;
+}
