@@ -88,18 +88,15 @@ export default async function InsightsPage({ params, searchParams }: PageProps<"
                 </tbody>
               </table>
               <p className="font-semibold">{t("reorder")}</p>
-              {[[t("current"), dish.currentReview], [t("previous"), dish.previousReview]].map(([label, stats]) => {
-                if (typeof stats === "string") return null;
-                return (
-                  <div key={String(label)} className="text-sm">
-                    <p>{String(label)} · {t("responses", { count: stats.count })}</p>
+              {([[t("current"), dish.currentReview], [t("previous"), dish.previousReview]] as const).map(([label, stats]) => (
+                  <div key={label} className="text-sm">
+                    <p>{label} · {t("responses", { count: stats.count })}</p>
                     <p>{dishChoices.map((rating) => t("share", { rating: t(rating), share: rate(stats[rating], stats.count), count: stats[rating] })).join(" · ")}</p>
                     {stats.topics.length > 0 && (
                       <p>{t("topics")}: {stats.topics.slice(0, 3).map(({ topic, count }) => `${topicLabel(topic, t)} (${count})`).join(" · ")}</p>
                     )}
                   </div>
-                );
-              })}
+              ))}
             </li>
           ))}
         </ul>
