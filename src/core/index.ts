@@ -8,6 +8,7 @@ export {
   addTables,
   createBrand,
   createVenue,
+  getVenueLink,
   getVenueSetup,
   listBrands,
   renumberTable,
@@ -16,6 +17,7 @@ export {
   type BrandSummary,
   type Table,
   type Venue,
+  type VenueLink,
   type VenueSetup,
   type VenueTable,
 } from "./brands";

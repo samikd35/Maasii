@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import QRCode from "qrcode";
 import { z } from "zod";
 import { requireBrandOwner, requirePlatformAdmin, requireSystem, requireVenueManager } from "./access";
 import type { Actor } from "./actor";
@@ -118,6 +119,28 @@ export async function getVenueSetup(actor: Actor, input: { venueId: string }): P
     const owner = await tx.query<{ ok: boolean }>("select app.is_brand_owner($1) as ok", [venue.brandId]);
     return { venue, brand: brand.rows[0], tables: tables.rows, isOwner: actor.kind === "system" || owner.rows[0].ok };
   });
+}
+
+export type VenueLink = {
+  /** The Venue Link, the same on every table: https://<site>/v/<token>. */
+  url: string;
+  /** A QR image of the Venue Link, for table cards. */
+  qrPng: Uint8Array;
+  qrFileName: string;
+};
+
+/** The Venue Link and its QR image, for a Venue's Manager or the brand's Owner. */
+export async function getVenueLink(actor: Actor, input: { venueId: string; siteUrl: string }): Promise<VenueLink> {
+  const site = parseInput(z.object({ siteUrl: z.url({ protocol: /^https?$/ }) }), input).siteUrl;
+  const venue = await inTransaction(actor, async (tx) => {
+    const venue = await findVenue(tx, input.venueId);
+    await requireVenueManager(tx, actor, venue.id);
+    return venue;
+  });
+  const url = new URL(`/v/${venue.linkToken}`, site).toString();
+  // Margin and size suit printing: 4 modules of quiet zone, about 6 cm at 300 dpi.
+  const qrPng = await QRCode.toBuffer(url, { type: "png", errorCorrectionLevel: "M", margin: 4, width: 720 });
+  return { url, qrPng: new Uint8Array(qrPng), qrFileName: `${venue.linkToken}-qr.png` };
 }
 
 async function findVenue(tx: Tx, venueId: string): Promise<Venue> {
