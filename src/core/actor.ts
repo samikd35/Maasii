@@ -12,6 +12,8 @@ export type Actor =
    * platform admin in the database; the actor only says which hat they are wearing.
    */
   | { kind: "admin"; userId: string }
+  /** A platform admin opening the read-only support view. */
+  | { kind: "support"; userId: string }
   /** Seeding and scheduled jobs. Runs as `postgres` and bypasses row-level security. */
   | { kind: "system" };
 
@@ -21,3 +23,4 @@ export const publicActor: Actor = { kind: "public" };
 export const systemActor: Actor = { kind: "system" };
 export const staffActor = (userId: string, sessionId?: string): StaffActor => ({ kind: "staff", userId, sessionId });
 export const adminActor = (userId: string): Actor => ({ kind: "admin", userId });
+export const adminSupportActor = (userId: string): Actor => ({ kind: "support", userId });

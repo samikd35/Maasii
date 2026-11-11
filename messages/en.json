@@ -95,7 +95,25 @@
     "owners": "Owners",
     "noOwner": "No owner yet. Invite one below.",
     "inviteHeading": "Invite an owner",
-    "inviteOwner": "Invite owner"
+    "inviteOwner": "Invite owner",
+    "openSupport": "Open read-only support",
+    "supportHeading": "Read-only Brand support",
+    "noSupportOwners": "No owners yet.",
+    "noSupportTables": "No tables yet.",
+    "supportStaff": "Staff",
+    "noSupportStaff": "No staff yet.",
+    "fastingCalendar": "Fasting calendar",
+    "calendarRules": "Dates are inclusive in Addis Ababa. Wednesdays and Fridays are fasting days by default. A non-fasting exception overrides any fasting period.",
+    "addPeriodHeading": "Add a calendar period",
+    "periodKind": "Period type",
+    "fastingSeason": "Fasting season",
+    "nonFastingException": "Non-fasting exception",
+    "startsOn": "Start date",
+    "endsOn": "End date",
+    "addPeriod": "Add period",
+    "editPeriod": "Edit period",
+    "savePeriod": "Save period",
+    "removePeriod": "Remove period"
   },
   "StaffManage": {
     "branding": "Branding",
@@ -212,6 +230,7 @@
     "exampleDescription": "Espresso with a dash of milk"
   },
   "StaffForms": {
+    "fastingPeriodSaved": "Calendar period saved.",
     "usualTablesSaved": "Usual Tables saved.",
     "assignmentSaved": "Table Assignment saved.",
     "brandingSaved": "Branding saved at every venue.",
@@ -231,6 +250,8 @@
     "waiterJoinReady": "Scan this QR on the waiter's phone. It works once within {minutes} minutes."
   },
   "StaffErrors": {
+    "invalidFastingDates": "Enter valid dates with the end date on or after the start date.",
+    "fastingPeriodExists": "A period with those dates and that type already exists.",
     "invalidBrandArtwork": "Choose a JPEG, PNG or WebP image up to 4 MB.",
     "paymentDestinationRequired": "Enter the provider, recipient name and account number or merchant code.",
     "paymentOptionChanged": "This Payment Option changed while you were editing. Reload the page and review the current details.",

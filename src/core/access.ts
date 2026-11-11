@@ -2,6 +2,10 @@ import type { Actor } from "./actor";
 import type { Tx } from "./db";
 import { MaasiiError } from "./errors";
 
+export function requireOutsideBrandSupport(actor: Actor): asserts actor is Exclude<Actor, { kind: "support" }> {
+  if (actor.kind === "support") throw new MaasiiError("not_allowed", "Brand support is read-only.");
+}
+
 export function requireSystem(actor: Actor): void {
   if (actor.kind !== "system") {
     throw new MaasiiError("not_allowed", "Only the platform can do this.");

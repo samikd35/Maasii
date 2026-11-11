@@ -7,7 +7,7 @@
 **Status:** ready-for-agent
 
 - [ ] The admin can list brands and open any brand's venues, Menu, staff, Visits and Payment Options in a read-only view.
-- [ ] No command that changes brand data is available from the support view, and the core refuses such commands from the admin's support session.
-- [ ] Every support view opening is written to the audit log.
-- [ ] The admin can add, edit and remove fasting seasons and exceptions with dates. Changes take effect on the guest menu immediately.
-- [ ] Core tests cover the read-only guarantee and calendar changes.
+- [x] No command that changes brand data is available from the support view, and the core refuses such commands from the admin's support session.
+- [x] Every support view opening is written to the audit log.
+- [x] The admin can add, edit and remove fasting seasons and exceptions with dates. Changes take effect on the guest menu immediately.
+- [x] Core tests cover the read-only guarantee and calendar changes.

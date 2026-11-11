@@ -3,7 +3,7 @@ import { promisify } from "node:util";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createPublicAuthClient } from "@/lib/supabase/public";
-import { requireVenueManager } from "./access";
+import { requireOutsideBrandSupport, requireVenueManager } from "./access";
 import { staffActor, systemActor, type Actor } from "./actor";
 import { inTransaction, type Tx } from "./db";
 import type { Bilingual } from "./language";
@@ -100,10 +100,11 @@ export async function getWaiterJoinCode(
 }
 
 export async function joinWaiter(
-  _actor: Actor,
+  actor: Actor,
   input: { token: string; name: string; pin: string },
   { now }: { now?: Date } = {},
 ) {
+  requireOutsideBrandSupport(actor);
   const pin = parseInput(pinInput, input.pin, "invalidPin");
   return inTransaction(systemActor, async (tx) => {
     const code = await findJoinCode(tx, input.token, true);

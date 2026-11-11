@@ -22,7 +22,12 @@ export default async function AdminHome() {
 
   return (
     <>
-      <h1 className="font-display text-3xl">{t("brands")}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-x-4">
+        <h1 className="font-display text-3xl">{t("brands")}</h1>
+        <Link href="/admin/fasting-calendar" className="inline-flex min-h-11 items-center text-sm font-medium underline">
+          {t("fastingCalendar")}
+        </Link>
+      </div>
       <ActionForm action={addBrand} className="mt-6 flex flex-wrap items-end gap-3">
         <Field label={t("brandName")} name="name" required className="min-w-0 flex-1" />
         <SubmitButton>{t("createBrand")}</SubmitButton>

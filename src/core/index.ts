@@ -1,12 +1,14 @@
 // The Maasii core's public interface. Screens, scripts and tests import only from "@/core".
 // Every command and query takes the calling Actor first and runs in one database transaction.
 
-export { adminActor, publicActor, staffActor, systemActor, type Actor, type StaffActor } from "./actor";
+export { adminActor, adminSupportActor, publicActor, staffActor, systemActor, type Actor, type StaffActor } from "./actor";
 export { MaasiiError, type MaasiiErrorCode } from "./errors";
 export { languages, type Bilingual, type Language } from "./language";
 export { brandArtworkMimeTypes, MAX_BRAND_ARTWORK_BYTES } from "./brand-artwork";
 export { deriveBrandTheme, displayFonts, type DisplayFont } from "./brand-theme";
 export { recordBrowsingEvent } from "./browsing-events";
+export { addFastingPeriod, listFastingPeriods, removeFastingPeriod, updateFastingPeriod, type FastingPeriod } from "./fasting-calendar";
+export { listBrandSupportOpenings, openBrandSupport } from "./admin-support";
 
 export {
   addTables,

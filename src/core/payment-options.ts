@@ -96,12 +96,16 @@ export async function listPaymentOptions(actor: Actor, input: z.input<typeof ven
   const { venueId } = parseInput(venueInput, input);
   return inTransaction(actor, async (tx) => {
     await requireVenueManager(tx, actor, venueId);
-    const { rows } = await tx.query<PaymentOptionRow>(
-      `select * from app.payment_options where venue_id = $1 order by display_order, id`,
-      [venueId],
-    );
-    return rows.map(toPaymentOption);
+    return readVenuePaymentOptions(tx, venueId);
   });
+}
+
+export async function readVenuePaymentOptions(tx: Tx, venueId: string): Promise<PaymentOption[]> {
+  const { rows } = await tx.query<PaymentOptionRow>(
+    `select * from app.payment_options where venue_id = $1 order by display_order, id`,
+    [venueId],
+  );
+  return rows.map(toPaymentOption);
 }
 
 export async function addPaymentOption(

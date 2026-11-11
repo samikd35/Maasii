@@ -15,6 +15,7 @@ import {
   type PaymentOptionChange,
 } from "@/core";
 import { requireStaff } from "@/lib/session";
+import { PaymentOptionValues } from "@/ui/payment-option-values";
 import { ActionForm, SubmitButton } from "@/ui/staff-forms";
 import { changeActive, remove, savePaymentOption } from "./actions";
 import { OptionFields } from "./option-fields";
@@ -78,7 +79,7 @@ function OptionRow({ option, isOwner }: { option: PaymentOption; isOwner: boolea
   return (
     <article aria-labelledby={`payment-${option.id}`} className="mt-4 rounded-md border border-rule p-4">
       <h2 id={`payment-${option.id}`} className="text-lg font-semibold break-words">{option.provider ?? t(option.kind)}</h2>
-      <OptionValues option={option} />
+      <PaymentOptionValues option={option} />
       {isOwner && (
         <>
           <details className="mt-2 border-t border-rule">
@@ -119,36 +120,6 @@ function OptionForm({ venueId, option, defaultOrder }: { venueId: string; option
   );
 }
 
-function OptionValues({ option }: { option: PaymentOption | null }) {
-  const t = useTranslations("PaymentOptions");
-  if (!option) return <p className="text-sm text-ink-muted">{t("noValue")}</p>;
-  const fields = [
-    [t("kind"), t(option.kind)],
-    [t("provider"), option.provider],
-    [t("recipientName"), option.recipientName],
-    [t("accountOrMerchantCode"), option.accountOrMerchantCode],
-    [t("displayOrder"), option.displayOrder],
-    [t("status"), t(option.active ? "active" : "inactive")],
-  ];
-  return (
-    <>
-      <dl className="mt-2 space-y-1 text-sm">
-        {fields.map(([label, value]) => (
-          <div key={label}>
-            <dt className="text-ink-muted">{label}</dt>
-            <dd className="break-all">{value ?? t("noValue")}</dd>
-          </div>
-        ))}
-      </dl>
-      {option.qrImage && (
-        // The uploaded raster QR is already a bounded data URL.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={option.qrImage} alt={t("qrAlt")} width={128} height={128} loading="lazy" className="mt-2 h-auto max-w-full border border-rule" />
-      )}
-    </>
-  );
-}
-
 function ChangeLog({ changes }: { changes: PaymentOptionChange[] }) {
   const t = useTranslations("PaymentOptions");
   const format = useFormatter();
@@ -173,11 +144,11 @@ function ChangeLog({ changes }: { changes: PaymentOptionChange[] }) {
             <div className="grid grid-cols-2 gap-4 pb-3">
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold">{t("before")}</h3>
-                <OptionValues option={change.before} />
+                <PaymentOptionValues option={change.before} />
               </div>
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold">{t("after")}</h3>
-                <OptionValues option={change.after} />
+                <PaymentOptionValues option={change.after} />
               </div>
             </div>
           </details>
