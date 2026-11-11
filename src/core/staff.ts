@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createPublicAuthClient } from "@/lib/supabase/public";
-import { requirePlatformAdmin, requireSystem } from "./access";
+import { requireBrandOwner, requirePlatformAdmin, requireSystem, requireVenueManager } from "./access";
 import { staffActor, type Actor } from "./actor";
 import { contactText, parseStaffContact, type StaffContact } from "./contact";
 import { inTransaction, type Tx } from "./db";
@@ -73,6 +73,62 @@ export async function inviteOwner(
     if (brand.rowCount === 0) throw new MaasiiError("not_found", "Brand not found.");
     return createInvitation(tx, actor, { role: "owner", brandId: input.brandId, name, to, now });
   });
+}
+
+/** The brand's Owner invites a person to be a Venue's Manager. */
+export async function inviteManager(
+  actor: Actor,
+  input: { venueId: string; name: string; contact: string },
+  { now = new Date() }: { now?: Date } = {},
+): Promise<NewInvitation> {
+  const { name, contact } = parseInput(invitationInput, input);
+  const to = parseStaffContact(contact);
+  return inTransaction(actor, async (tx) => {
+    const venue = await findVenueBrand(tx, input.venueId);
+    await requireBrandOwner(tx, actor, venue.brandId);
+    return createInvitation(tx, actor, { role: "manager", venueId: input.venueId, name, to, now });
+  });
+}
+
+export type VenueStaff = {
+  managers: { userId: string; name: string | null }[];
+  /** Manager invitations not yet accepted, replaced or expired. */
+  invitations: { invitationId: string; name: string; contact: string; expiresAt: Date }[];
+};
+
+/** A Venue's Managers and waiting Manager invitations, for its Managers and the brand's Owners. */
+export async function getVenueStaff(
+  actor: Actor,
+  input: { venueId: string },
+  { now = new Date() }: { now?: Date } = {},
+): Promise<VenueStaff> {
+  return inTransaction(actor, async (tx) => {
+    await findVenueBrand(tx, input.venueId);
+    await requireVenueManager(tx, actor, input.venueId);
+    const managers = await tx.query<{ userId: string; name: string | null }>(
+      `select user_id as "userId", name from app.memberships
+       where venue_id = $1 and role = 'manager' and active
+       order by name, created_at`,
+      [input.venueId],
+    );
+    const invitations = await tx.query<VenueStaff["invitations"][number]>(
+      `select id as "invitationId", name, coalesce(email, phone) as contact, expires_at as "expiresAt"
+       from app.invitations
+       where venue_id = $1 and role = 'manager'
+         and accepted_at is null and revoked_at is null and expires_at > $2
+       order by invited_at`,
+      [input.venueId, now],
+    );
+    return { managers: managers.rows, invitations: invitations.rows };
+  });
+}
+
+async function findVenueBrand(tx: Tx, venueId: string): Promise<{ brandId: string }> {
+  const { rows } = z.uuid().safeParse(venueId).success
+    ? await tx.query<{ brandId: string }>(`select brand_id as "brandId" from app.venues where id = $1`, [venueId])
+    : { rows: [] };
+  if (!rows[0]) throw new MaasiiError("not_found", "Venue not found.");
+  return rows[0];
 }
 
 async function createInvitation(

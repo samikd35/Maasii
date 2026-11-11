@@ -24,12 +24,15 @@ export {
   addPlatformAdmin,
   getInvitation,
   getMyAccess,
+  getVenueStaff,
+  inviteManager,
   inviteOwner,
   type Invitation,
   type InvitationStatus,
   type MyAccess,
   type NewInvitation,
   type StaffRole,
+  type VenueStaff,
 } from "./staff";
 export {
   getPublishedMenu,

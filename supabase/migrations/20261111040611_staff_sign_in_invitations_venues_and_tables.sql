@@ -150,8 +150,22 @@ create policy "platform admins withdraw owner invitations" on app.invitations
   for update to authenticated
   using (role = 'owner' and app.is_platform_admin ()) with check (role = 'owner' and app.is_platform_admin ());
 
+create policy "venue managers read the venue's manager invitations" on app.invitations
+  for select to authenticated using (role = 'manager' and app.can_manage_venue (venue_id));
+create policy "owners invite managers" on app.invitations
+  for insert to authenticated
+  with check (role = 'manager' and app.is_brand_owner ((select v.brand_id from app.venues v where v.id = venue_id)));
+create policy "owners withdraw manager invitations" on app.invitations
+  for update to authenticated
+  using (role = 'manager' and app.is_brand_owner ((select v.brand_id from app.venues v where v.id = venue_id)))
+  with check (role = 'manager' and app.is_brand_owner ((select v.brand_id from app.venues v where v.id = venue_id)));
+
 create policy "platform admins read owner memberships" on app.memberships
   for select to authenticated using (role = 'owner' and app.is_platform_admin ());
+create policy "owners read their brand's owners" on app.memberships
+  for select to authenticated using (role = 'owner' and app.is_brand_owner (brand_id));
+create policy "venue managers read the venue's staff" on app.memberships
+  for select to authenticated using (venue_id is not null and app.can_manage_venue (venue_id));
 
 grant select, insert on app.invitations to authenticated;
 grant update (revoked_at) on app.invitations to authenticated;
