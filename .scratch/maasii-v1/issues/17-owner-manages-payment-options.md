@@ -6,9 +6,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] Owners can add, edit, reorder, deactivate and remove Payment Options for any venue of their brand.
-- [ ] Each Payment Option has a kind, provider, recipient name, account number or merchant code, an optional QR image and a display order.
-- [ ] Before saving a change to an account number or merchant code, the owner sees the old and new values side by side and confirms.
-- [ ] Every change is written to a change log with who made it, when, and the before and after values. Owners can view this log.
-- [ ] Managers can view their venue's Payment Options but not change them.
-- [ ] Core tests cover permissions, ordering and the change log.
+- [x] Owners can add, edit, reorder, deactivate and remove Payment Options for any venue of their brand.
+- [x] Each Payment Option has a kind, provider, recipient name, account number or merchant code, an optional QR image and a display order.
+- [x] Before saving a change to an account number or merchant code, the owner sees the old and new values side by side and confirms.
+- [x] Every change is written to a change log with who made it, when, and the before and after values. Owners can view this log.
+- [x] Managers can view their venue's Payment Options but not change them.
+- [x] Core tests cover permissions, ordering and the change log.

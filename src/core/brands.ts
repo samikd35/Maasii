@@ -143,7 +143,7 @@ export async function getVenueLink(actor: Actor, input: { venueId: string; siteU
   return { url, qrPng: new Uint8Array(qrPng), qrFileName: `${venue.linkToken}-qr.png` };
 }
 
-async function findVenue(tx: Tx, venueId: string): Promise<Venue> {
+export async function findVenue(tx: Tx, venueId: string): Promise<Venue> {
   const { rows } = z.uuid().safeParse(venueId).success
     ? await tx.query<Venue>(
         `select id, brand_id as "brandId", name, link_token as "linkToken" from app.venues where id = $1`,
