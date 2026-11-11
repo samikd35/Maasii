@@ -259,7 +259,7 @@ The first pilot venue is one Bilo's Pastry location, using Bilo's name, logo and
 - The signature moment: on Send, the slip is stamped "Sent to Sam", then "Accepted ✓ Sam". With reduced motion enabled, the stamp appears without animation.
 - On fasting days, from the fasting calendar, the fasting section moves to the top.
 - A dish opens in a bottom sheet with the photo, description, fasting label, Option Groups, note, quantity and "Add to order".
-- Performance budget: the guest menu is server-rendered and under about 150 KB before photos, photos are lazy-loaded and compressed, and the Draft is kept in the phone's local storage.
+- Performance budget: the guest menu is server-rendered and under 250 KB transferred before photos, fonts included (the Next.js and React runtime is about 135 KB and one static Ethiopic font weight about 73 KB), photos are lazy-loaded and compressed, and the Draft is kept in the phone's local storage.
 - Branding settings produce theme tokens. Colours are derived in a perceptual colour space so that text and button colours reach at least 4.5:1 contrast against their backgrounds. For example, Bilo's orange #EC6728 (about 3.2:1 on white) becomes a deeper #B4461A (about 5.5:1) for text and buttons, while the original orange stays available for decoration.
 - The curated display fonts include Ethiopic faces such as Noto Serif Ethiopic and Noto Sans Ethiopic. The brand's logo is shown as an image.
 - Touch targets are at least 44 by 44 pixels, every status colour has a word beside it, and every state change is announced in text.

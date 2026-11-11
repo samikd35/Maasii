@@ -87,7 +87,7 @@ const s = await scenario().brand("Bilo's").venue("Lancha", { tables: 16 }).publi
 
 The builder creates everything through core commands. Extend it with new steps (waiters, shifts, orders) rather than writing rows by hand in tests.
 
-**Browser tests** (`e2e`, `pnpm test:e2e`) run Playwright on an Android-sized Chromium against a production build. They may use the seeded Bilo's Pastry (`/v/bilos-lancha`) or build their own tenant with the same scenario builder. The guest menu must stay under about 150 KB transferred before photos; the Next.js and React runtime alone is about 135 KB gzipped, so keep guest client components small.
+**Browser tests** (`e2e`, `pnpm test:e2e`) run Playwright on an Android-sized Chromium against a production build. They may use the seeded Bilo's Pastry (`/v/bilos-lancha`) or build their own tenant with the same scenario builder. The guest menu must stay under 250 KB transferred before photos, fonts included; the Next.js and React runtime alone is about 135 KB gzipped and one static Ethiopic font weight about 73 KB, so keep guest client components small.
 
 ## Seed data
 

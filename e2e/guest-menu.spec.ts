@@ -102,7 +102,7 @@ test("an unknown Venue Link shows a friendly not-found page", async ({ page }) =
   await expect(page.getByRole("heading", { name: "We can't find this menu" })).toBeVisible();
 });
 
-test("the guest menu weighs under 150 KB before photos", async ({ page }) => {
+test("the guest menu weighs under 250 KB before photos", async ({ page }) => {
   const pending: Promise<number>[] = [];
   page.on("requestfinished", (request) => {
     if (request.resourceType() === "image") return;
@@ -113,5 +113,5 @@ test("the guest menu weighs under 150 KB before photos", async ({ page }) => {
   const bytes = (await Promise.all(pending)).reduce((total, size) => total + size, 0);
 
   console.log(`Guest menu weight before photos: ${(bytes / 1024).toFixed(1)} KB`);
-  expect(bytes).toBeLessThan(150 * 1024);
+  expect(bytes).toBeLessThan(250 * 1024);
 });
