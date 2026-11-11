@@ -112,8 +112,23 @@ export async function publishMenu(
   { now = new Date() }: { now?: Date } = {},
 ): Promise<PublishedMenuVersion> {
   const menu = parseInput(menuInput, input.menu);
+  const existingDishIds = menu.sections.flatMap((section) => section.dishes)
+    .map((dish) => dish.dishId)
+    .filter((dishId) => dishId !== undefined);
   return inTransaction(actor, async (tx) => {
     await lockBrand(tx, actor, input.brandId);
+    if (existingDishIds.length > 0) {
+      const { rows } = await tx.query(
+        `select 1 from app.brand_menu_drafts d
+         cross join lateral jsonb_array_elements(d.published_archive) as entry
+         where d.brand_id = $1 and (entry->'dish'->>'dishId')::uuid = any($2::uuid[])
+         limit 1`,
+        [input.brandId, existingDishIds],
+      );
+      if (rows.length > 0) {
+        throw new MaasiiError("invalid_input", "Restore archived Dishes in the Menu draft before publishing them.");
+      }
+    }
     return writeMenuVersion(tx, actor, input.brandId, assignIdentities(menu), now, menu);
   });
 }

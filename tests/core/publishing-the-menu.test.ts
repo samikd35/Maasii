@@ -225,6 +225,13 @@ test("publishing an archive hides the Dish while its Order and stable identity s
   expect(sent.lines[0]).toMatchObject({ dishId: dish.dishId, name: { en: "Omelette" }, unitPriceSantim: 22_000 });
   await expect(getGuestOrders(guest, { venueLinkToken })).resolves.toEqual([sent]);
 
+  await expect(publishMenu(actor, {
+    ...input,
+    menu: { sections: [{ ...section, dishes: [dish] }] },
+  })).rejects.toMatchObject({ code: "invalid_input" });
+  expect((await guestMenu())?.sections[0].dishes.map((d) => d.name)).not.toContain("Omelette");
+
+  await publishMenu(actor, { ...input, menu: { sections: draft.menu.sections } });
   const after = await getMenuDraft(actor, input);
   expect(after).toMatchObject({ hasUnpublishedChanges: false, menu: { archivedDishes } });
   after.menu.sections[0].dishes.push(after.menu.archivedDishes[0].dish);
