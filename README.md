@@ -69,7 +69,9 @@ The core is the only place business rules live. Screens, scripts and tests impor
 
 Adding a command: write a failing core test first, put the command in the area file it belongs to (`menu.ts`, `brands.ts`, `staff.ts`, or a new area file), check access, export it from `src/core/index.ts`, and add the matching RLS policy and grant in a migration.
 
-Current interface: `createBrand`, `createVenue`, `addTables` and `addBrandOwner` (system only until ticket 07), `publishMenu` (the Brand's Owner), and `getPublishedMenu` (anyone, by Venue Link token). A published Menu is an immutable version; dishes and sections keep stable ids across versions, and the Brand points at its current version.
+Current interface: `createBrand`, `createVenue`, `addTables` and `addBrandOwner` (system only until ticket 07), `publishMenu` (the Brand's Owner), and `getPublishedMenu` (anyone, by Venue Link token). A published Menu is an immutable version; dishes, sections, Option Groups and their choices keep stable ids across versions when the publisher passes them, and the Brand points at its current version.
+
+**Browser-safe rules.** `priceDraftLine` and `priceDraft` price a guest's Draft from the published Menu and report what needs attention (a missing required choice, a dish or choice no longer on the Menu). They are pure, so client components import them from `@/core/browser`, the only other entry point the lint rule allows. Never import the database from `src/core/draft.ts` or anything `browser.ts` exports.
 
 ## Tests
 
