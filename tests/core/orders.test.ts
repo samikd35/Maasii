@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { expect, test } from "vitest";
 import {
-  acceptOrder, addPaymentOption, confirmPayment, declineOrder, getGuestOrders, getGuestVisit, getMyTableOrders, getOrderService, getPublishedMenu, getVenueMenuSettings, guestActor,
+  acceptOrder, addPaymentOption, confirmPayment, declineOrder, getGuestOrders, getGuestVisit, getMyTableOrders, getOrderService, getPublishedMenu, getVenueMenuSettings, guestActor, listVenueDishChanges,
   prepareBill, publicActor, publishMenu, reassignTable, reopenBill, removeWaiter, sendOrder, setTableActive, setVenueDishPrice, startShift, undoOrderDecision, updatePaymentOption,
 } from "@/core";
 import { createPublicAuthClient } from "@/lib/supabase/public";
@@ -241,6 +241,9 @@ test("partial acceptance keeps the Order snapshot, hides the Dropped Dish at tha
   expect(settings.sections.flatMap(({ dishes }) => dishes)).toContainEqual(expect.objectContaining({
     id: omelette, soldOut: true, venuePriceSantim: 24_999,
   }));
+  expect((await listVenueDishChanges(s.owner.actor, { venueId }))[0]).toMatchObject({
+    dishId: omelette, actorUserId: sam.actor.userId, changedAt: accepted.acceptedAt, soldOut: true, priceSantim: 24_999,
+  });
 
   await prepareBill(sam.actor, { venueId, visitId: sent.visitId, unlockToken: sam.unlockToken });
   expect(await getGuestVisit(actor, venue)).toMatchObject({

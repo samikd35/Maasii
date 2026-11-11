@@ -205,7 +205,13 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
                               const next = event.target.checked ? [...drops, index] : drops.filter((line) => line !== index);
                               setSoldOut((current) => ({ ...current, [order.id]: next }));
                             }} />
-                          {t("markSoldOut", { dish: line.name[locale] || line.name[other] })}
+                          <span>
+                            {t("markSoldOut", { dish: line.name[locale] || line.name[other] })}
+                            <span className="block text-ink-muted">
+                              {[line.quantity + " ×", ...line.choices.map((choice) => choice.name[locale] || choice.name[other]), line.note]
+                                .filter(Boolean).join(" · ")}
+                            </span>
+                          </span>
                         </label>
                       ))}
                     </fieldset>

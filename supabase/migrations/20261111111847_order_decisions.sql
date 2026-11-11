@@ -9,15 +9,40 @@ alter table app.orders
 
 grant update (lines, declined_by, declined_at, decision_id) on app.orders to authenticated;
 
+alter policy "Waiters read Orders at their assigned Tables" on app.orders
+  using (app.can_work_order(venue_id, table_id, state, escalated_at, coalesce(accepted_by, declined_by)));
+
 alter policy "Waiters accept sent Orders at their assigned Tables" on app.orders
   with check (
-    state in ('accepted', 'declined') and coalesce(accepted_by, declined_by) = (select id from app.order_waiter())
+    state in ('accepted', 'declined') and decision_id is not null
+    and coalesce(accepted_by, declined_by) = (select id from app.order_waiter())
   );
+
+create function app.order_undo_until(p_decided_at timestamptz) returns timestamptz
+language sql immutable strict set search_path = '' as $$
+  select p_decided_at + interval '5 seconds'
+$$;
+revoke execute on function app.order_undo_until(timestamptz) from public;
+grant execute on function app.order_undo_until(timestamptz) to authenticated;
 
 create policy "Waiters undo their own Order decisions" on app.orders
   for update to authenticated using (
     decision_id is not null and coalesce(accepted_by, declined_by) = (select id from app.order_waiter())
+    and coalesce(accepted_at, declined_at) <= nullif(current_setting('app.order_now', true), '')::timestamptz
+    and nullif(current_setting('app.order_now', true), '')::timestamptz < app.order_undo_until(coalesce(accepted_at, declined_at))
   ) with check (state = 'sent');
+
+-- A second eligible Waiter can learn that an Order was handled even when
+-- it has already disappeared from their unassigned or escalated queue.
+create function app.waiter_order_already_decided(p_venue uuid, p_order uuid) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select exists (
+    select 1 from app.orders o where o.id = p_order and o.venue_id = p_venue and o.state <> 'sent'
+      and app.can_work_order(o.venue_id, o.table_id, 'sent', o.escalated_at, null)
+  )
+$$;
+revoke execute on function app.waiter_order_already_decided(uuid, uuid) from public;
+grant execute on function app.waiter_order_already_decided(uuid, uuid) to authenticated;
 
 alter table app.visits
   drop constraint visits_check2,
@@ -52,6 +77,48 @@ begin
   end if;
   perform realtime.send('{}'::jsonb, 'changed', 'guest-orders:' || g.guest_user_id, true)
   from app.guest_table_choices g where g.visit_id = new.visit_id;
+  return new;
+end
+$$;
+
+create or replace function app.notify_order_alert() returns trigger
+language plpgsql security definer set search_path = '' as $$
+declare
+  restored boolean := tg_op = 'UPDATE' and old.state <> 'sent' and new.state = 'sent';
+  escalation boolean := tg_op = 'UPDATE' and new.escalated_at is not null;
+  at timestamptz;
+begin
+  if new.state <> 'sent' then
+    -- Stop queued alerts and refresh the Waiters who could see the Sent Order.
+    delete from app.order_push_deliveries where order_id = new.id and next_attempt_at is not null;
+    at := coalesce(new.accepted_at, new.declined_at);
+    perform app.notify_waiter_orders(w)
+      from app.order_alert_waiters(new.venue_id, new.table_id, at, escalation) w
+      where w is distinct from coalesce(new.accepted_by, new.declined_by);
+    return new;
+  end if;
+  if tg_op = 'UPDATE' and not restored and (old.escalated_at is not null or not escalation) then
+    return new;
+  end if;
+
+  at := case when restored then nullif(current_setting('app.order_now', true), '')::timestamptz
+    when escalation then new.escalated_at else new.sent_at end;
+  perform app.notify_waiter_orders(w)
+    from app.order_alert_waiters(new.venue_id, new.table_id, at, escalation) w
+    where restored or escalation or w is distinct from new.waiter_id;
+
+  -- A restored Order resumes its current alert. Delivered alerts still have their
+  -- original uniqueness keys, so they are never enqueued a second time.
+  insert into app.order_push_deliveries (order_id, subscription_id, reason, created_at, next_attempt_at)
+  select new.id, p.id, case when escalation then 'escalation' else 'new' end, at, at
+  from app.order_alert_waiters(new.venue_id, new.table_id, at, escalation) w
+  join app.waiter_devices d on d.waiter_id = w and d.failed_attempts < 5
+  join app.waiter_push_subscriptions p on p.session_id = d.session_id
+  on conflict (order_id, subscription_id, reason) do nothing;
+
+  if found and (restored or not escalation) then
+    perform app.wake_order_notification_worker();
+  end if;
   return new;
 end
 $$;

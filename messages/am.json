@@ -329,7 +329,7 @@
     "billPrepared": "ትዕዛዝ ለመጨመር ሂሳቡን እንዲከፍቱልዎ አስተናጋጅዎን ይጠይቁ።",
     "orderRequestConflict": "ይህ ትዕዛዝ መላኩን ማረጋገጥ አልተቻለም። እንደገና ከመላክዎ በፊት አስተናጋጅዎን ይጠይቁ።",
     "orderAllLinesDropped": "ቢያንስ አንድ ምግብ ይቀበሉ ወይም ትዕዛዙን ውድቅ ያድርጉ።",
-    "orderAlreadyDecided": "ይህ ትዕዛዝ ላይ አስቀድሞ ውሳኔ ተሰጥቷል።",
+    "orderAlreadyDecided": "በዚህ ትዕዛዝ ላይ አስቀድሞ ውሳኔ ተሰጥቷል።",
     "orderUndoExpired": "ውሳኔውን ለመመለስ የተሰጠው ጊዜ አልፏል።",
     "orderUndoNotYours": "ውሳኔውን የሰጠው አስተናጋጅ ብቻ መመለስ ይችላል።",
     "orderTableOccupied": "በዚህ ጠረጴዛ ላይ አዲስ እንግዶች አስቀድመው አዘዋል።",

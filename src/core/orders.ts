@@ -18,7 +18,6 @@ const acceptInput = decisionTarget.extend({
   soldOutLineIndices: z.array(z.number().int().min(0).max(99)).max(100).default([]),
 });
 const undoInput = decisionTarget.extend({ decisionId: id });
-const ORDER_UNDO_MS = 5_000;
 const venueLink = z.object({ venueLinkToken: z.string().min(1).max(200) });
 const sendInput = venueLink.extend({
   tableId: id,
@@ -283,10 +282,13 @@ async function decideOrder(
       `select ${orderFields} from app.orders where venue_id = $1 and id = $2`,
       [waiter.venueId, orderId],
     );
-    if (!prior) throw new MaasiiError("not_found", "That Order is outside your assigned Tables.");
-    if (prior.state !== "sent") {
+    const alreadyDecided = prior ? prior.state !== "sent" : (await tx.query<{ decided: boolean }>(
+      "select app.waiter_order_already_decided($1, $2) as decided", [waiter.venueId, orderId],
+    )).rows[0].decided;
+    if (alreadyDecided) {
       throw new MaasiiError("invalid_input", "Another decision has already been made for this Order.", "orderAlreadyDecided");
     }
+    if (!prior) throw new MaasiiError("not_found", "That Order is outside your My tables list.");
     const drops = new Set(soldOutLineIndices);
     if (soldOutLineIndices.some((index) => index >= prior.lines.length)) {
       throw new MaasiiError("invalid_input", "Choose lines from this Order.");
@@ -295,7 +297,7 @@ async function decideOrder(
       throw new MaasiiError("invalid_input", "Accept at least one dish or decline the Order.", "orderAllLinesDropped");
     }
     const lines = prior.lines.map((line, index) => drops.has(index) ? { ...line, dropReason: "sold_out" } : line);
-    const { rows: [decided] } = await tx.query<Order & { decisionId: string }>(
+    const { rows: [decided] } = await tx.query<OrderDecision>(
       `update app.orders set state = $3,
          accepted_by = case when $3 = 'accepted' then $4::uuid end,
          accepted_by_name = case when $3 = 'accepted' then $5::text end,
@@ -305,10 +307,11 @@ async function decideOrder(
          lines = $7, decision_id = gen_random_uuid()
        where venue_id = $1 and id = $2 and state = 'sent'
          and app.waiter_order_visit_is_open(visit_id)
-       returning ${orderFields}, decision_id as "decisionId"`,
+       returning ${orderFields}, decision_id as "decisionId",
+         app.order_undo_until(coalesce(accepted_at, declined_at)) as "undoUntil"`,
       [waiter.venueId, orderId, state, waiter.id, waiter.name, at, JSON.stringify(lines)],
     ).catch(throwPreparedBillError);
-    if (decided) return { ...decided, undoUntil: new Date(at.getTime() + ORDER_UNDO_MS) };
+    if (decided) return decided;
     throw new MaasiiError("not_found", "That Order is outside your assigned Tables.");
   });
 }
@@ -330,20 +333,20 @@ export async function undoOrderDecision(
   const { orderId, decisionId, unlockToken } = parseInput(undoInput, input);
   return inTransaction(actor, async (tx) => {
     const { waiter, at } = await lockOrderDecision(tx, actor, unlockToken, now);
-    const { rows: [decision] } = await tx.query<{ id: string | null; waiterId: string | null; at: Date | null }>(
+    const { rows: [decision] } = await tx.query<{ id: string | null; waiterId: string | null; canUndo: boolean | null }>(
       `select decision_id as id, coalesce(accepted_by, declined_by) as "waiterId",
-         coalesce(accepted_at, declined_at) as at from app.orders where venue_id = $1 and id = $2`,
-      [waiter.venueId, orderId],
+         coalesce(accepted_at, declined_at) <= $3 and $3 < app.order_undo_until(coalesce(accepted_at, declined_at)) as "canUndo"
+       from app.orders where venue_id = $1 and id = $2`,
+      [waiter.venueId, orderId, at],
     );
     if (!decision) throw new MaasiiError("not_found", "That Order is outside your assigned Tables.");
-    if (decision.id !== decisionId || !decision.at) {
+    if (decision.id !== decisionId) {
       throw new MaasiiError("invalid_input", "This Order has changed.", "orderAlreadyDecided");
     }
     if (decision.waiterId !== waiter.id) {
       throw new MaasiiError("invalid_input", "Only the Waiter who made the decision can undo it.", "orderUndoNotYours");
     }
-    const elapsed = at.getTime() - decision.at.getTime();
-    if (elapsed < 0 || elapsed >= ORDER_UNDO_MS) {
+    if (!decision.canUndo) {
       throw new MaasiiError("invalid_input", "The time to undo this decision has ended.", "orderUndoExpired");
     }
     const { rows: [restored] } = await tx.query<Order>(
