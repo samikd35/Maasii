@@ -3,11 +3,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
-import { getVenueLink, getVenueSetup, getVenueStaff, MaasiiError, type Actor, type VenueTable } from "@/core";
+import { getPreparedBills, getVenueLink, getVenueSetup, getVenueStaff, MaasiiError, type Actor, type VenueTable } from "@/core";
 import { requireStaff, siteUrl } from "@/lib/session";
 import { Field } from "@/ui/field";
+import { formatBirr } from "@/ui/price";
 import { ActionForm, CopyField, SubmitButton } from "@/ui/staff-forms";
-import { addTableRange, inviteVenueManager, removeVenueWaiter, renumber, setActive, showWaiterJoinQr } from "../../actions";
+import { addTableRange, inviteVenueManager, removeVenueWaiter, renumber, reopenVisitBill, setActive, showWaiterJoinQr } from "../../actions";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("StaffManage");
@@ -16,12 +17,13 @@ export async function generateMetadata(): Promise<Metadata> {
 
 async function load(actor: Actor, venueId: string) {
   try {
-    const [setup, staff, link] = await Promise.all([
+    const [setup, staff, link, bills] = await Promise.all([
       getVenueSetup(actor, { venueId }),
       getVenueStaff(actor, { venueId }),
       getVenueLink(actor, { venueId, siteUrl: await siteUrl() }),
+      getPreparedBills(actor, { venueId }),
     ]);
-    return { setup, staff, link };
+    return { setup, staff, link, bills };
   } catch (error) {
     if (error instanceof MaasiiError && error.code !== "invalid_input") notFound();
     throw error;
@@ -30,7 +32,7 @@ async function load(actor: Actor, venueId: string) {
 
 export default async function VenuePage({ params }: PageProps<"/manage/venues/[venueId]">) {
   const { venueId } = await params;
-  const { setup, staff, link } = await load(await requireStaff(), venueId);
+  const { setup, staff, link, bills } = await load(await requireStaff(), venueId);
   const { venue, brand, tables, isOwner } = setup;
   const t = await getTranslations("StaffManage");
   const common = await getTranslations("Staff");
@@ -38,6 +40,7 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
   const paymentOptions = await getTranslations("PaymentOptions");
   const shifts = await getTranslations("Shifts");
   const menu = await getTranslations("VenueMenu");
+  const billing = await getTranslations("Bills");
 
   return (
     <>
@@ -66,6 +69,25 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
           {paymentOptions("title")}
         </Link>
       </div>
+
+      {bills.length > 0 && (
+        <section aria-labelledby="prepared-bills" className="mt-8">
+          <SectionHeading id="prepared-bills">{billing("heading")}</SectionHeading>
+          <ul className="divide-y divide-rule">
+            {bills.map((bill) => (
+              <li key={bill.visitId} className="flex flex-wrap items-center justify-between gap-3 py-2">
+                <div>
+                  <p className="font-semibold">{billing("table", { number: tables.find(({ id }) => id === bill.tableId)?.number ?? "" })}</p>
+                  <p className="text-sm">{billing("total", { amount: formatBirr(bill.totalSantim) })}</p>
+                </div>
+                <ActionForm action={reopenVisitBill.bind(null, venue.id, bill.visitId)}>
+                  <SubmitButton variant="quiet">{billing("reopen")}</SubmitButton>
+                </ActionForm>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section aria-labelledby="waiters" className="mt-8">
         <SectionHeading id="waiters">{waiter("waiters")}</SectionHeading>

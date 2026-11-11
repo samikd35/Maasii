@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { expect, test } from "vitest";
 import {
-  acceptOrder, getGuestOrders, getGuestVisit, getMyTableOrders, getOrderService, getPublishedMenu, guestActor,
-  publicActor, publishMenu, reassignTable, removeWaiter, sendOrder, setTableActive, setVenueDishPrice, startShift,
+  acceptOrder, addPaymentOption, confirmPayment, getGuestOrders, getGuestVisit, getMyTableOrders, getOrderService, getPublishedMenu, guestActor,
+  prepareBill, publicActor, publishMenu, reassignTable, reopenBill, removeWaiter, sendOrder, setTableActive, setVenueDishPrice, startShift, updatePaymentOption,
 } from "@/core";
 import { createPublicAuthClient } from "@/lib/supabase/public";
 import { scenario } from "../support/scenario";
@@ -168,4 +168,99 @@ test("phones at one Table share the Visit and only Accepted Orders count toward 
   expect(await getGuestVisit(elsewhere, venue)).toMatchObject({ id: omelette.visitId, totalSantim: 63_000 });
   expect((await getGuestVisit(elsewhere, venue))?.orders.map(({ id }) => id).sort())
     .toEqual([omelette.id, chechebsa.id, later.id].sort());
+});
+
+test("a prepared Bill freezes accepted lines and blocks Send from a phone in that Visit", async () => {
+  const s = await scenario().manager("Yonas").waiter("Sam").waiter("Hana").publishedMenu().build();
+  const { Sam: sam, Hana: hana } = s.waiters;
+  const tableId = s.venue.tables[0].id;
+  const venue = { venueLinkToken: s.venue.linkToken };
+  await startShift(s.owner.actor, { venueId: s.venue.id, assignments: [{ tableId, waiterId: sam.waiterId }] });
+  const [first, second] = await Promise.all([guest(), guest()]);
+  const send = (actor: typeof first, dish: string, quantity: number) => sendOrder(actor, {
+    ...venue, tableId, requestId: randomUUID(),
+    lines: [{ dishId: s.dishId(dish), choiceIds: [], quantity, note: "" }],
+  });
+  const accepted = await send(first, "Omelette", 2);
+  const pending = await send(second, "Chechebsa", 1);
+  await acceptOrder(sam.actor, { orderId: accepted.id, unlockToken: sam.unlockToken });
+
+  const target = { venueId: s.venue.id, visitId: accepted.visitId };
+  const waiter = { ...target, unlockToken: sam.unlockToken };
+  await expect(prepareBill(hana.actor, { ...target, unlockToken: hana.unlockToken })).rejects.toMatchObject({ code: "not_allowed" });
+  await prepareBill(sam.actor, waiter);
+  for (const actor of [first, second]) {
+    const visit = await getGuestVisit(actor, venue);
+    expect(visit).toMatchObject({
+      bill: { lines: [{ quantity: 2, unitPriceSantim: 22_000 }], totalSantim: 44_000 },
+      closedAt: null,
+    });
+    await expect(send(actor, "Macchiato", 1)).rejects.toMatchObject({ reason: "billPrepared" });
+  }
+  await expect(acceptOrder(sam.actor, { orderId: pending.id, unlockToken: sam.unlockToken })).rejects.toMatchObject({ reason: "billPrepared" });
+  const newPhone = await guest();
+  await expect(send(newPhone, "Macchiato", 1)).rejects.toMatchObject({ reason: "orderTableBillPrepared" });
+  expect(await getGuestVisit(newPhone, venue)).toBeNull();
+  await reopenBill(s.managers.Yonas.actor, target);
+  expect(await getGuestVisit(first, venue)).toMatchObject({ bill: null, totalSantim: 44_000 });
+  await expect(send(first, "Macchiato", 1)).resolves.toMatchObject({ visitId: accepted.visitId });
+});
+
+test.each([22_000, 21_989])("Payment Confirmation closes the Visit and preserves its Bill when the receipt is %i santim", async (receiptAmountSantim) => {
+  const s = await scenario().venue("Lancha").venue("Bole").waiter("Sam").publishedMenu().build();
+  const { Sam: sam } = s.waiters;
+  const { id: venueId, linkToken: venueLinkToken } = s.venue;
+  const tableId = s.venue.tables[0].id;
+  const venue = { venueLinkToken };
+  const paymentOption = (provider: string, displayOrder: number, targetVenue = venueId) => addPaymentOption(s.owner.actor, {
+    venueId: targetVenue, kind: "bank_transfer", provider, recipientName: "Lancha", accountOrMerchantCode: "1937", displayOrder,
+  });
+  const bank = await paymentOption("Bank", 2);
+  const firstOption = await paymentOption("First option", 1);
+  const inactive = await paymentOption("Inactive", 3);
+  const otherVenue = await paymentOption("Elsewhere", 1, s.venues.Bole.id);
+  await updatePaymentOption(s.owner.actor, {
+    venueId, paymentOptionId: inactive.id, revision: inactive.revision, changes: { active: false },
+  });
+  await startShift(s.owner.actor, { venueId, assignments: [{ tableId, waiterId: sam.waiterId }] });
+
+  const [first, second, next] = await Promise.all([guest(), guest(), guest()]);
+  const send = (actor: typeof first, dish: string) => sendOrder(actor, {
+    ...venue, tableId, requestId: randomUUID(),
+    lines: [{ dishId: s.dishId(dish), choiceIds: [], quantity: 1, note: "" }],
+  });
+  const order = await send(first, "Omelette");
+  await send(second, "Macchiato");
+  const target = { venueId, visitId: order.visitId, unlockToken: sam.unlockToken };
+  await acceptOrder(sam.actor, { orderId: order.id, unlockToken: sam.unlockToken });
+  expect((await getGuestVisit(first, venue))?.paymentOptions).toEqual([]);
+  await prepareBill(sam.actor, target);
+  expect((await getGuestVisit(first, venue))?.paymentOptions.map(({ id }) => id)).toEqual([firstOption.id, bank.id]);
+  const input = { ...target, paymentOptionId: receiptAmountSantim === 22_000 ? null : bank.id, receiptAmountSantim };
+  await expect(confirmPayment(sam.actor, { ...input, paymentOptionId: otherVenue.id })).rejects.toMatchObject({ code: "invalid_input" });
+  await expect(confirmPayment(sam.actor, { ...input, paymentOptionId: inactive.id })).rejects.toMatchObject({ code: "invalid_input" });
+  const [paid, replay] = await Promise.all([
+    confirmPayment(sam.actor, input),
+    confirmPayment(sam.actor, input),
+  ]);
+  expect(paid).toMatchObject({
+    visitId: order.visitId, receiptAmountSantim, billTotalSantim: 22_000,
+    differenceSantim: receiptAmountSantim === 22_000 ? 0 : -11,
+    confirmedBy: sam.actor.userId, confirmedAt: expect.any(Date),
+    method: receiptAmountSantim === 22_000 ? { kind: "cash", paymentOptionId: null } : {
+      kind: "bank_transfer", paymentOptionId: bank.id, provider: "Bank", recipientName: "Lancha", accountOrMerchantCode: "1937",
+    },
+  });
+  expect(replay).toEqual(paid);
+  expect((await getMyTableOrders(sam.actor, { unlockToken: sam.unlockToken })).orders).toEqual([]);
+  expect(await getGuestVisit(next, venue)).toBeNull();
+  const newOrder = await send(next, "Chechebsa");
+  expect(newOrder.visitId).not.toBe(order.visitId);
+  expect(await getGuestVisit(next, venue)).toMatchObject({ orders: [newOrder], bill: null, closedAt: null });
+  for (const actor of [first, second]) {
+    expect(await getGuestVisit(actor, venue)).toMatchObject({
+      id: order.visitId, closedAt: paid.confirmedAt,
+      bill: { totalSantim: 22_000 }, paymentOptions: [],
+    });
+  }
 });

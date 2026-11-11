@@ -2,7 +2,7 @@
 
 import { createTranslator, useLocale } from "next-intl";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import type { DraftLine, Table } from "@/core";
+import type { Bill, DraftLine, getGuestVisit, Table } from "@/core";
 import { watchOrders, type LiveOrder, type OrderFeed } from "@/lib/supabase/order-feed";
 import { Price } from "@/ui/price";
 import am from "../../../../messages/orders.am.json";
@@ -11,10 +11,12 @@ import en from "../../../../messages/orders.en.json";
 type Line = DraftLine & { lineId: string };
 type Pending = { requestId: string; table: Table; lines: Line[] };
 type Device = { table?: Table; pending?: Pending };
+type GuestVisit = NonNullable<Awaited<ReturnType<typeof getGuestVisit>>>;
+type LiveBill = Omit<Bill, "preparedAt"> & { preparedAt: string };
 type VenueFeed = OrderFeed & {
   available: boolean;
   tables: Table[];
-  visit: { id: string; table: Table; totalSantim: number } | null;
+  visit: (Omit<GuestVisit, "orders" | "bill" | "closedAt"> & { bill: LiveBill | null; closedAt: string | null }) | null;
 };
 
 export type SlipService = {
@@ -56,7 +58,7 @@ export default function OrderService({
   const [orders, setOrders] = useState<LiveOrder[]>([]);
   const [choosing, setChoosing] = useState(false);
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState<"chooseAgain" | "draftChanged" | "unavailable" | "requestConflict">();
+  const [error, setError] = useState<"chooseAgain" | "draftChanged" | "unavailable" | "requestConflict" | "billPrepared" | "orderTableBillPrepared">();
 
   const saveDevice = useCallback((next: Device) => {
     current.current = next;
@@ -74,6 +76,9 @@ export default function OrderService({
     setFeed(data);
     setLoadError(false);
     setOrders(data.orders);
+    if (!data.visit?.bill || data.visit.closedAt) {
+      setError((previous) => previous === "billPrepared" ? undefined : previous);
+    }
     const pending = current.current.pending;
     const confirmed = pending && data.orders.find(({ requestId }) => requestId === pending.requestId);
     if (pending && !confirmed) return;
@@ -85,7 +90,7 @@ export default function OrderService({
     } else if (table?.id !== current.current.table?.id || table?.number !== current.current.table?.number) {
       saveDevice({ table });
     }
-  }, () => setLoadError(true)), [url, hasTable, saveDevice, onSent]);
+  }, () => setLoadError(true)).stop, [url, hasTable, saveDevice, onSent]);
 
   async function send(table: Table) {
     if (sending) return;
@@ -114,7 +119,9 @@ export default function OrderService({
           setError("requestConflict");
           return;
         }
-        if (reason === "noRunningShift") {
+        if (reason === "billPrepared" || reason === "orderTableBillPrepared") {
+          setError(reason);
+        } else if (reason === "noRunningShift") {
           setError("unavailable");
           setFeed((previous) => previous && { ...previous, available: false });
         } else if (reason === "orderTableUnavailable") {
@@ -142,18 +149,20 @@ export default function OrderService({
 
   const table = device.table ?? device.pending?.table;
   const latest = orders.at(-1);
-  const visit = feed?.visit;
+  const visit = feed?.visit?.id === latest?.visitId ? feed?.visit : null;
+  const billIsPrepared = Boolean(visit?.bill && !visit.closedAt) || error === "billPrepared";
   const status = (order: LiveOrder) => order.state === "accepted"
     ? t("accepted", { name: order.acceptedByName ?? "" }) : t("sent");
   const isAvailable = feed?.available ?? false;
 
   return render({
     tableLabel: table ? t("table", { number: table.number }) : undefined,
-    status: latest ? status(latest) : undefined,
+    status: visit?.bill ? t(visit.closedAt ? "billPaid" : "billReady") : latest ? status(latest) : undefined,
     locked: !!device.pending || sending,
     controls: (
       <>
-        {error && <p role="alert" className="mt-2 text-sm">{t(error)}</p>}
+        {error && error !== "billPrepared" && <p role="alert" className="mt-2 text-sm">{t(error)}</p>}
+        {billIsPrepared && <p role="status" className="mt-2 text-sm">{t("billPrepared")}</p>}
         {feed && !isAvailable && error !== "unavailable" && <p className="mt-2 text-sm">{t("unavailable")}</p>}
         {loadError && !feed && <p role="status" className="mt-2 text-sm">{t("serviceUnavailable")}</p>}
         {sending ? <p role="status" className="mt-2 text-sm">{t("sending")}</p>
@@ -176,8 +185,8 @@ export default function OrderService({
               ) : <p role="status" className="mt-2 text-sm">{t("serviceUnavailable")}</p>}
             </fieldset>
           ) : lines.length > 0 && (
-            <button type="button" disabled={!isAvailable || invalidDraft}
-              onClick={() => device.table ? void send(device.table) : setChoosing(true)}
+            <button type="button" disabled={!isAvailable || invalidDraft || billIsPrepared}
+              onClick={() => device.table && !visit?.closedAt ? void send(device.table) : setChoosing(true)}
               className={`${sendButton} mt-2`}>
               {t("send")}
             </button>
@@ -211,14 +220,93 @@ export default function OrderService({
           ))}
         </ol>
       </section>
-      {visit && visit.id === latest?.visitId && (
-        <section aria-label={t("billTotal")} className="flex items-center justify-between border-t border-ink/70 py-4">
-          <h3 className="text-sm font-semibold">{t("billTotal")}</h3>
-          <div aria-live="polite">
-            <Price santim={visit.totalSantim} />
-          </div>
-        </section>
-      )}
+      {visit?.bill ? (
+        <GuestBill bill={visit.bill} paid={!!visit.closedAt} options={visit.paymentOptions} />
+      ) : visit && <BillTotal totalSantim={visit.totalSantim} label={t("billTotal")} />}
     </>),
   });
+}
+
+function BillTotal({ totalSantim, label }: { totalSantim: number; label: string }) {
+  return (
+    <section aria-label={label} className="flex items-center justify-between border-t border-ink/70 py-4">
+      <h3 className="text-sm font-semibold">{label}</h3>
+      <div aria-live="polite"><Price santim={totalSantim} /></div>
+    </section>
+  );
+}
+
+type GuestPaymentOption = GuestVisit["paymentOptions"][number];
+
+function GuestBill({ bill, options, paid }: { bill: LiveBill; options: GuestPaymentOption[]; paid: boolean }) {
+  const locale = useLocale();
+  const t = createTranslator({ locale, messages: locale === "am" ? am : en });
+  const section = useRef<HTMLElement>(null);
+  useEffect(() => {
+    section.current?.scrollIntoView({ block: "nearest" });
+  }, []);
+  return (
+    <>
+      <section ref={section} aria-label={t("bill")} className="pb-1">
+        <h3 className="border-b border-ink/70 pb-1.5 text-sm font-semibold uppercase">{t("bill")}</h3>
+        <p className="my-2 text-sm text-ink-muted">{t("notTaxReceipt")}</p>
+        {paid && <p role="status" className="mb-2 text-sm font-semibold">{t("billPaid")}</p>}
+        <ul className="space-y-2 pb-3">
+          {bill.lines.map((line, index) => (
+            <li key={index} className="flex items-center justify-between gap-3 text-sm">
+              <span>{line.quantity} × {line.name[locale] || line.name[locale === "am" ? "en" : "am"]}</span>
+              <Price santim={line.unitPriceSantim * line.quantity} />
+            </li>
+          ))}
+        </ul>
+        <BillTotal totalSantim={bill.totalSantim} label={t("billTotal")} />
+      </section>
+      {options.length > 0 && (
+        <section aria-label={t("paymentOptions")} className="pb-5">
+          <h3 className="border-b border-ink/70 pb-1.5 text-sm font-semibold uppercase">{t("paymentOptions")}</h3>
+          <ul className="divide-y divide-rule">
+            {options.map((option) => (
+              <li key={option.id} className="space-y-1 py-3 text-sm">
+                <p className="font-semibold">{option.provider ?? t(option.kind)}</p>
+                {option.recipientName && <p>{option.recipientName}</p>}
+                {option.accountOrMerchantCode && (
+                  <CopyPaymentCode key={option.accountOrMerchantCode} code={option.accountOrMerchantCode} t={t} />
+                )}
+                {option.qrImage && (
+                  // Payment Options carry bounded raster images.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={option.qrImage} alt={t("paymentQr")} width={128} height={128} loading="lazy"
+                    className="h-auto max-w-full bg-white" />
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </>
+  );
+}
+
+function CopyPaymentCode({ code, t }: { code: string; t: (key: "copyCode" | "copied" | "copyFailed") => string }) {
+  const [copied, setCopied] = useState(false);
+  const [failed, setFailed] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setFailed(false);
+    } catch {
+      setFailed(true);
+    }
+  }
+  return (
+    <>
+      <p className="break-all font-mono">{code}</p>
+      <button type="button" onClick={() => void copy()}
+        className="min-h-11 rounded-md border border-ink/40 px-3 font-medium">
+        {t(copied ? "copied" : "copyCode")}
+      </button>
+      {failed && <p role="status">{t("copyFailed")}</p>}
+    </>
+  );
 }
