@@ -12,6 +12,8 @@ export {
   type GuestMenu,
   type GuestMenuDish,
   type GuestMenuSection,
+  type GuestOptionChoice,
+  type GuestOptionGroup,
   type MenuInput,
   type PublishedMenuVersion,
 } from "./menu";
