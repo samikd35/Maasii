@@ -12,9 +12,7 @@ import { formatBirr } from "@/ui/price";
 import { BillControls } from "./bill-controls";
 import { playOrderChime } from "./order-chime";
 
-type StaffLiveOrder = LiveOrder & { canCorrect: boolean };
 type StaffOrderFeed = OrderFeed & Omit<Awaited<ReturnType<typeof getMyTableOrders>>, "orders" | "topic" | "bills"> & {
-  orders: StaffLiveOrder[];
   bills: (Omit<PreparedBill, "preparedAt"> & { preparedAt: string })[];
 };
 type Action = { action: "accept"; soldOutLineIndices: number[] }
@@ -34,7 +32,7 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
   const other = locale === "am" ? "en" : "am";
   const router = useRouter();
   const heading = useId();
-  const [orders, setOrders] = useState<StaffLiveOrder[]>([]);
+  const [orders, setOrders] = useState<LiveOrder[]>([]);
   const [feed, setFeed] = useState<StaffOrderFeed>();
   const refresh = useRef<() => Promise<void>>(async () => {});
   const [now, setNow] = useState(Date.now);
@@ -129,6 +127,7 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
   const emptyAssigned = tableId ? [] : feed?.assignedTables.filter((table) => !orders.some((order) => order.tableId === table.id)) ?? [];
   const bills = new Map(feed?.bills.map((bill) => [bill.visitId, bill]));
   const billVisitIds = new Set(feed?.billVisitIds);
+  const correctable = new Set(feed?.correctableOrderIds);
   const firstOrder = new Map([...visibleOrders].reverse().map(({ visitId, id }) => [visitId, id]));
   const partyVisitIds = new Set(visibleOrders.filter(({ partyPending }) => partyPending).map(({ visitId }) => visitId));
   const firstAccepted = new Map(visibleOrders.filter(({ state, visitId }) => state === "accepted" && billVisitIds.has(visitId)).reverse()
@@ -216,7 +215,7 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
                       {line.dropReason === "sold_out" && <p className="text-sm font-medium">{t("soldOut")}</p>}
                       {(line.dropReason === "waiter_removed" || activeVisit?.removedLines.includes(`${order.id}:${index}`))
                         && <p className="text-sm font-medium">{t("removedLine")}</p>}
-                      {tableId && order.canCorrect && !bill && !line.dropReason && !activeVisit?.removedLines.includes(`${order.id}:${index}`) && (
+                      {tableId && correctable.has(order.id) && !bill && !line.dropReason && !activeVisit?.removedLines.includes(`${order.id}:${index}`) && (
                         <CorrectionForm key={line.quantity} quantity={line.quantity} disabled={!!working}
                           submit={(quantity, reason) => void decide(order.id, { action: "correct", lineIndex: index, quantity, reason })} />
                       )}

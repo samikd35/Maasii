@@ -278,7 +278,9 @@ export async function getMyTableOrders(
       if (tableNumber === undefined) throw new MaasiiError("not_found", "That Table is outside your My tables list.");
     }
     const billVisitIds = new Set<string>();
-    const orders = rows.map(({ servesTable, carriedFrom, carriedOver, ...order }) => {
+    const correctableOrderIds: string[] = [];
+    const orders = rows.map(({ servesTable, canCorrect, carriedFrom, carriedOver, ...order }) => {
+      if (canCorrect) correctableOrderIds.push(order.id);
       if (servesTable) billVisitIds.add(order.visitId);
       return carriedOver ? { ...order, carriedFrom, carriedOver } : order;
     });
@@ -301,7 +303,7 @@ export async function getMyTableOrders(
       ? (await readVenuePaymentOptions(tx, waiter.venueId, { activeOnly: true }))
         .map(({ id, kind, provider, accountOrMerchantCode }) => ({ id, kind, provider, accountOrMerchantCode }))
       : [];
-    return { orders, moveTables, assignedTables, tableBills, topic: waiter.topic, venueId: waiter.venueId, tableNumber, billVisitIds: [...billVisitIds], bills, paymentOptions };
+    return { orders, moveTables, assignedTables, tableBills, correctableOrderIds, topic: waiter.topic, venueId: waiter.venueId, tableNumber, billVisitIds: [...billVisitIds], bills, paymentOptions };
   });
 }
 
