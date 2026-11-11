@@ -1,4 +1,4 @@
-import { getGuestReviewForm, getGuestVisit, getOrderService, MaasiiError, publicActor, sendOrder } from "@/core";
+import { getGuestPendingOrders, getGuestReviewForm, getGuestVisit, getOrderService, MaasiiError, publicActor, sendOrder } from "@/core";
 import { guestSession } from "@/lib/supabase/guest-session";
 
 export async function GET(_request: Request, { params }: RouteContext<"/v/[token]/orders">) {
@@ -8,8 +8,9 @@ export async function GET(_request: Request, { params }: RouteContext<"/v/[token
     const { supabase, actor, expiresAt } = await guestSession();
     if (!actor) return Response.json({ ...service, orders: [], visit: null, live: null }, { headers: { "Cache-Control": "private, no-store" } });
 
-    const [currentVisit, { data }] = await Promise.all([
+    const [currentVisit, pending, { data }] = await Promise.all([
       getGuestVisit(actor, { venueLinkToken }),
+      getGuestPendingOrders(actor, { venueLinkToken }),
       supabase.auth.getSession(),
     ]);
     const live = data.session ? {
@@ -19,7 +20,7 @@ export async function GET(_request: Request, { params }: RouteContext<"/v/[token
     } : null;
     const { orders, ...visit } = currentVisit ?? { orders: [] };
     const review = currentVisit?.closedAt && currentVisit.bill ? await getGuestReviewForm(actor, { venueLinkToken }) : null;
-    return Response.json({ ...service, orders, visit: currentVisit ? visit : null, review, live }, { headers: { "Cache-Control": "private, no-store" } });
+    return Response.json({ ...service, orders: [...orders, ...pending], visit: currentVisit ? visit : null, review, live }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     if (error instanceof MaasiiError) return new Response(null, { status: 404 });
     throw error;

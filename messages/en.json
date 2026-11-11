@@ -409,6 +409,8 @@
     "menu": "Menu"
   },
   "StaffOrders": {
+    "newParty": "New party at Table {number}?",
+    "billReminder": "Paid?",
     "heading": "My tables",
     "empty": "No orders at your tables.",
     "table": "Table {number}",
@@ -440,6 +442,9 @@
     "ratingsSummary": "{count} responses · {great} Great · {okay} Okay · {needsWork} Needs work"
   },
   "Bills": {
+    "paidQuestion": "Paid?",
+    "previousPartyPaid": "Previous party paid",
+    "sameParty": "Same party",
     "heading": "Prepared Bills",
     "table": "Table {number}",
     "prepare": "Prepare bill",

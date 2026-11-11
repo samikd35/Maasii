@@ -84,7 +84,8 @@ export default function OrderService({
     const pending = current.current.pending;
     const confirmed = pending && data.orders.find(({ requestId }) => requestId === pending.requestId);
     if (pending && !confirmed) return;
-    const table = data.visit?.table;
+    const waiting = data.orders.findLast(({ partyPending }) => partyPending);
+    const table = waiting ? { id: waiting.tableId, number: waiting.tableNumber } : data.visit?.table;
     if (pending && confirmed) {
       onSent(pending.lines);
       setError(undefined);
@@ -153,8 +154,10 @@ export default function OrderService({
   const latest = orders.at(-1);
   const visit = feed?.visit?.id === latest?.visitId ? feed?.visit : null;
   const billIsPrepared = Boolean(visit?.bill && !visit.closedAt) || error === "billPrepared";
-  const status = (order: LiveOrder) => order.state === "accepted"
-    ? t("accepted", { name: order.acceptedByName ?? "" }) : t(order.state);
+  const status = (order: LiveOrder) => {
+    if (order.partyPending) return t("waitingForWaiter");
+    return order.state === "accepted" ? t("accepted", { name: order.acceptedByName ?? "" }) : t(order.state);
+  };
   const isAvailable = feed?.available ?? false;
 
   return render({

@@ -117,6 +117,7 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
   const visibleOrders = tableId ? orders.filter((order) => order.tableId === tableId) : orders;
   const bills = new Map(feed?.bills.map((bill) => [bill.visitId, bill]));
   const billVisitIds = new Set(feed?.billVisitIds);
+  const partyVisitIds = new Set(visibleOrders.filter(({ partyPending }) => partyPending).map(({ visitId }) => visitId));
   const firstAccepted = new Map(visibleOrders.filter(({ state, visitId }) => state === "accepted" && billVisitIds.has(visitId)).reverse()
     .map((order) => [order.visitId, order.id]));
 
@@ -167,7 +168,9 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
                 )}
               </div>
               {order.state === "sent" && (
-                <p role="status" className="text-sm font-semibold">{t(order.escalatedAt ? "escalatedOrder" : "newOrder")}</p>
+                <p role="status" className="text-sm font-semibold">
+                  {order.partyPending ? t("newParty", { number: order.tableNumber }) : t(order.escalatedAt ? "escalatedOrder" : "newOrder")}
+                </p>
               )}
               <ul className="space-y-2">
                 {order.lines.map((line, index) => (
@@ -188,42 +191,44 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
                 ))}
               </ul>
               {order.state === "sent" ? (
-                <>
-                  <button type="button" disabled={!!working || !!bill || drops.length === order.lines.length}
-                    onClick={() => void decide(order.id, { action: "accept", soldOutLineIndices: drops })}
-                    className="min-h-11 rounded-lg bg-ink px-5 text-sm font-semibold text-paper disabled:opacity-50">
-                    {t(working?.orderId === order.id && working.action === "accept" ? "accepting" : "accept")}
-                  </button>
-                  <details>
-                    <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold">{t("decisions")}</summary>
-                    <fieldset className="space-y-2 pb-2" disabled={!!working || !!bill}>
-                      <legend className="sr-only">{t("soldOut")}</legend>
-                      {order.lines.map((line, index) => (
-                        <label key={index} className="flex min-h-11 items-center gap-3 text-sm">
-                          <input type="checkbox" className="size-5" checked={drops.includes(index)}
-                            onChange={(event) => {
-                              const next = event.target.checked ? [...drops, index] : drops.filter((line) => line !== index);
-                              setSoldOut((current) => ({ ...current, [order.id]: next }));
-                            }} />
-                          <span>
-                            {t("markSoldOut", { dish: line.name[locale] || line.name[other] })}
-                            <span className="block text-ink-muted">
-                              {[line.quantity + " ×", ...line.choices.map((choice) => choice.name[locale] || choice.name[other]), line.note]
-                                .filter(Boolean).join(" · ")}
-                            </span>
-                          </span>
-                        </label>
-                      ))}
-                    </fieldset>
-                    {drops.length === order.lines.length && (
-                      <p className="mb-2 text-sm">{errors("orderAllLinesDropped")}</p>
-                    )}
-                    <button type="button" disabled={!!working} onClick={() => void decide(order.id, { action: "decline" })}
-                      className="min-h-11 rounded-lg border border-ink/30 px-4 text-sm font-semibold disabled:opacity-50">
-                      {t("decline")}
+                order.partyPending ? null : (
+                  <>
+                    <button type="button" disabled={!!working || !!bill || drops.length === order.lines.length}
+                      onClick={() => void decide(order.id, { action: "accept", soldOutLineIndices: drops })}
+                      className="min-h-11 rounded-lg bg-ink px-5 text-sm font-semibold text-paper disabled:opacity-50">
+                      {t(working?.orderId === order.id && working.action === "accept" ? "accepting" : "accept")}
                     </button>
-                  </details>
-                </>
+                    <details>
+                      <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold">{t("decisions")}</summary>
+                      <fieldset className="space-y-2 pb-2" disabled={!!working || !!bill}>
+                        <legend className="sr-only">{t("soldOut")}</legend>
+                        {order.lines.map((line, index) => (
+                          <label key={index} className="flex min-h-11 items-center gap-3 text-sm">
+                            <input type="checkbox" className="size-5" checked={drops.includes(index)}
+                              onChange={(event) => {
+                                const next = event.target.checked ? [...drops, index] : drops.filter((line) => line !== index);
+                                setSoldOut((current) => ({ ...current, [order.id]: next }));
+                              }} />
+                            <span>
+                              {t("markSoldOut", { dish: line.name[locale] || line.name[other] })}
+                              <span className="block text-ink-muted">
+                                {[line.quantity + " ×", ...line.choices.map((choice) => choice.name[locale] || choice.name[other]), line.note]
+                                  .filter(Boolean).join(" · ")}
+                              </span>
+                            </span>
+                          </label>
+                        ))}
+                      </fieldset>
+                      {drops.length === order.lines.length && (
+                        <p className="mb-2 text-sm">{errors("orderAllLinesDropped")}</p>
+                      )}
+                      <button type="button" disabled={!!working} onClick={() => void decide(order.id, { action: "decline" })}
+                        className="min-h-11 rounded-lg border border-ink/30 px-4 text-sm font-semibold disabled:opacity-50">
+                        {t("decline")}
+                      </button>
+                    </details>
+                  </>
+                )
               ) : (
                 <p role="status" className="text-sm font-semibold">{t("accepted", { name: order.acceptedByName ?? "" })}</p>
               )}
@@ -232,6 +237,7 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
                   key={bill?.preparedAt ?? order.visitId}
                   target={{ venueId: feed.venueId, visitId: order.visitId }}
                   bill={bill}
+                  partyPending={partyVisitIds.has(order.visitId)}
                   methods={feed.paymentOptions}
                   refresh={() => refresh.current()}
                 />

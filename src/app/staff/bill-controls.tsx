@@ -22,11 +22,12 @@ function toSantim(input: string): number | null {
 }
 
 export function BillControls({
-  target, bill, methods, refresh,
+  target, bill, methods, refresh, partyPending = false,
 }: {
   target: Target;
   bill?: Omit<PreparedBill, "preparedAt">;
   methods: Method[];
+  partyPending?: boolean;
   refresh: () => Promise<void>;
 }) {
   const t = useTranslations("Bills");
@@ -60,14 +61,15 @@ export function BillControls({
       {bill ? (
         <>
           <p className="text-sm font-semibold">{t("total", { amount: formatBirr(bill.totalSantim) })}</p>
+          {bill.reminder && <p role="status" className="text-sm font-semibold">{t("paidQuestion")}</p>}
           <div className="flex flex-wrap gap-2">
             {!confirming && (
               <button type="button" className={primary} disabled={working} onClick={() => setConfirming(true)}>
-                {t("confirm")}
+                {t(partyPending ? "previousPartyPaid" : "confirm")}
               </button>
             )}
             <button type="button" className={secondary} disabled={working} onClick={() => void change({ action: "reopen" })}>
-              {t("reopen")}
+              {t(partyPending ? "sameParty" : "reopen")}
             </button>
           </div>
           {confirming && (

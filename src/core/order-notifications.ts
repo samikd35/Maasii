@@ -35,7 +35,7 @@ export type OrderNotification = {
   tableId: string;
   tableNumber: number;
   language: Language;
-  reason: "new" | "escalation";
+  reason: "new" | "escalation" | "bill-reminder";
   subscription: z.output<typeof subscriptionInput>;
 };
 
@@ -98,7 +98,9 @@ export async function sendOrderNotifications(
          join app.visits v on v.id = o.visit_id
          left join app.staff_preferences l on l.user_id = m.user_id
          where ($3::uuid is null or o.venue_id = $3)
-           and q.next_attempt_at <= $2 and o.state = 'sent' and v.closed_at is null and m.active and d.failed_attempts < 5
+           and q.next_attempt_at <= $2 and v.closed_at is null and m.active and d.failed_attempts < 5
+           and ((q.reason = 'bill-reminder' and v.bill_reminded_at is not null and v.bill_prepared_at is not null)
+             or (q.reason <> 'bill-reminder' and o.state = 'sent'))
            and m.id in (select app.order_alert_waiters(o.venue_id, o.table_id, $2, q.reason = 'escalation'))
          order by q.next_attempt_at, q.id limit 24 for update of q skip locked
        )

@@ -409,6 +409,8 @@
     "menu": "ምናሌ"
   },
   "StaffOrders": {
+    "newParty": "በጠረጴዛ {number} አዲስ እንግዶች ናቸው?",
+    "billReminder": "ተከፍሏል?",
     "heading": "ጠረጴዛዎቼ",
     "empty": "በጠረጴዛዎችዎ ላይ ትዕዛዝ የለም።",
     "table": "ጠረጴዛ {number}",
@@ -440,6 +442,9 @@
     "ratingsSummary": "{count} ምላሾች · {great} በጣም ጥሩ · {okay} መካከለኛ · {needsWork} መሻሻል ይፈልጋል"
   },
   "Bills": {
+    "paidQuestion": "ተከፍሏል?",
+    "previousPartyPaid": "የቀድሞዎቹ እንግዶች ከፍለዋል",
+    "sameParty": "ያው ቡድን ነው",
     "heading": "የተዘጋጁ ሂሳቦች",
     "table": "ጠረጴዛ {number}",
     "prepare": "ሂሳቡን ያዘጋጁ",

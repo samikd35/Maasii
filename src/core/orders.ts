@@ -47,6 +47,7 @@ export type Order = {
   tableId: string;
   tableNumber: number;
   state: "sent" | "accepted" | "declined";
+  partyPending: boolean;
   sentAt: Date;
   escalatedAt: Date | null;
   waiterId: string | null;
@@ -71,7 +72,7 @@ type GuestVisit = {
 };
 
 const orderDetails = `id, visit_id as "visitId", table_id as "tableId", table_number as "tableNumber",
-  state, sent_at as "sentAt", escalated_at as "escalatedAt",
+  state, party_pending as "partyPending", sent_at as "sentAt", escalated_at as "escalatedAt",
   waiter_id as "waiterId", waiter_name as "waiterName",
   accepted_by_name as "acceptedByName", accepted_at as "acceptedAt", declined_at as "declinedAt", lines`;
 const orderFields = `${orderDetails}, request_id as "requestId"`;
@@ -142,23 +143,23 @@ export async function sendOrder(
       };
     });
     const waiter = await findResponsibleWaiter(tx, venueId, tableId, at);
-    const { rows: [open] } = await tx.query<{ id: string }>(
-      "select id from app.visits where venue_id = $1 and table_id = $2 and closed_at is null", [venueId, tableId],
+    const { rows: [open] } = await tx.query<{ id: string; prepared: boolean }>(
+      "select id, bill_prepared_at is not null as prepared from app.visits where venue_id = $1 and table_id = $2 and closed_at is null", [venueId, tableId],
     );
     const visitId = open?.id ?? (await tx.query<{ id: string }>(
       "insert into app.visits (venue_id, table_id, opened_at) values ($1, $2, $3) returning id", [venueId, tableId, at],
     )).rows[0].id;
     try {
-      await tx.query(
+      if (!open?.prepared) await tx.query(
         `insert into app.guest_table_choices (venue_id, visit_id) values ($1, $2)
          on conflict (guest_user_id, venue_id) do update set visit_id = excluded.visit_id`,
         [venueId, visitId],
       );
       const { rows: [order] } = await tx.query<Order>(
         `insert into app.orders (
-           visit_id, venue_id, table_id, table_number, shift_id, request_id, sent_at, waiter_id, waiter_name, lines
-         ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) returning ${orderFields}`,
-        [visitId, venueId, tableId, table.number, shift.id, requestId, at, waiter?.waiterId, waiter?.waiterName, JSON.stringify(snapshots)],
+           visit_id, venue_id, table_id, table_number, shift_id, request_id, sent_at, waiter_id, waiter_name, lines, party_pending
+         ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) returning ${orderFields}`,
+        [visitId, venueId, tableId, table.number, shift.id, requestId, at, waiter?.waiterId, waiter?.waiterName, JSON.stringify(snapshots), open?.prepared ?? false],
       );
       return order;
     } catch (error) {
@@ -183,7 +184,7 @@ export async function getGuestVisit(actor: Actor, input: z.input<typeof venueLin
     if (!visit) return null;
     const { rows: orders } = await tx.query<GuestOrder>(
       `select ${orderDetails}, case when guest_user_id = $2 then request_id end as "requestId"
-       from app.orders where visit_id = $1 order by sent_at, id`,
+       from app.orders where visit_id = $1 and not party_pending order by sent_at, id`,
       [visit.id, actor.userId],
     );
     const latest = orders.at(-1);
@@ -197,6 +198,19 @@ export async function getGuestVisit(actor: Actor, input: z.input<typeof venueLin
       totalSantim: bill?.totalSantim ?? billFromOrders(orders).totalSantim,
       paymentOptions: bill && !visit.closedAt ? await readGuestBillOptions(tx, visit.venueId) : [],
     };
+  });
+}
+
+export async function getGuestPendingOrders(actor: Actor, input: z.input<typeof venueLink>): Promise<Order[]> {
+  if (actor.kind !== "guest") return [];
+  const { venueLinkToken } = parseInput(venueLink, input);
+  return inTransaction(actor, async (tx) => {
+    const { rows } = await tx.query<Order>(
+      `select ${orderFields} from app.orders where guest_user_id = $1 and party_pending
+       and venue_id = (select id from app.venues where link_token = $2) order by sent_at, id`,
+      [actor.userId, venueLinkToken],
+    );
+    return rows;
   });
 }
 
@@ -289,6 +303,7 @@ async function decideOrder(
       throw new MaasiiError("invalid_input", "Another decision has already been made for this Order.", "orderAlreadyDecided");
     }
     if (!prior) throw new MaasiiError("not_found", "That Order is outside your My tables list.");
+    if (prior.partyPending) throw new MaasiiError("invalid_input", "Resolve the new party before acting on its Order.", "orderTableBillPrepared");
     const drops = new Set(soldOutLineIndices);
     if (soldOutLineIndices.some((index) => index >= prior.lines.length)) {
       throw new MaasiiError("invalid_input", "Choose lines from this Order.");
