@@ -59,7 +59,7 @@ e2e/               Playwright tests (seam 2).
 
 The core is the only place business rules live. Screens, scripts and tests import it only through `@/core` (a lint rule blocks deep imports).
 
-- **Every command and query takes the calling `Actor` first**: `publicActor` (no session, such as a guest browsing), `staffActor(userId)` (a signed-in person whose roles come from memberships in the database), or `systemActor` (seeding and scheduled jobs). Later tickets add a guest-device actor and a platform-admin actor here.
+- **Every command and query takes the calling `Actor` first**: `publicActor` (no session, such as a guest browsing), `staffActor(userId)` (a signed-in person whose roles come from memberships), `adminActor(userId)` (a signed-in person whose platform admin role is checked in the database), or `systemActor` (seeding and scheduled jobs).
 - **One transaction per call, acting as the actor.** `inTransaction(actor, work)` in `src/core/db.ts` opens a `pg` transaction and switches to the `anon` or `authenticated` role with that actor's JWT claims, so Postgres row-level security applies to every statement the core runs. `systemActor` runs as `postgres` and bypasses it.
 - **Two layers of checks.** A command checks permission explicitly (`src/core/access.ts`) and throws `MaasiiError` with code `not_allowed`, `not_found` or `invalid_input`. Row-level security in the migration enforces the same rules as a backstop, and also protects live subscriptions that read the database directly.
 - **Records live in the `app` schema**, which the Supabase Data API does not expose. Grant each table to `anon` or `authenticated` explicitly in its migration.
@@ -69,7 +69,7 @@ The core is the only place business rules live. Screens, scripts and tests impor
 
 Adding a command: write a failing core test first, put the command in the area file it belongs to (`menu.ts`, `brands.ts`, `staff.ts`, or a new area file), check access, export it from `src/core/index.ts`, and add the matching RLS policy and grant in a migration.
 
-Current interface: `createBrand`, `createVenue`, `addTables` and `addBrandOwner` (system only until ticket 07), `publishMenu` (the Brand's Owner), and `getPublishedMenu` (anyone, by Venue Link token). A published Menu is an immutable version; dishes, sections, Option Groups and their choices keep stable ids across versions when the publisher passes them, and the Brand points at its current version.
+A published Menu is an immutable version. Dishes, sections, Option Groups and their choices keep stable IDs across versions when the publisher passes them, and the Brand points at its current version.
 
 **Browser-safe rules.** `priceDraftLine` and `priceDraft` price a guest's Draft from the published Menu and report what needs attention (a missing required choice, a dish or choice no longer on the Menu). They are pure, so client components import them from `@/core/browser`, the only other entry point the lint rule allows. Never import the database from `src/core/draft.ts` or anything `browser.ts` exports.
 
@@ -98,3 +98,9 @@ Interface messages live in `messages/en.json` and `messages/am.json`. The next-i
 ## Seed data
 
 `pnpm db:seed` creates Bilo's Pastry with its Lancha venue (tables 1-16) and an Owner (`owner@bilos.test`, no password yet), and publishes Bilo's Menu as that Owner through the core. English dish names and descriptions come from bilospastry.com. The Amharic Menu and interface text are drafts for a fluent speaker and Bilo's to review before the pilot. **All prices are placeholders** until Bilo's provides real ones (see `scripts/seed/bilos.ts`). Bilo's must confirm in writing that we may use its name, logo, photos and Menu.
+
+## Staff setup
+
+To provision the first platform admin, create a confirmed Supabase Auth user with a password, then call `addPlatformAdmin(systemActor, { userId })` from a server script. At `/sign-in`, sign in and open **Platform admin** to create a Brand and copy its Owner invitation link. Owners create Venues and share Manager invitations from `/manage`. Invitation links are single-use and expire after seven days.
+
+Set `MAASII_SITE_URL` on the server to the public origin when deploying so the Venue Links, QR images and invitation links use the same address.
