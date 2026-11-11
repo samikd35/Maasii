@@ -166,7 +166,23 @@
     "after": "After",
     "system": "System"
   },
+  "VenueMenu": {
+    "title": "Venue menu",
+    "empty": "There are no published dishes yet.",
+    "brandPrice": "Brand price {amount} {currency}",
+    "currentPrice": "Price {amount} {currency}",
+    "venuePrice": "Venue price ({currency})",
+    "priceHelp": "Leave the Venue price blank to use the Brand price.",
+    "savePrice": "Save price",
+    "soldOutSwitch": "{name} Sold Out",
+    "soldOut": "Sold Out",
+    "available": "Available"
+  },
   "StaffForms": {
+    "venueDishSoldOut": "Dish marked Sold Out.",
+    "venueDishAvailable": "Dish available again.",
+    "venuePriceSaved": "Venue price saved.",
+    "brandPriceRestored": "Brand price restored.",
     "paymentOptionSaved": "Payment Option saved.",
     "invitationLink": "Invitation link",
     "copyLink": "Copy link",

@@ -6,9 +6,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] Each venue has a per-dish setting for Sold Out and an optional venue price.
-- [ ] Managers (for their venue) and owners (for any venue of their brand) can toggle Sold Out from an inline switch in a dish list.
-- [ ] Owners can set or clear a venue price for a dish.
-- [ ] The guest menu hides Sold Out dishes and shows the venue price wherever one is set, immediately after the change.
-- [ ] Changes are written to the audit log with who made them and when.
-- [ ] Core tests cover the Sold Out effect at one venue but not another, venue prices, and permissions.
+- [x] Each venue has a per-dish setting for Sold Out and an optional venue price.
+- [x] Managers (for their venue) and owners (for any venue of their brand) can toggle Sold Out from an inline switch in a dish list.
+- [x] Owners can set or clear a venue price for a dish.
+- [x] The guest menu hides Sold Out dishes and shows the venue price wherever one is set, immediately after the change.
+- [x] Changes are written to the audit log with who made them and when.
+- [x] Core tests cover the Sold Out effect at one venue but not another, venue prices, and permissions.
