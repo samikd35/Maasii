@@ -129,6 +129,21 @@
     "inviteHeading": "Invite a manager",
     "inviteManager": "Invite manager"
   },
+  "Shifts": {
+    "title": "Shifts",
+    "usualTables": "Usual Tables",
+    "suggestedAssignments": "Suggested Table Assignments",
+    "runningShift": "Running Shift",
+    "unassignedTables": "Unassigned Tables",
+    "unassigned": "Unassigned",
+    "allAssigned": "Every active Table has a Waiter.",
+    "noActiveTables": "This Venue has no active Tables.",
+    "start": "Start Shift",
+    "started": "Started {time} (Addis Ababa)",
+    "end": "End Shift",
+    "saveUsual": "Save Usual Tables",
+    "saveAssignment": "Save assignment"
+  },
   "PaymentOptions": {
     "title": "Payment Options",
     "addHeading": "Add a Payment Option",
@@ -179,6 +194,8 @@
     "available": "Available"
   },
   "StaffForms": {
+    "usualTablesSaved": "Usual Tables saved.",
+    "assignmentSaved": "Table Assignment saved.",
     "venueDishSoldOut": "Dish marked Sold Out.",
     "venueDishAvailable": "Dish available again.",
     "venuePriceSaved": "Venue price saved.",
@@ -198,6 +215,8 @@
     "paymentDestinationRequired": "Enter the provider, recipient name and account number or merchant code.",
     "paymentOptionChanged": "This Payment Option changed while you were editing. Reload the page and review the current details.",
     "paymentCodeConfirmationRequired": "Compare the previous and new values and confirm the change.",
+    "shiftAlreadyRunning": "A Shift is already running. Refresh to see its Table Assignments.",
+    "shiftChanged": "The running Shift has changed. Refresh to see the current Shift.",
     "invalidPaymentQr": "Choose a PNG, JPEG or WebP image up to 256 KB.",
     "invalid_input": "Check the fields and try again.",
     "not_allowed": "You don't have permission to do this.",

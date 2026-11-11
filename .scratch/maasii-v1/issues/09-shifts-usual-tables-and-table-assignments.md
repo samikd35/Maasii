@@ -6,10 +6,10 @@
 
 **Status:** ready-for-agent
 
-- [ ] A manager can set each waiter's Usual Tables.
-- [ ] Starting a Shift proposes a Table Assignment from Usual Tables, lets the manager change it, and starts the Shift with one tap. Only one Shift can run at a venue at a time.
-- [ ] A manager can move any table to another waiter during a Shift. Table Assignments are kept as history with time ranges, never overwritten.
-- [ ] Tables nobody is assigned to are listed clearly when the Shift starts.
-- [ ] A manager can end the Shift.
-- [ ] A core query answers "who is responsible for table N at time T", which later tickets use for routing and attribution.
-- [ ] Core tests cover starting, reassigning, history, the single-Shift rule and ending.
+- [x] A manager can set each waiter's Usual Tables.
+- [x] Starting a Shift proposes a Table Assignment from Usual Tables, lets the manager change it, and starts the Shift with one tap. Only one Shift can run at a venue at a time.
+- [x] A manager can move any table to another waiter during a Shift. Table Assignments are kept as history with time ranges, never overwritten.
+- [x] Tables nobody is assigned to are listed clearly when the Shift starts.
+- [x] A manager can end the Shift.
+- [x] A core query answers "who is responsible for table N at time T", which later tickets use for routing and attribution.
+- [x] Core tests cover starting, reassigning, history, the single-Shift rule and ending.

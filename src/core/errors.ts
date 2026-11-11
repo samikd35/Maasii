@@ -20,7 +20,9 @@ type RefusalReason =
   | "wrongPin"
   | "paymentDestinationRequired"
   | "paymentOptionChanged"
-  | "paymentCodeConfirmationRequired";
+  | "paymentCodeConfirmationRequired"
+  | "shiftAlreadyRunning"
+  | "shiftChanged";
 
 /** A refusal the caller can act on, as opposed to a bug or an outage. */
 export class MaasiiError extends Error {

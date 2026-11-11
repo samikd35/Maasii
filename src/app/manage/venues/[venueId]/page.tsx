@@ -36,6 +36,7 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
   const common = await getTranslations("Staff");
   const waiter = await getTranslations("StaffWaiter");
   const paymentOptions = await getTranslations("PaymentOptions");
+  const shifts = await getTranslations("Shifts");
   const menu = await getTranslations("VenueMenu");
 
   return (
@@ -46,6 +47,12 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
       <p className="mt-2 text-sm text-ink-muted">{brand.name}</p>
       <h1 className="font-display text-3xl">{venue.name}</h1>
       <div className="mt-2 flex flex-wrap gap-x-5">
+        <Link
+          href={`/manage/venues/${venue.id}/shifts`}
+          className="inline-flex min-h-11 items-center text-sm font-medium underline"
+        >
+          {shifts("title")}
+        </Link>
         <Link
           href={`/manage/venues/${venue.id}/menu`}
           className="inline-flex min-h-11 items-center text-sm font-medium underline"

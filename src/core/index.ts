@@ -57,6 +57,7 @@ export {
   WAITER_JOIN_MINUTES,
   type WaiterSession,
 } from "./waiters";
+export { endShift, getResponsibleWaiter, getRunningShift, getShiftSetup, reassignTable, setUsualTables, startShift, type Shift } from "./shifts";
 export {
   MAX_NOTE_LENGTH,
   MAX_QUANTITY,
