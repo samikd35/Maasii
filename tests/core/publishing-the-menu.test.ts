@@ -1,5 +1,10 @@
+import { randomUUID } from "node:crypto";
 import { expect, test } from "vitest";
-import { getMenuDraft, getPublishedMenu, publicActor, publishMenu, publishMenuDraft, saveMenuDraft, type MenuInput } from "@/core";
+import {
+  getGuestOrders, getMenuDraft, getPublishedMenu, guestActor, publicActor, publishMenu, publishMenuDraft,
+  saveMenuDraft, sendOrder, startShift, type MenuInput,
+} from "@/core";
+import { createPublicAuthClient } from "@/lib/supabase/public";
 import { scenario } from "../support/scenario";
 
 const breakfastOnly: MenuInput = {
@@ -88,7 +93,7 @@ test("only the Owner sees a saved draft, and publishing it updates every Venue w
   await expect(getMenuDraft(s.owner.actor, input)).resolves.toMatchObject({ hasUnpublishedChanges: false, lastPublishedAt: now });
 });
 
-test("republishing a draft preserves bilingual details and Option Group identities", async () => {
+test("publishing a draft preserves Option Group identities and existing Order line snapshots", async () => {
   const s = await scenario().publishedMenu({
     sections: [{
       name: { en: "Drinks", am: "መጠጦች" },
@@ -119,6 +124,17 @@ test("republishing a draft preserves bilingual details and Option Group identiti
   expect(choice.choiceId).toBe(s.menu!.sections[0].dishes[0].optionGroups[0].choices[0].choiceId);
   await expect(saveMenuDraft(s.owner.actor, { ...input, revision: draft.revision, menu: draft.menu })).resolves.toBe(draft.revision);
 
+  const { linkToken: venueLinkToken, id: venueId } = s.venue;
+  await startShift(s.owner.actor, { venueId, assignments: [] });
+  const { data, error } = await createPublicAuthClient().auth.signInAnonymously();
+  if (error) throw error;
+  const actor = guestActor(data.user!.id);
+  const sent = await sendOrder(actor, {
+    venueLinkToken, tableId: s.venue.tables[0].id, requestId: randomUUID(),
+    lines: [{ dishId: dish.dishId, choiceIds: [choice.choiceId], quantity: 2, note: "No sugar" }],
+  });
+
+  dish.name.en = "House Buna";
   dish.priceSantim = 5_500;
   const revision = await saveMenuDraft(s.owner.actor, { ...input, revision: draft.revision, menu: draft.menu });
   await publishMenuDraft(s.owner.actor, { ...input, revision });
@@ -144,6 +160,14 @@ test("republishing a draft preserves bilingual details and Option Group identiti
     }],
   });
   expect(guest?.houseFavourite?.id).toBe(s.dishId("Buna"));
+  const english = await getPublishedMenu(publicActor, { venueLinkToken });
+  expect(english?.sections[0].dishes[0].name).toBe("House Buna");
+  expect(sent.lines).toEqual([{
+    dishId: dish.dishId, name: { en: "Buna", am: "ቡና" }, unitPriceSantim: 6_000,
+    choices: [{ id: choice.choiceId, name: { en: "Large", am: "ትልቅ" }, priceChangeSantim: 1_000 }],
+    quantity: 2, note: "No sugar",
+  }]);
+  await expect(getGuestOrders(actor, { venueLinkToken })).resolves.toEqual([sent]);
   await expect(getMenuDraft(s.owner.actor, input)).resolves.toMatchObject({ menu: draft.menu });
 });
 

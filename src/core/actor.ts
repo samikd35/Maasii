@@ -7,6 +7,8 @@ export type Actor =
   | { kind: "public" }
   /** A signed-in staff member. Their roles come from memberships in the database, not from the token. */
   | StaffActor
+  /** An anonymous Supabase identity created on first Send. */
+  | GuestActor
   /**
    * A signed-in person working in the platform admin area. The core still checks that they are a
    * platform admin in the database; the actor only says which hat they are wearing.
@@ -15,9 +17,11 @@ export type Actor =
   /** Seeding and scheduled jobs. Runs as `postgres` and bypasses row-level security. */
   | { kind: "system" };
 
+export type GuestActor = { kind: "guest"; userId: string };
 export type StaffActor = { kind: "staff"; userId: string; sessionId?: string };
 
 export const publicActor: Actor = { kind: "public" };
 export const systemActor: Actor = { kind: "system" };
+export const guestActor = (userId: string): GuestActor => ({ kind: "guest", userId });
 export const staffActor = (userId: string, sessionId?: string): StaffActor => ({ kind: "staff", userId, sessionId });
 export const adminActor = (userId: string): Actor => ({ kind: "admin", userId });

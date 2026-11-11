@@ -36,7 +36,7 @@ export default async function GuestMenuPage({ params }: PageProps<"/v/[token]">)
       languageSwitch={<LanguageSwitch area="guest" action={setGuestLanguage} />}
       ordering={
         <NextIntlClientProvider messages={{ Ordering: orderingMessages, Price: priceMessages }}>
-          <Ordering venueLinkToken={menu.venue.linkToken} sections={menu.sections} recordBrowsing />
+          <Ordering venueLinkToken={menu.venue.linkToken} sections={menu.sections} recordBrowsing orderService />
         </NextIntlClientProvider>
       }
     />

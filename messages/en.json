@@ -273,6 +273,10 @@
     "invalidBrandArtwork": "Choose a JPEG, PNG or WebP image up to 4 MB.",
     "menuDraftChanged": "The Menu changed since you opened it. Reload to see the latest changes.",
     "menuDraftInvalid": "Give every section and dish a name in at least one language. A House favourite needs a photo.",
+    "noRunningShift": "Ordering is unavailable until a Shift starts.",
+    "orderTableUnavailable": "This table is no longer available.",
+    "orderRequestConflict": "This Send could not be verified. Ask your waiter before sending again.",
+    "orderDraftChanged": "The Draft needs attention.",
     "paymentDestinationRequired": "Enter the provider, recipient name and account number or merchant code.",
     "paymentOptionChanged": "This Payment Option changed while you were editing. Reload the page and review the current details.",
     "paymentCodeConfirmationRequired": "Compare the previous and new values and confirm the change.",
@@ -322,5 +326,16 @@
     "lock": "Lock",
     "rejoinHeading": "Connect your phone",
     "menu": "Menu"
+  },
+  "StaffOrders": {
+    "heading": "My tables",
+    "empty": "No orders at your tables.",
+    "table": "Table {number}",
+    "accept": "Accept",
+    "accepting": "Accepting…",
+    "acceptError": "Could not accept. Try again.",
+    "accepted": "Accepted by {name}",
+    "waiting": "Waiting {time}",
+    "refreshError": "Could not refresh orders. Reconnecting…"
   }
 }

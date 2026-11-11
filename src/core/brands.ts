@@ -4,7 +4,7 @@ import { requireBrandOwner, requirePlatformAdmin, requireSystem, requireVenueMan
 import type { Actor } from "./actor";
 import { brandArtworkBucket, prepareBrandArtwork } from "./brand-artwork";
 import { brandColourError, brandColourPattern, defaultBrandColour, displayFonts, type DisplayFont } from "./brand-theme";
-import { inTransaction, type Tx } from "./db";
+import { inTransaction, lockVenueShifts, type Tx } from "./db";
 import { MaasiiError } from "./errors";
 import { qrPng } from "./qr";
 import { parseInput } from "./validation";
@@ -270,6 +270,7 @@ export async function renumberTable(actor: Actor, input: { tableId: string; numb
   const { number } = parseInput(z.object({ number: tableNumber }), input, "invalidTableNumber");
   await inTransaction(actor, async (tx) => {
     const table = await findTable(tx, actor, input.tableId);
+    await lockVenueShifts(tx, table.venueId);
     const taken = await tx.query(
       "select 1 from app.tables where venue_id = $1 and number = $2 and id <> $3",
       [table.venueId, number, table.id],
@@ -284,6 +285,7 @@ export async function setTableActive(actor: Actor, input: { tableId: string; act
   const { active } = parseInput(z.object({ active: z.boolean() }), input);
   await inTransaction(actor, async (tx) => {
     const table = await findTable(tx, actor, input.tableId);
+    await lockVenueShifts(tx, table.venueId);
     await tx.query("update app.tables set active = $2 where id = $1", [table.id, active]);
   });
 }

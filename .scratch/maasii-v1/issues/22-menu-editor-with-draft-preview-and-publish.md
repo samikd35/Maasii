@@ -12,4 +12,4 @@
 - [x] Preview sessions record no browsing events.
 - [x] Publish turns the draft into a new immutable Menu version used by all venues of the brand. The editor shows when the last publish happened and whether there are unpublished changes.
 - [x] A dish missing a translation is flagged before publishing, and the owner can still publish.
-- [ ] Core tests cover draft invisibility to guests, publishing, stable dish identifiers across versions, and Order line snapshots staying unchanged after a publish.
+- [x] Core tests cover draft invisibility to guests, publishing, stable dish identifiers across versions, and Order line snapshots staying unchanged after a publish.

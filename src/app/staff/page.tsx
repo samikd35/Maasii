@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
-import { getLocale, getTranslations } from "next-intl/server";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { getWaiterSession } from "@/core";
 import { getSessionActor, waiterUnlockToken } from "@/lib/session";
 import { PinField } from "@/ui/field";
 import { ActionForm, SubmitButton } from "@/ui/staff-forms";
 import { StaffEntry, StaffHeader } from "@/ui/staff-header";
 import { lock, unlock } from "./actions";
+import { MyTables } from "./my-tables";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("StaffWaiter");
@@ -39,7 +41,7 @@ export default async function WaiterPage() {
     );
   }
 
-  const locale = await getLocale();
+  const [locale, { StaffOrders }] = await Promise.all([getLocale(), getMessages()]);
   const other = locale === "am" ? "en" : "am";
   return (
     <>
@@ -54,6 +56,9 @@ export default async function WaiterPage() {
             <SubmitButton variant="quiet">{t("lock")}</SubmitButton>
           </form>
         </div>
+        <NextIntlClientProvider messages={{ StaffOrders }}>
+          <MyTables />
+        </NextIntlClientProvider>
         {device.dishes.length > 0 && (
           <section className="mt-8" aria-labelledby="staff-menu">
             <h2 id="staff-menu" className="border-b border-ink/70 pb-1.5 text-sm font-semibold uppercase">{t("menu")}</h2>

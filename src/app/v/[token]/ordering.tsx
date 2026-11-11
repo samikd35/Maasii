@@ -4,7 +4,7 @@
 // Prices and checks come from the Maasii core's browser-safe rules; this file only renders them
 // and keeps the Draft in the phone's local storage.
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import {
   MAX_NOTE_LENGTH,
   MAX_QUANTITY,
@@ -21,6 +21,7 @@ import {
 } from "@/core/browser";
 import { DraftSlipContents, draftSlipClass } from "@/ui/guest-menu-parts";
 import { formatBirr, Price } from "@/ui/price";
+import type { SlipService } from "./order-service";
 
 type Line = DraftLine & { lineId: string };
 type SheetRequest = { dishId: string } | { lineId: string } | { draft: true };
@@ -130,17 +131,29 @@ function sendBrowsingEvent(venueLinkToken: string, pageLoadId: string, dishId?: 
   }).catch(() => {});
 }
 
-export function Ordering({ venueLinkToken, sections, recordBrowsing, preview = false }: {
+export function Ordering({ venueLinkToken, sections, recordBrowsing, preview = false, orderService }: {
   venueLinkToken: string;
   sections: GuestMenuSection[];
   recordBrowsing: boolean;
   preview?: boolean;
+  orderService?: boolean;
 }) {
   const t = useTranslations("Ordering");
   const key = draftKey(venueLinkToken);
   const lines = useSyncExternalStore(preview ? ignoreStorage : subscribe, preview ? readNoLines : () => readDraft(key), readNoLines);
   const [sheet, setSheet] = useState<SheetRequest | null>(null);
   const [announcement, setAnnouncement] = useState("");
+  const [Service, setService] = useState<typeof import("./order-service").default>();
+  const serviceKey = `maasii:orders:${venueLinkToken}`;
+  const showSlip = !!sheet && "draft" in sheet;
+  useEffect(() => {
+    if (preview || Service || !orderService) return;
+    let remembered = false;
+    try {
+      remembered = !!localStorage.getItem(serviceKey);
+    } catch {}
+    if (showSlip || remembered) void import("./order-service").then(({ default: service }) => setService(() => service)).catch(() => {});
+  }, [preview, Service, orderService, serviceKey, showSlip]);
 
   useEffect(() => {
     if (recordBrowsing && browsingPage?.venueLinkToken !== venueLinkToken) {
@@ -169,6 +182,11 @@ export function Ordering({ venueLinkToken, sections, recordBrowsing, preview = f
     writeDraft(key, next);
     setAnnouncement(message);
   };
+
+  const clearSentLines = useCallback((sent: Line[]) => {
+    const sentIds = new Set(sent.map(({ lineId }) => lineId));
+    writeDraft(key, readDraft(key).filter(({ lineId }) => !sentIds.has(lineId)));
+  }, [key]);
 
   let open: ReactNode = null;
   if (sheet && "dishId" in sheet) {
@@ -207,26 +225,12 @@ export function Ordering({ venueLinkToken, sections, recordBrowsing, preview = f
         />
       );
     }
-  } else if (sheet && lines.length > 0) {
-    open = (
-      <DraftSheet
-        lines={lines}
-        draft={draft}
-        onClose={() => setSheet(null)}
-        onEdit={(lineId) => setSheet({ lineId })}
-        onQuantity={(lineId, quantity) => save(lines.map((l) => (l.lineId === lineId ? { ...l, quantity } : l)), "")}
-        onRemove={(line) => {
-          const next = lines.filter((l) => l.lineId !== line.lineId);
-          save(next, t("removed", { dish: findDish(line.dishId)?.name ?? line.dishName }));
-          if (next.length === 0) setSheet(null);
-        }}
-      />
-    );
   }
 
-  return (
-    <>
-      {lines.length > 0 && (
+  function slip(service?: SlipService) {
+    const hasSlip = lines.length > 0 || !!service?.tableLabel;
+    return hasSlip && (
+      <>
         <div className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-xl bg-linear-to-t from-paper via-paper/90 to-transparent px-3 pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <button
             type="button"
@@ -234,10 +238,47 @@ export function Ordering({ venueLinkToken, sections, recordBrowsing, preview = f
             onClick={() => setSheet({ draft: true })}
             className={draftSlipClass}
           >
-            <DraftSlipContents dishCount={draft.dishCount} linesNeedingAttention={draft.linesNeedingAttention} totalSantim={draft.totalSantim} />
+            <DraftSlipContents
+              dishCount={draft.dishCount}
+              linesNeedingAttention={draft.linesNeedingAttention}
+              totalSantim={draft.totalSantim}
+              tableLabel={service?.tableLabel}
+              status={service?.status}
+            />
           </button>
         </div>
-      )}
+        {showSlip && (
+          <DraftSheet
+            lines={lines}
+            draft={draft}
+            service={service}
+            onClose={() => setSheet(null)}
+            onEdit={(lineId) => setSheet({ lineId })}
+            onQuantity={(lineId, quantity) => save(lines.map((l) => (l.lineId === lineId ? { ...l, quantity } : l)), "")}
+            onRemove={(line) => {
+              const next = lines.filter((l) => l.lineId !== line.lineId);
+              save(next, t("removed", { dish: findDish(line.dishId)?.name ?? line.dishName }));
+              if (next.length === 0 && !service?.tableLabel) setSheet(null);
+            }}
+          />
+        )}
+      </>
+    );
+  }
+
+  return (
+    <>
+      {!preview && Service && orderService ? (
+        <Service
+          key={serviceKey}
+          storageKey={serviceKey}
+          venueLinkToken={venueLinkToken}
+          lines={lines}
+          invalidDraft={draft.linesNeedingAttention > 0}
+          onSent={clearSentLines}
+          render={slip}
+        />
+      ) : slip()}
       <p role="status" className="sr-only">
         {announcement}
       </p>
@@ -256,7 +297,7 @@ function Sheet({
 }: {
   labelledBy: string;
   onClose: () => void;
-  footer: ReactNode;
+  footer?: ReactNode;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -275,7 +316,7 @@ function Sheet({
       className="fixed inset-x-0 top-auto bottom-0 m-0 mx-auto max-h-[92dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-2xl bg-paper p-0 text-ink shadow-2xl backdrop:bg-ink/45 open:flex"
     >
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
-      <div className="border-t border-rule bg-paper px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">{footer}</div>
+      {footer && <div className="border-t border-rule bg-paper px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">{footer}</div>}
     </dialog>
   );
 }
@@ -452,6 +493,7 @@ function DishSheet({
 function DraftSheet({
   lines,
   draft,
+  service,
   onClose,
   onEdit,
   onQuantity,
@@ -459,6 +501,7 @@ function DraftSheet({
 }: {
   lines: Line[];
   draft: PricedDraft;
+  service?: SlipService;
   onClose: () => void;
   onEdit: (lineId: string) => void;
   onQuantity: (lineId: string, quantity: number) => void;
@@ -470,35 +513,44 @@ function DraftSheet({
     <Sheet
       labelledBy={headingId}
       onClose={onClose}
-      footer={
-        <div className="flex items-center justify-between">
-          <span className="font-semibold">
-            {t("total")} · {t("dishCount", { count: draft.dishCount })}
-          </span>
-          <Price santim={draft.totalSantim} />
-        </div>
-      }
+      footer={(lines.length > 0 || service?.locked) && (
+        <>
+          {lines.length > 0 && (
+            <div className="flex items-center justify-between">
+              <span className="font-semibold">{t("total")} · {t("dishCount", { count: draft.dishCount })}</span>
+              <Price santim={draft.totalSantim} />
+            </div>
+          )}
+          {service?.controls}
+        </>
+      )}
     >
       <div className="px-5 pt-4">
         <SheetHeading id={headingId} onClose={onClose}>
-          {t("yourTable")}
+          {service?.tableLabel ? `${t("yourTable")} · ${service.tableLabel}` : t("yourTable")}
         </SheetHeading>
-        <h3 className="mt-4 border-b border-ink/70 pb-1.5 text-sm font-semibold tracking-wide uppercase">{t("draftHeading")}</h3>
-        {draft.linesNeedingAttention > 0 && (
-          <p className="mt-2 text-sm font-medium">{t("needAttention", { count: draft.linesNeedingAttention })}</p>
+        {lines.length > 0 && (
+          <>
+            <h3 className="mt-4 border-b border-ink/70 pb-1.5 text-sm font-semibold tracking-wide uppercase">{t("draftHeading")}</h3>
+            {draft.linesNeedingAttention > 0 && (
+              <p className="mt-2 text-sm font-medium">{t("needAttention", { count: draft.linesNeedingAttention })}</p>
+            )}
+            <ul className="pb-4">
+              {lines.map((line, index) => (
+                <DraftLineRow
+                  key={line.lineId}
+                  line={line}
+                  priced={draft.lines[index]}
+                  locked={service?.locked}
+                  onEdit={() => onEdit(line.lineId)}
+                  onQuantity={(quantity) => onQuantity(line.lineId, quantity)}
+                  onRemove={() => onRemove(line)}
+                />
+              ))}
+            </ul>
+          </>
         )}
-        <ul className="pb-4">
-          {lines.map((line, index) => (
-            <DraftLineRow
-              key={line.lineId}
-              line={line}
-              priced={draft.lines[index]}
-              onEdit={() => onEdit(line.lineId)}
-              onQuantity={(quantity) => onQuantity(line.lineId, quantity)}
-              onRemove={() => onRemove(line)}
-            />
-          ))}
-        </ul>
+        {service?.orders}
       </div>
     </Sheet>
   );
@@ -507,12 +559,14 @@ function DraftSheet({
 function DraftLineRow({
   line,
   priced,
+  locked,
   onEdit,
   onQuantity,
   onRemove,
 }: {
   line: Line;
   priced: PricedDraftLine;
+  locked?: boolean;
   onEdit: () => void;
   onQuantity: (quantity: number) => void;
   onRemove: () => void;
@@ -535,18 +589,20 @@ function DraftLineRow({
       {problems.length > 0 && (
         <p className="mt-2 border-l-4 border-ink bg-paper-deep px-3 py-2 text-sm">{problems.join(" ")}</p>
       )}
-      <div className="mt-2 flex items-center gap-1">
-        {priced.dish && <QuantityStepper label={t("dishQuantity", { dish: name })} value={line.quantity} onChange={onQuantity} />}
-        <span className="flex-1" />
-        {priced.dish && (
-          <button type="button" onClick={onEdit} className={textButton}>
-            {t("edit")}
+      {!locked && (
+        <div className="mt-2 flex items-center gap-1">
+          {priced.dish && <QuantityStepper label={t("dishQuantity", { dish: name })} value={line.quantity} onChange={onQuantity} />}
+          <span className="flex-1" />
+          {priced.dish && (
+            <button type="button" onClick={onEdit} className={textButton}>
+              {t("edit")}
+            </button>
+          )}
+          <button type="button" onClick={onRemove} className={textButton}>
+            {t("remove")}
           </button>
-        )}
-        <button type="button" onClick={onRemove} className={textButton}>
-          {t("remove")}
-        </button>
-      </div>
+        </div>
+      )}
     </li>
   );
 }
