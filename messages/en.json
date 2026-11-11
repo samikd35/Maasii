@@ -356,6 +356,7 @@
     "orderUndoExpired": "The time to undo this decision has ended.",
     "orderUndoNotYours": "Only the waiter who made the decision can undo it.",
     "orderTableOccupied": "A new party has already ordered at this table.",
+    "tableChoiceLocked": "Ask your Waiter to change your Table.",
     "orderVisitClosed": "This Visit is closed.",
     "orderDraftChanged": "The Draft needs attention.",
     "paymentDestinationRequired": "Enter the provider, recipient name and account number or merchant code.",
@@ -409,6 +410,10 @@
     "menu": "Menu"
   },
   "StaffOrders": {
+    "moveOrder": "Move Order to Table…",
+    "moveVisit": "Move Visit to Table…",
+    "chooseTable": "Choose Table",
+    "move": "Move",
     "carriedFrom": "Carried over from {name}",
     "carriedOver": "Carried over",
     "newParty": "New party at Table {number}?",

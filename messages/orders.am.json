@@ -3,6 +3,8 @@
   "billDiscount": "ቅናሽ፦ {amount} ብር",
   "waitingForWaiter": "ትዕዛዝዎ ተልኳል። አስተናጋጅዎ ጠረጴዛውን ያረጋግጣሉ።",
   "send": "ይላኩ",
+  "changeTable": "ጠረጴዛ ይቀይሩ",
+  "tableChoiceLocked": "ጠረጴዛ ለመቀየር አስተናጋጅዎን ይጠይቁ።",
   "choose": "የትኛው ጠረጴዛ ላይ ነዎት?",
   "table": "ጠረጴዛ {number}",
   "sending": "በመላክ ላይ…",
