@@ -19,3 +19,4 @@ export type {
   GuestOptionChoice,
   GuestOptionGroup,
 } from "./menu";
+export { deriveBrandTheme, displayFonts, type DisplayFont } from "./brand-theme";

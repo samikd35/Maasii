@@ -4,6 +4,7 @@
 export { adminActor, publicActor, staffActor, systemActor, type Actor, type StaffActor } from "./actor";
 export { MaasiiError, type MaasiiErrorCode } from "./errors";
 export { languages, type Bilingual, type Language } from "./language";
+export { brandArtworkMimeTypes, MAX_BRAND_ARTWORK_BYTES } from "./brand-artwork";
 export { deriveBrandTheme, displayFonts, type DisplayFont } from "./brand-theme";
 export { recordBrowsingEvent } from "./browsing-events";
 
@@ -11,11 +12,13 @@ export {
   addTables,
   createBrand,
   createVenue,
+  getBranding,
   getVenueLink,
   getVenueSetup,
   listBrands,
   renumberTable,
   setTableActive,
+  updateBranding,
   type Brand,
   type BrandSummary,
   type Table,
