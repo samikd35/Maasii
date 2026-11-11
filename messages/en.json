@@ -95,7 +95,32 @@
     "owners": "Owners",
     "noOwner": "No owner yet. Invite one below.",
     "inviteHeading": "Invite an owner",
-    "inviteOwner": "Invite owner"
+    "inviteOwner": "Invite owner",
+    "openSupport": "Open read-only support",
+    "supportHeading": "Read-only Brand support",
+    "publishedMenu": "Published Menu",
+    "publishedVersion": "Version {number}",
+    "noSupportMenu": "No Menu published yet.",
+    "noSupportOwners": "No owners yet.",
+    "noSupportTables": "No tables yet.",
+    "supportStaff": "Staff",
+    "noSupportStaff": "No staff yet.",
+    "supportVisits": "Visits",
+    "noSupportVisits": "No Visits yet.",
+    "visitOpened": "Opened",
+    "visitClosed": "Closed",
+    "fastingCalendar": "Fasting calendar",
+    "calendarRules": "Dates are inclusive in Addis Ababa. Wednesdays and Fridays are fasting days by default. A non-fasting exception overrides any fasting period.",
+    "addPeriodHeading": "Add a calendar period",
+    "periodKind": "Period type",
+    "fastingSeason": "Fasting season",
+    "nonFastingException": "Non-fasting exception",
+    "startsOn": "Start date",
+    "endsOn": "End date",
+    "addPeriod": "Add period",
+    "editPeriod": "Edit period",
+    "savePeriod": "Save period",
+    "removePeriod": "Remove period"
   },
   "StaffManage": {
     "branding": "Branding",
@@ -212,6 +237,7 @@
     "exampleDescription": "Espresso with a dash of milk"
   },
   "StaffForms": {
+    "fastingPeriodSaved": "Calendar period saved.",
     "usualTablesSaved": "Usual Tables saved.",
     "assignmentSaved": "Table Assignment saved.",
     "brandingSaved": "Branding saved at every venue.",
@@ -270,6 +296,8 @@
     "translationCount": "{count, plural, one {# dish is missing a translation.} other {# dishes are missing a translation.}}"
   },
   "StaffErrors": {
+    "invalidFastingDates": "Enter valid dates with the end date on or after the start date.",
+    "fastingPeriodExists": "A period with those dates and that type already exists.",
     "invalidBrandArtwork": "Choose a JPEG, PNG or WebP image up to 4 MB.",
     "menuDraftChanged": "The Menu changed since you opened it. Reload to see the latest changes.",
     "menuDraftInvalid": "Give every section and dish a name in at least one language. A House favourite needs a photo.",

@@ -28,6 +28,13 @@ export default async function AdminBrandPage({ params }: PageProps<"/admin/brand
         {t("allBrands")}
       </Link>
       <h1 className="mt-2 font-display text-3xl">{brand.name}</h1>
+      {/* A document navigation reaches the audit transaction on every open. */}
+      <a
+        href={`/admin/brands/${brand.id}/support`}
+        className="mt-2 inline-flex min-h-11 items-center text-sm font-medium underline"
+      >
+        {t("openSupport")}
+      </a>
 
       <section aria-labelledby="owners" className="mt-8">
         <h2 id="owners" className="border-b border-ink/70 pb-1.5 text-sm font-semibold tracking-wide uppercase">

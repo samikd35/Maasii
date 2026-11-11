@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createPublicAuthClient } from "@/lib/supabase/public";
-import { requireBrandOwner, requirePlatformAdmin, requireSystem, requireVenueManager } from "./access";
+import { requireBrandOwner, requireOutsideBrandSupport, requirePlatformAdmin, requireSystem, requireVenueManager } from "./access";
 import { staffActor, systemActor, type Actor } from "./actor";
 import { contactText, parseStaffContact, type StaffContact } from "./contact";
 import { inTransaction, type Tx } from "./db";
@@ -261,10 +261,11 @@ function refuseInvitation(outcome: keyof typeof refusals): never {
  * They can then sign in with that email or phone and password.
  */
 export async function acceptInvitation(
-  _actor: Actor,
+  actor: Actor,
   input: { token: string; password: string },
   { now = new Date() }: { now?: Date } = {},
 ): Promise<{ userId: string; contact: StaffContact }> {
+  requireOutsideBrandSupport(actor);
   const { token, password } = parseInput(
     z.object({
       token: z.string().min(1),

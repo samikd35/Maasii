@@ -1,4 +1,5 @@
 import pg from "pg";
+import { requireOutsideBrandSupport } from "./access";
 import type { Actor } from "./actor";
 
 export type Tx = pg.PoolClient;
@@ -29,6 +30,7 @@ export async function lockVenueShifts(tx: Tx, venueId: string): Promise<void> {
 
 /** Runs `work` in one database transaction, acting as `actor` for every statement. */
 export async function inTransaction<T>(actor: Actor, work: (tx: Tx) => Promise<T>): Promise<T> {
+  requireOutsideBrandSupport(actor);
   const tx = await pool().connect();
   try {
     await tx.query("begin");
@@ -44,7 +46,7 @@ export async function inTransaction<T>(actor: Actor, work: (tx: Tx) => Promise<T
   }
 }
 
-async function actAs(tx: Tx, actor: Actor): Promise<void> {
+async function actAs(tx: Tx, actor: Exclude<Actor, { kind: "support" }>): Promise<void> {
   switch (actor.kind) {
     case "public":
       await tx.query("select set_config('role', 'anon', true)");

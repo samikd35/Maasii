@@ -95,7 +95,32 @@
     "owners": "ባለቤቶች",
     "noOwner": "ገና ባለቤት የለም። ከታች ባለቤት ይጋብዙ።",
     "inviteHeading": "ባለቤት ለመጋበዝ",
-    "inviteOwner": "ባለቤት ይጋብዙ"
+    "inviteOwner": "ባለቤት ይጋብዙ",
+    "openSupport": "የንባብ ብቻ ድጋፍ ይክፈቱ",
+    "supportHeading": "የብራንድ ድጋፍ · ንባብ ብቻ",
+    "publishedMenu": "የታተመ ምናሌ",
+    "publishedVersion": "ስሪት {number}",
+    "noSupportMenu": "ገና የታተመ ምናሌ የለም።",
+    "noSupportOwners": "ገና ባለቤቶች የሉም።",
+    "noSupportTables": "ገና ጠረጴዛዎች የሉም።",
+    "supportStaff": "ሠራተኞች",
+    "noSupportStaff": "ገና ሠራተኞች የሉም።",
+    "supportVisits": "ጉብኝቶች",
+    "noSupportVisits": "ገና ጉብኝቶች የሉም።",
+    "visitOpened": "ተከፈተ",
+    "visitClosed": "ተዘጋ",
+    "fastingCalendar": "የጾም ቀን መቁጠሪያ",
+    "calendarRules": "ቀኖቹ በአዲስ አበባ ሰዓት ሲሆኑ መጀመሪያውንና መጨረሻውን ያካትታሉ። ረቡዕና ዓርብ በመደበኛነት የጾም ቀናት ናቸው። የጾም መልቀቂያ ከጾም ወቅት ይቀድማል።",
+    "addPeriodHeading": "የቀን ክልል ያክሉ",
+    "periodKind": "የቀን ክልሉ ዓይነት",
+    "fastingSeason": "የጾም ወቅት",
+    "nonFastingException": "የጾም መልቀቂያ",
+    "startsOn": "መጀመሪያ ቀን",
+    "endsOn": "መጨረሻ ቀን",
+    "addPeriod": "የቀን ክልል ያክሉ",
+    "editPeriod": "የቀን ክልሉን ያርትዑ",
+    "savePeriod": "የቀን ክልሉን ያስቀምጡ",
+    "removePeriod": "የቀን ክልሉን ያስወግዱ"
   },
   "StaffManage": {
     "branding": "የብራንድ ገጽታ",
@@ -212,6 +237,7 @@
     "exampleDescription": "ኤስፕሬሶ በትንሽ ወተት"
   },
   "StaffForms": {
+    "fastingPeriodSaved": "የቀን ክልሉ ተቀምጧል።",
     "usualTablesSaved": "መደበኛ ጠረጴዛዎቹ ተቀምጠዋል።",
     "assignmentSaved": "የጠረጴዛ ምደባው ተቀምጧል።",
     "brandingSaved": "የብራንዱ ገጽታ በሁሉም ቦታዎች ተቀምጧል።",
@@ -270,6 +296,8 @@
     "translationCount": "{count} ምግብ ትርጉም ይጎድለዋል።"
   },
   "StaffErrors": {
+    "invalidFastingDates": "ትክክለኛ ቀኖችን ያስገቡ። የመጨረሻው ቀን ከመጀመሪያው ቀን በፊት ሊሆን አይችልም።",
+    "fastingPeriodExists": "በእነዚህ ቀኖችና በዚህ ዓይነት የተመዘገበ የቀን ክልል አስቀድሞ አለ።",
     "invalidBrandArtwork": "እስከ 4 ሜጋባይት የሆነ JPEG፣ PNG ወይም WebP ምስል ይምረጡ።",
     "menuDraftChanged": "ምናሌው ከከፈቱት በኋላ ተቀይሯል። አዲሶቹን ለውጦች ለማየት ገጹን ዳግም ይጫኑ።",
     "menuDraftInvalid": "ለእያንዳንዱ ክፍልና ምግብ ቢያንስ በአንድ ቋንቋ ስም ይስጡ። የቤቱ ተወዳጅ ምግብ ፎቶ ያስፈልገዋል።",

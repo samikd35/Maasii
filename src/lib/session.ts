@@ -1,7 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
-import { adminActor, hasAuthSession, MaasiiError, staffActor, updateStaffLanguage, type Actor, type StaffActor } from "@/core";
+import { adminActor, adminSupportActor, hasAuthSession, MaasiiError, staffActor, updateStaffLanguage, type Actor, type StaffActor } from "@/core";
 import { isLocale, LANGUAGE_COOKIE } from "@/i18n/config";
 import type { Messages } from "@/i18n/messages";
 import { createSessionClient } from "@/lib/supabase/server";
@@ -28,10 +28,10 @@ export async function requireStaff(): Promise<Actor> {
 }
 
 /** The signed-in person in the platform admin area. The core checks they really are an admin. */
-export async function requireAdmin(): Promise<Actor> {
+export async function requireAdmin(area: "admin" | "support" = "admin"): Promise<Actor> {
   const userId = await signedInUserId();
   if (!userId) redirect("/sign-in");
-  return adminActor(userId);
+  return area === "support" ? adminSupportActor(userId) : adminActor(userId);
 }
 
 /** The address this app is served from, for Venue Links and invitation links. */

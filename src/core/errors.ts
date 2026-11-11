@@ -1,6 +1,8 @@
 export type MaasiiErrorCode = "not_allowed" | "not_found" | "invalid_input";
 
 type RefusalReason =
+  | "invalidFastingDates"
+  | "fastingPeriodExists"
   | "invalidBrandArtwork"
   | "invalidContact"
   | "invalidTableNumber"
