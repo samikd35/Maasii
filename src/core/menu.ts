@@ -308,144 +308,134 @@ export async function getPublishedMenu(
   input: { venueLinkToken: string; language?: Language },
   { now = new Date() }: { now?: Date } = {},
 ): Promise<GuestMenu | null> {
+  return inTransaction(actor, async (tx) => (await readPublishedMenu(tx, input, now))?.menu ?? null);
+}
+
+type LocalizedRow = { id: string; name_en: string; name_am: string };
+type DishRow = LocalizedRow & {
+  section_id: string;
+  description_en: string;
+  description_am: string;
+  price_santim: number;
+  fasting: boolean;
+  photo_url: string | null;
+  house_favourite: boolean;
+};
+type GroupRow = LocalizedRow & { dish_id: string; kind: GuestOptionGroup["kind"]; required: boolean };
+type ChoiceRow = LocalizedRow & { option_group_id: string; price_change_santim: number };
+
+export async function readPublishedMenu(
+  tx: Tx,
+  input: { venueLinkToken: string; language?: Language },
+  now: Date,
+) {
   const language = z.enum(languages).default("en").safeParse(input.language);
   if (!language.success) throw new MaasiiError("invalid_input", "The Menu is only available in Amharic and English.");
   const text = (en: string, am: string) => inLanguage({ en, am }, language.data);
 
-  return inTransaction(actor, async (tx) => {
-    const { rows } = await tx.query<{
-      venue_id: string;
-      venue_name: string;
-      link_token: string;
-      brand_id: string;
-      brand_name: string;
-      logo_url: string | null;
-      colour: string;
-      cover_url: string | null;
-      display_font: Brand["displayFont"];
-    } & (
-      | { version_id: string; version_number: number; published_at: Date }
-      | { version_id: null; version_number: null; published_at: null }
-    )>(
-      `select v.id as venue_id, v.name as venue_name, v.link_token,
-              b.id as brand_id, b.name as brand_name, b.logo_url, b.colour, b.cover_url, b.display_font,
-              mv.id as version_id, mv.number as version_number, mv.published_at
-       from app.venues v
-       join app.brands b on b.id = v.brand_id
-       left join app.menu_versions mv on mv.id = b.published_menu_version_id
-       where v.link_token = $1`,
-      [input.venueLinkToken],
-    );
-    const row = rows[0];
-    if (!row) return null;
+  // One statement snapshots the published version and current Venue prices and availability together.
+  const { rows: [row] } = await tx.query<{
+    venue_id: string;
+    venue_name: string;
+    link_token: string;
+    brand_id: string;
+    brand_name: string;
+    logo_url: string | null;
+    colour: string;
+    cover_url: string | null;
+    display_font: Brand["displayFont"];
+    sections: LocalizedRow[];
+    dishes: DishRow[];
+    groups: GroupRow[];
+    choices: ChoiceRow[];
+  } & (
+    | { version_id: string; version_number: number; published_at: Date }
+    | { version_id: null; version_number: null; published_at: null }
+  )>(
+    `select v.id as venue_id, v.name as venue_name, v.link_token,
+            b.id as brand_id, b.name as brand_name, b.logo_url, b.colour, b.cover_url, b.display_font,
+            mv.id as version_id, mv.number as version_number, mv.published_at,
+            (select coalesce(jsonb_agg(s order by position), '[]') from (
+              select section_id as id, name_en, name_am, position from app.menu_version_sections
+              where menu_version_id = mv.id
+            ) s) as sections,
+            (select coalesce(jsonb_agg(d order by position), '[]') from (
+              select d.dish_id as id, d.section_id, d.name_en, d.name_am, d.description_en, d.description_am,
+                     coalesce(settings.price_santim, d.price_santim) as price_santim,
+                     d.fasting, d.photo_url, d.house_favourite, d.position
+              from app.menu_version_dishes d
+              left join app.venue_dish_settings settings on settings.venue_id = v.id and settings.dish_id = d.dish_id
+              where d.menu_version_id = mv.id and settings.sold_out is not true
+            ) d) as dishes,
+            (select coalesce(jsonb_agg(g order by position), '[]') from (
+              select option_group_id as id, dish_id, name_en, name_am, kind, required, position
+              from app.menu_version_option_groups where menu_version_id = mv.id
+            ) g) as groups,
+            (select coalesce(jsonb_agg(c order by position), '[]') from (
+              select choice_id as id, option_group_id, name_en, name_am, price_change_santim, position
+              from app.menu_version_option_choices where menu_version_id = mv.id
+            ) c) as choices
+     from app.venues v
+     join app.brands b on b.id = v.brand_id
+     left join app.menu_versions mv on mv.id = b.published_menu_version_id
+     where v.link_token = $1`,
+    [input.venueLinkToken],
+  );
+  if (!row) return null;
 
-    const menu: GuestMenu = {
-      brand: {
-        id: row.brand_id,
-        name: row.brand_name,
-        logoUrl: row.logo_url,
-        colour: row.colour,
-        coverUrl: row.cover_url,
-        displayFont: row.display_font,
-      },
-      theme: deriveBrandTheme(row.colour),
-      venue: { id: row.venue_id, name: row.venue_name, linkToken: row.link_token },
-      menuVersion: row.version_id === null
-        ? null
-        : { id: row.version_id, number: row.version_number, publishedAt: row.published_at },
-      sections: [],
-      fastingDishes: [],
-      houseFavourite: null,
-    };
-    if (!row.version_id) return menu;
-
-    const sections = await tx.query<{ id: string; name_en: string; name_am: string }>(
-      `select section_id as id, name_en, name_am from app.menu_version_sections
-       where menu_version_id = $1 order by position`,
-      [row.version_id],
-    );
-    const dishes = await tx.query<{
-      id: string;
-      section_id: string;
-      name_en: string;
-      name_am: string;
-      description_en: string;
-      description_am: string;
-      price_santim: number;
-      fasting: boolean;
-      photo_url: string | null;
-      house_favourite: boolean;
-    }>(
-      `select d.dish_id as id, d.section_id, d.name_en, d.name_am, d.description_en, d.description_am,
-              coalesce(settings.price_santim, d.price_santim) as price_santim, d.fasting, d.photo_url, d.house_favourite
-       from app.menu_version_dishes d
-       left join app.venue_dish_settings settings on settings.venue_id = $2 and settings.dish_id = d.dish_id
-       where d.menu_version_id = $1 and settings.sold_out is not true order by d.position`,
-      [row.version_id, row.venue_id],
-    );
-    const groups = await tx.query<{
-      id: string;
-      dish_id: string;
-      name_en: string;
-      name_am: string;
-      kind: GuestOptionGroup["kind"];
-      required: boolean;
-    }>(
-      `select option_group_id as id, dish_id, name_en, name_am, kind, required
-       from app.menu_version_option_groups
-       where menu_version_id = $1 order by position`,
-      [row.version_id],
-    );
-    const choices = await tx.query<{
-      id: string;
-      option_group_id: string;
-      name_en: string;
-      name_am: string;
-      price_change_santim: number;
-    }>(
-      `select choice_id as id, option_group_id, name_en, name_am, price_change_santim
-       from app.menu_version_option_choices
-       where menu_version_id = $1 order by position`,
-      [row.version_id],
-    );
-    const optionGroupsOf = (dishId: string): GuestOptionGroup[] =>
-      groups.rows
-        .filter((group) => group.dish_id === dishId)
-        .map((group) => ({
-          id: group.id,
-          name: text(group.name_en, group.name_am),
-          kind: group.kind,
-          required: group.required,
-          choices: choices.rows
-            .filter((choice) => choice.option_group_id === group.id)
-            .map((choice) => ({
-              id: choice.id,
-              name: text(choice.name_en, choice.name_am),
-              priceChangeSantim: choice.price_change_santim,
-            })),
-        }));
-    menu.sections = sections.rows.map((section) => ({
-      id: section.id,
-      name: text(section.name_en, section.name_am),
-      dishes: dishes.rows
-        .filter((dish) => dish.section_id === section.id)
-        .map((dish) => ({
-          id: dish.id,
-          name: text(dish.name_en, dish.name_am),
-          description: text(dish.description_en, dish.description_am),
-          priceSantim: dish.price_santim,
-          fasting: dish.fasting,
-          photoUrl: dish.photo_url,
-          optionGroups: optionGroupsOf(dish.id),
-        })),
-    }));
-    const guestDishes = menu.sections.flatMap((section) => section.dishes);
-    const favouriteId = dishes.rows.find((dish) => dish.house_favourite)?.id;
-    menu.houseFavourite = guestDishes.find((dish) => dish.id === favouriteId) ?? null;
-    const fastingDishes = guestDishes.filter((dish) => dish.fasting);
-    if (fastingDishes.length > 0 && await isFastingDay(tx, now)) menu.fastingDishes = fastingDishes;
-    return menu;
-  });
+  const optionGroupsOf = (dishId: string): GuestOptionGroup[] =>
+    row.groups
+      .filter((group) => group.dish_id === dishId)
+      .map((group) => ({
+        id: group.id,
+        name: text(group.name_en, group.name_am),
+        kind: group.kind,
+        required: group.required,
+        choices: row.choices
+          .filter((choice) => choice.option_group_id === group.id)
+          .map((choice) => ({
+            id: choice.id,
+            name: text(choice.name_en, choice.name_am),
+            priceChangeSantim: choice.price_change_santim,
+          })),
+      }));
+  const sections = row.sections.map((section) => ({
+    id: section.id,
+    name: text(section.name_en, section.name_am),
+    dishes: row.dishes
+      .filter((dish) => dish.section_id === section.id)
+      .map((dish) => ({
+        id: dish.id,
+        name: text(dish.name_en, dish.name_am),
+        description: text(dish.description_en, dish.description_am),
+        priceSantim: dish.price_santim,
+        fasting: dish.fasting,
+        photoUrl: dish.photo_url,
+        optionGroups: optionGroupsOf(dish.id),
+      })),
+  }));
+  const guestDishes = sections.flatMap((section) => section.dishes);
+  const favouriteId = row.dishes.find((dish) => dish.house_favourite)?.id;
+  const fastingDishes = guestDishes.filter((dish) => dish.fasting);
+  const menu: GuestMenu = {
+    brand: {
+      id: row.brand_id,
+      name: row.brand_name,
+      logoUrl: row.logo_url,
+      colour: row.colour,
+      coverUrl: row.cover_url,
+      displayFont: row.display_font,
+    },
+    theme: deriveBrandTheme(row.colour),
+    venue: { id: row.venue_id, name: row.venue_name, linkToken: row.link_token },
+    menuVersion: row.version_id === null
+      ? null
+      : { id: row.version_id, number: row.version_number, publishedAt: row.published_at },
+    sections,
+    houseFavourite: guestDishes.find((dish) => dish.id === favouriteId) ?? null,
+    fastingDishes: fastingDishes.length > 0 && await isFastingDay(tx, now) ? fastingDishes : [],
+  };
+  return { menu, dishes: row.dishes, choices: row.choices };
 }
 
 async function isFastingDay(tx: Tx, now: Date): Promise<boolean> {

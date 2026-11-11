@@ -232,6 +232,10 @@
   },
   "StaffErrors": {
     "invalidBrandArtwork": "እስከ 4 ሜጋባይት የሆነ JPEG፣ PNG ወይም WebP ምስል ይምረጡ።",
+    "noRunningShift": "የሥራ ፈረቃ እስኪጀምር ማዘዝ አይቻልም።",
+    "orderTableUnavailable": "ይህ ጠረጴዛ ከአሁን በኋላ አይገኝም።",
+    "orderRequestConflict": "ይህ ትዕዛዝ መላኩን ማረጋገጥ አልተቻለም። እንደገና ከመላክዎ በፊት አስተናጋጅዎን ይጠይቁ።",
+    "orderDraftChanged": "ረቂቁን ይመልከቱ።",
     "paymentDestinationRequired": "የአቅራቢውን ስም፣ የተቀባዩን ስም እና የሒሳብ ቁጥር ወይም የነጋዴ ኮድ ያስገቡ።",
     "paymentOptionChanged": "የክፍያ አማራጩ በሚያርትዑበት ጊዜ ተቀይሯል። ገጹን ዳግም ይጫኑና የአሁኑን መረጃ ይመልከቱ።",
     "paymentCodeConfirmationRequired": "የቀድሞውንና አዲሱን መረጃ አነጻጽረው ለውጡን ያረጋግጡ።",
@@ -281,5 +285,16 @@
     "lock": "ይቆልፉ",
     "rejoinHeading": "ስልክዎን ያገናኙ",
     "menu": "ምናሌ"
+  },
+  "StaffOrders": {
+    "heading": "ጠረጴዛዎቼ",
+    "empty": "በጠረጴዛዎችዎ ላይ ትዕዛዝ የለም።",
+    "table": "ጠረጴዛ {number}",
+    "accept": "ይቀበሉ",
+    "accepting": "በመቀበል ላይ…",
+    "acceptError": "መቀበል አልተቻለም። እንደገና ይሞክሩ።",
+    "accepted": "{name} ተቀብለዋል",
+    "waiting": "የቆየበት ጊዜ {time}",
+    "refreshError": "ትዕዛዞችን ማደስ አልተቻለም። በድጋሚ በመገናኘት ላይ…"
   }
 }

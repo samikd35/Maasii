@@ -6,14 +6,14 @@
 
 **Status:** ready-for-agent
 
-- [ ] At the first Send, the guest picks a table from a grid of the venue's active tables. The Table Choice is remembered on the phone until the Visit closes.
-- [ ] The guest device gets an anonymous Supabase session on first Send, used by row-level security to scope what it can read.
-- [ ] Sending creates an Order with a client-generated request identifier. Sending the same identifier again returns the original Order and never creates a second.
-- [ ] Order lines snapshot the dish names in both languages, the unit price (including any venue price), the chosen options and prices, the quantity and the note. Publishing a new Menu afterwards does not change them.
-- [ ] The first Order at a table with no open Visit creates one. Later Orders at that table join it.
-- [ ] While no Shift is running, Send is disabled with a clear message, and browsing still works.
-- [ ] The guest sees "Sent" once saved. If the send fails, the slip says "Not sent - tap to retry" and keeps the Draft.
-- [ ] The Order goes to the waiter assigned to that table. "My tables" shows new Orders first, oldest at the top, with a large table number, the dishes, a running timer and one Accept button.
-- [ ] Accept is one tap. The guest's slip shows "Accepted by Sam" live through Supabase Realtime, falling back to checking every 10 seconds if the live connection drops.
-- [ ] Waiters see only their own tables in "My tables".
-- [ ] Core tests cover the Visit opening, idempotent retries, snapshots, routing to the assigned waiter, the no-Shift block and guest visibility. A Playwright test across two browser contexts covers Send, then live Accept, then the guest seeing "Accepted", plus the offline retry without a duplicate.
+- [x] At the first Send, the guest picks a table from a grid of the venue's active tables. The Table Choice is remembered on the phone until the Visit closes.
+- [x] The guest device gets an anonymous Supabase session on first Send, used by row-level security to scope what it can read.
+- [x] Sending creates an Order with a client-generated request identifier. Sending the same identifier again returns the original Order and never creates a second.
+- [x] Order lines snapshot the dish names in both languages, the unit price (including any venue price), the chosen options and prices, the quantity and the note. Publishing a new Menu afterwards does not change them.
+- [x] The first Order at a table with no open Visit creates one. Later Orders at that table join it.
+- [x] While no Shift is running, Send is disabled with a clear message, and browsing still works.
+- [x] The guest sees "Sent" once saved. If the send fails, the slip says "Not sent - tap to retry" and keeps the Draft.
+- [x] The Order goes to the waiter assigned to that table. "My tables" shows new Orders first, oldest at the top, with a large table number, the dishes, a running timer and one Accept button.
+- [x] Accept is one tap. The guest's slip shows "Accepted by Sam" live through Supabase Realtime, falling back to checking every 10 seconds if the live connection drops.
+- [x] Waiters see only their own tables in "My tables".
+- [x] Core tests cover the Visit opening, idempotent retries, snapshots, routing to the assigned waiter, the no-Shift block and guest visibility. A Playwright test across two browser contexts covers Send, then live Accept, then the guest seeing "Accepted", plus the offline retry without a duplicate.
