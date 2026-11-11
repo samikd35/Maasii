@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { NextIntlClientProvider } from "next-intl";
 import { notFound } from "next/navigation";
-import { getFormatter, getLocale, getTranslations } from "next-intl/server";
+import { getFormatter, getLocale, getMessages, getTranslations } from "next-intl/server";
 import { getClosingReport, MaasiiError } from "@/core";
 import { requireStaff } from "@/lib/session";
 import { formatBirr } from "@/ui/price";
@@ -19,7 +20,7 @@ export default async function ClosingPage({ params, searchParams }: PageProps<"/
     if (error instanceof MaasiiError) notFound();
     throw error;
   });
-  const [t, bills, locale, format] = await Promise.all([getTranslations("Closing"), getTranslations("Bills"), getLocale(), getFormatter()]);
+  const [t, bills, locale, format, { Bills }] = await Promise.all([getTranslations("Closing"), getTranslations("Bills"), getLocale(), getFormatter(), getMessages()]);
   const other = locale === "am" ? "en" : "am";
   const localTime = (time: Date) => format.dateTime(time, { hour: "numeric", minute: "numeric", timeZone: "Africa/Addis_Ababa" });
 
@@ -36,8 +37,10 @@ export default async function ClosingPage({ params, searchParams }: PageProps<"/
               <h3 className="font-display text-2xl">{bills("table", { number: visit.tableNumber })}</h3>
               <p className="text-sm">{t("age", { minutes: visit.minutesOpen })} · {visit.waiterName ?? t("noWaiter")} · {bills("total", { amount: formatBirr(visit.totalSantim) })}</p>
               {(visit.preparedAt || visit.lines.length > 0) && (
-                <ClosingBillControls venueId={venueId} visitId={visit.id} methods={report.methods}
-                  bill={visit.preparedAt ? { visitId: visit.id, tableId: visit.tableId, totalSantim: visit.totalSantim, reminder: false } : undefined} />
+                <NextIntlClientProvider messages={{ Bills }}>
+                  <ClosingBillControls venueId={venueId} visitId={visit.id} methods={report.methods}
+                    bill={visit.preparedAt ? { visitId: visit.id, tableId: visit.tableId, totalSantim: visit.totalSantim, reminder: false } : undefined} />
+                </NextIntlClientProvider>
               )}
               <details>
                 <summary className="min-h-11 cursor-pointer py-3 font-semibold">{t("adjust")}</summary>
