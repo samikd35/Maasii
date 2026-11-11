@@ -281,8 +281,9 @@ test("a new phone can Send at a prepared Table while the Waiter confirms the pre
     const nextSheet = next.getByRole("dialog");
     await expect(nextSheet.getByText("Order sent. Your waiter will check the Table.")).toBeVisible();
     await expect(nextSheet.getByText("Not a tax receipt")).toHaveCount(0);
-    await expect(queue.getByText("New party at Table 1?")).toBeVisible();
-    await queue.getByRole("button", { name: "Previous party paid" }).click();
+    const newParty = queue.getByRole("listitem").filter({ has: waiter.getByText("New party at Table 1?", { exact: true }) });
+    await expect(newParty.getByRole("button", { name: "Same party" })).toBeVisible();
+    await newParty.getByRole("button", { name: "Previous party paid" }).click();
     await expect(queue.getByLabel("Official Receipt amount (ETB)")).toHaveValue("");
     await queue.getByLabel("Method").selectOption({ label: "Cash" });
     await queue.getByLabel("Official Receipt amount (ETB)").fill("220");

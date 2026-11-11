@@ -299,6 +299,14 @@ export async function getMyTableOrders(
       totalSantim: visit.preparedAt ? Number(visit.totalSantim) : billFromOrders(ordersByVisit.get(visit.id) ?? [], visit).totalSantim,
     }));
     const bills = await readPreparedBills(tx, waiter.venueId, table);
+    const billByVisit = new Map(bills.map((bill) => [bill.visitId, bill]));
+    const queuePriority = (order: Order) => {
+      if (order.state === "sent") return order.partyPending ? 1 : 0;
+      const bill = billByVisit.get(order.visitId);
+      if (bill?.reminder) return 2;
+      return bill ? 3 : 4;
+    };
+    orders.sort((a, b) => queuePriority(a) - queuePriority(b));
     const paymentOptions = bills.length
       ? (await readVenuePaymentOptions(tx, waiter.venueId, { activeOnly: true }))
         .map(({ id, kind, provider, accountOrMerchantCode }) => ({ id, kind, provider, accountOrMerchantCode }))

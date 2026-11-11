@@ -452,3 +452,29 @@ test.each(["previous party paid", "same party"] as const)("a Waiter resolves %s 
   expect(await getGuestPendingOrders(next, venue)).toEqual([]);
   expect(await getPreparedBills(s.owner.actor, { venueId })).toEqual([]);
 });
+
+test("the Waiter queue puts ordinary Sent Orders ahead of new parties and Bills to settle", async () => {
+  const s = await scenario().venue("Lancha", { tables: 4 }).waiter("Sam").publishedMenu().build();
+  const { id: venueId, linkToken: venueLinkToken, tables } = s.venue;
+  const sam = s.waiters.Sam;
+  const unlock = { unlockToken: sam.unlockToken };
+  const start = Date.now() - 30 * 60_000;
+  const at = (minutes: number) => ({ now: new Date(start + minutes * 60_000) });
+  await startShift(s.owner.actor, { venueId, assignments: tables.map(({ id }) => ({ tableId: id, waiterId: sam.waiterId })) }, at(0));
+  const send = async (index: number, minutes: number) => sendOrder(await guest(), {
+    venueLinkToken, tableId: tables[index].id, requestId: randomUUID(),
+    lines: [{ dishId: s.dishId("Omelette"), choiceIds: [], quantity: 1, note: "" }],
+  }, at(minutes));
+
+  const inService = await send(0, 1);
+  const settling = await send(1, 2);
+  for (const order of [inService, settling]) await acceptOrder(sam.actor, { orderId: order.id, ...unlock }, at(3));
+  await prepareBill(sam.actor, { venueId, visitId: settling.visitId, ...unlock }, at(4));
+  await flagUnconfirmedBills(systemActor, { venueId, now: at(24).now });
+
+  const party = await send(1, 24);
+  const oldest = await send(2, 25);
+  const newest = await send(3, 26);
+  const feed = await getMyTableOrders(sam.actor, unlock, at(26));
+  expect(feed.orders.map(({ id }) => id)).toEqual([oldest.id, newest.id, party.id, settling.id, inService.id]);
+});

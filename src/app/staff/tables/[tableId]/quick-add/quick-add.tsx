@@ -68,7 +68,10 @@ export function QuickAdd({ table, dishes, recent }: Menu) {
         <form onSubmit={submit} className="space-y-3" key={dish.dishId}>
           <button type="button" disabled={working} onClick={() => { selectDish(undefined); setError(undefined); }} className="min-h-11 text-sm font-semibold underline">{t("changeDish")}</button>
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-xl font-semibold">{dish.name[locale] || dish.name[other]}</h2>
+            <h2 className="text-xl font-semibold">
+              {dish.name[locale] || dish.name[other]}
+              {dish.name[locale] && dish.name[other] && <span lang={other} className="block text-sm text-ink-muted">{dish.name[other]}</span>}
+            </h2>
             <Price santim={dish.priceSantim} />
           </div>
           {dish.optionGroups.map((group) => {

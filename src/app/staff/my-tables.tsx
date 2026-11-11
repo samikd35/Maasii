@@ -129,9 +129,13 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
   const billVisitIds = new Set(feed?.billVisitIds);
   const correctable = new Set(feed?.correctableOrderIds);
   const firstOrder = new Map([...visibleOrders].reverse().map(({ visitId, id }) => [visitId, id]));
-  const partyVisitIds = new Set(visibleOrders.filter(({ partyPending }) => partyPending).map(({ visitId }) => visitId));
-  const firstAccepted = new Map(visibleOrders.filter(({ state, visitId }) => state === "accepted" && billVisitIds.has(visitId)).reverse()
-    .map((order) => [order.visitId, order.id]));
+  const billRows = new Map<string, string>();
+  for (const order of visibleOrders) {
+    if (billRows.has(order.visitId) || !billVisitIds.has(order.visitId)) continue;
+    if (order.state === "accepted" || (order.partyPending && bills.has(order.visitId))) {
+      billRows.set(order.visitId, order.id);
+    }
+  }
 
   return (
     <section className="mt-8" aria-labelledby={heading}>
@@ -273,12 +277,12 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
                 <MoveControl label={t("moveVisit")} tables={destinations} disabled={!!working}
                   submit={(tableId) => void decide(order.id, { action: "moveVisit", visitId: order.visitId, tableId })} />
               )}
-              {feed && firstAccepted.get(order.visitId) === order.id && (
+              {feed && billRows.get(order.visitId) === order.id && (
                 <BillControls
                   key={bill?.preparedAt ?? order.visitId}
                   target={{ venueId: feed.venueId, visitId: order.visitId }}
                   bill={bill}
-                  partyPending={partyVisitIds.has(order.visitId)}
+                  partyPending={order.partyPending}
                   methods={feed.paymentOptions}
                   refresh={() => refresh.current()}
                 />
