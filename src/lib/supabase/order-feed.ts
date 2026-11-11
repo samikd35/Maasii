@@ -78,10 +78,12 @@ export function watchOrders<T extends OrderFeed>(
   window.addEventListener("online", online);
   void read();
 
-  return () => {
+  function stop() {
     closed = true;
     window.clearInterval(timer);
     window.removeEventListener("online", online);
     unsubscribe?.();
-  };
+  }
+
+  return { refresh: read, stop };
 }

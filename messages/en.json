@@ -325,6 +325,8 @@
     "menuDraftInvalid": "Give every section, dish, Option Group and choice a name in at least one language. Each Option Group needs a choice and a House favourite needs a photo.",
     "noRunningShift": "Ordering is unavailable until a Shift starts.",
     "orderTableUnavailable": "This table is no longer available.",
+    "orderTableBillPrepared": "Ask your waiter before ordering at this table.",
+    "billPrepared": "Ask your waiter to reopen the Bill to add an Order.",
     "orderRequestConflict": "This Send could not be verified. Ask your waiter before sending again.",
     "orderDraftChanged": "The Draft needs attention.",
     "paymentDestinationRequired": "Enter the provider, recipient name and account number or merchant code.",
@@ -387,5 +389,23 @@
     "accepted": "Accepted by {name}",
     "waiting": "Waiting {time}",
     "refreshError": "Could not refresh orders. Reconnecting…"
+  },
+  "Bills": {
+    "heading": "Prepared Bills",
+    "table": "Table {number}",
+    "prepare": "Prepare bill",
+    "reopen": "Reopen bill",
+    "confirm": "Confirm payment",
+    "method": "Method",
+    "selectMethod": "Choose a method",
+    "cash": "Cash",
+    "bank_transfer": "Bank transfer",
+    "mobile_wallet": "Mobile wallet",
+    "amount": "Official Receipt amount (ETB)",
+    "invalidAmount": "Enter an amount with up to two decimal places.",
+    "total": "Bill total: {amount} ETB",
+    "difference": "Receipt Difference: {amount} ETB",
+    "record": "Record Payment Confirmation",
+    "error": "Could not update the Bill. Try again."
   }
 }

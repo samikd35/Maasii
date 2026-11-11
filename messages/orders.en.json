@@ -12,5 +12,19 @@
   "serviceUnavailable": "Could not load tables. Try again.",
   "orders": "Orders",
   "billTotal": "Bill total",
-  "requestConflict": "This Send could not be verified. Ask your waiter before sending again."
+  "requestConflict": "This Send could not be verified. Ask your waiter before sending again.",
+  "bill": "Bill",
+  "billReady": "Bill ready",
+  "billPaid": "Bill paid",
+  "orderTableBillPrepared": "Ask your waiter before ordering at this table.",
+  "billPrepared": "Ask your waiter to reopen the Bill to add an Order.",
+  "notTaxReceipt": "Not a tax receipt",
+  "paymentOptions": "Payment Options",
+  "bank_transfer": "Bank transfer",
+  "mobile_wallet": "Mobile wallet",
+  "cash": "Cash",
+  "copyCode": "Copy account number or merchant code",
+  "copied": "Copied",
+  "copyFailed": "Could not copy. Select the number to copy it.",
+  "paymentQr": "Payment QR image"
 }

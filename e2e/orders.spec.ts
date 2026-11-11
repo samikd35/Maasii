@@ -1,5 +1,6 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { createWaiterJoinCode, endShift, getShiftSetup, startShift } from "@/core";
+import QRCode from "qrcode";
+import { addPaymentOption, createWaiterJoinCode, endShift, getShiftSetup, startShift } from "@/core";
 import { scenario } from "../tests/support/scenario";
 
 async function service(browser: Browser, baseURL: string, use: object) {
@@ -35,9 +36,13 @@ async function pickDishAndSend(page: Page, url: string) {
   await expect(page.getByRole("button", { name: "Table 1", exact: true })).toBeVisible();
 }
 
-test("a guest chooses a Table, the assigned Waiter sees the Order live and the guest sees one-tap Accept", async ({ page, browser, baseURL }) => {
-  const { waiter, context, url } = await service(browser, baseURL!, test.info().project.use);
+test("a guest chooses a Table, the assigned Waiter sees the Order live and the guest sees Accept, the Bill and its payment confirmation", async ({ page, browser, baseURL }) => {
+  const { waiter, context, url, s } = await service(browser, baseURL!, test.info().project.use);
   try {
+    await addPaymentOption(s.owner.actor, {
+      venueId: s.venue.id, kind: "bank_transfer", provider: "Test Bank", recipientName: "Lancha Café",
+      accountOrMerchantCode: "001234", qrImage: await QRCode.toDataURL("test-payment-destination"), displayOrder: 1,
+    });
     await pickDishAndSend(page, url);
     await page.getByRole("button", { name: "Table 1", exact: true }).click();
     await expect(page.getByRole("dialog").getByText("Sent", { exact: true })).toBeVisible();
@@ -49,6 +54,45 @@ test("a guest chooses a Table, the assigned Waiter sees the Order live and the g
     await page.reload();
     await page.getByRole("button", { name: /Your table.*Table 1/ }).click();
     await expect(page.getByRole("dialog").getByText("Accepted by Sam", { exact: true })).toBeVisible();
+
+    const sheet = page.getByRole("dialog");
+    const prepare = queue.getByRole("button", { name: "Prepare bill" });
+    await expect(prepare).toBeVisible();
+    await prepare.click();
+    const bill = sheet.getByRole("region", { name: "Bill", exact: true });
+    await expect(bill.getByText("Not a tax receipt")).toBeVisible({ timeout: 6000 });
+    await expect(bill.getByText("1 × Omelette")).toBeVisible();
+    await expect(bill.getByRole("region", { name: "Bill total" }).getByTestId("price")).toHaveText("220 ETB");
+    const paymentOptions = sheet.getByRole("region", { name: "Payment Options" });
+    await expect(paymentOptions.getByText("Test Bank")).toBeVisible();
+    await expect(paymentOptions.getByText("Lancha Café")).toBeVisible();
+    await expect(paymentOptions.getByText("001234")).toBeVisible();
+    await expect(paymentOptions.getByRole("img", { name: "Payment QR image" })).toBeVisible();
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin: baseURL });
+    await page.bringToFront();
+    await paymentOptions.getByRole("button", { name: "Copy account number or merchant code" }).click();
+    await expect(paymentOptions.getByRole("button", { name: "Copied" })).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("001234");
+
+    await sheet.getByRole("button", { name: "Close", exact: true }).click();
+    await page.getByRole("button", { name: "Macchiato", exact: true }).click();
+    await page.getByRole("button", { name: "Add to order" }).click();
+    await page.getByRole("button", { name: /Your Draft/ }).click();
+    await expect(sheet.getByText("Ask your waiter to reopen the Bill to add an Order.")).toBeVisible();
+    await expect(sheet.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
+
+    await queue.getByRole("button", { name: "Confirm payment" }).click();
+    const amount = queue.getByLabel("Official Receipt amount (ETB)");
+    await expect(amount).toHaveValue("");
+    await queue.getByLabel("Method").selectOption({ label: "Test Bank · 001234" });
+    await amount.fill("219.75");
+    await expect(queue.getByText("Receipt Difference: −0.25 ETB")).toBeVisible();
+    await queue.getByRole("button", { name: "Record Payment Confirmation" }).click();
+    await expect(sheet.getByText("Bill paid", { exact: true })).toBeVisible({ timeout: 6000 });
+    await expect(bill.getByText("1 × Omelette")).toBeVisible();
+    await expect(paymentOptions).toHaveCount(0);
+    await expect(queue.getByText("No orders at your tables.")).toBeVisible();
+
   } finally {
     await context.close();
   }
@@ -98,6 +142,17 @@ test("two guest phones share live Orders and the Bill while each Draft stays on 
     await queue.getByRole("button", { name: "Accept" }).click();
     for (const sheet of [first, second]) {
       await expect(sheet.getByText("Accepted by Sam", { exact: true })).toHaveCount(2, { timeout: 6000 });
+      await expect(bill(sheet)).toHaveText("410 ETB");
+    }
+
+    await queue.getByRole("button", { name: "Prepare bill" }).click();
+    for (const sheet of [first, second]) {
+      await expect(sheet.getByRole("region", { name: "Bill", exact: true }).getByText("Not a tax receipt")).toBeVisible({ timeout: 6000 });
+      await expect(bill(sheet)).toHaveText("410 ETB");
+    }
+    await queue.getByRole("button", { name: "Reopen bill" }).click();
+    for (const sheet of [first, second]) {
+      await expect(sheet.getByText("Not a tax receipt")).toHaveCount(0, { timeout: 6000 });
       await expect(bill(sheet)).toHaveText("410 ETB");
     }
   } finally {

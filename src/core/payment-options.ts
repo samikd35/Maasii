@@ -100,10 +100,10 @@ export async function listPaymentOptions(actor: Actor, input: z.input<typeof ven
   });
 }
 
-export async function readVenuePaymentOptions(tx: Tx, venueId: string): Promise<PaymentOption[]> {
+export async function readVenuePaymentOptions(tx: Tx, venueId: string, { activeOnly = false } = {}): Promise<PaymentOption[]> {
   const { rows } = await tx.query<PaymentOptionRow>(
-    `select * from app.payment_options where venue_id = $1 order by display_order, id`,
-    [venueId],
+    `select * from app.payment_options where venue_id = $1 and (not $2 or active) order by display_order, id`,
+    [venueId, activeOnly],
   );
   return rows.map(toPaymentOption);
 }
