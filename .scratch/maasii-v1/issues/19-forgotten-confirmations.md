@@ -6,9 +6,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] The every-minute job flags prepared Bills without a Payment Confirmation after 20 minutes. They appear as "Paid?" rows in the waiter's list and notify the waiter.
-- [ ] An Order from a phone that has not sent an Order in the current Visit, at a table whose Bill is prepared, is accepted by the core and shown to the waiter as "New party at Table N?".
-- [ ] "Previous party paid" asks for the method and the typed receipt amount, records the Payment Confirmation, closes the old Visit, and places the new Order in a new Visit.
-- [ ] "Same party" reopens the existing Bill and adds the Order to the existing Visit.
-- [ ] The "Paid?" flag disappears once the payment is confirmed or the Bill is reopened.
-- [ ] Core tests with controlled time cover the 20-minute flag and both answers to "New party at Table N?", including what each guest phone can see afterwards.
+- [x] The every-minute job flags prepared Bills without a Payment Confirmation after 20 minutes. They appear as "Paid?" rows in the waiter's list and notify the waiter.
+- [x] An Order from a phone that has not sent an Order in the current Visit, at a table whose Bill is prepared, is accepted by the core and shown to the waiter as "New party at Table N?".
+- [x] "Previous party paid" asks for the method and the typed receipt amount, records the Payment Confirmation, closes the old Visit, and places the new Order in a new Visit.
+- [x] "Same party" reopens the existing Bill and adds the Order to the existing Visit.
+- [x] The "Paid?" flag disappears once the payment is confirmed or the Bill is reopened.
+- [x] Core tests with controlled time cover the 20-minute flag and both answers to "New party at Table N?", including what each guest phone can see afterwards.

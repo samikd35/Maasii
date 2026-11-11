@@ -82,7 +82,8 @@ export default function OrderService({
     const pending = current.current.pending;
     const confirmed = pending && data.orders.find(({ requestId }) => requestId === pending.requestId);
     if (pending && !confirmed) return;
-    const table = data.visit?.table;
+    const waiting = data.orders.findLast(({ partyPending }) => partyPending);
+    const table = waiting ? { id: waiting.tableId, number: waiting.tableNumber } : data.visit?.table;
     if (pending && confirmed) {
       onSent(pending.lines);
       setError(undefined);
