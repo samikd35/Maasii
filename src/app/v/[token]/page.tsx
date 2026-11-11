@@ -3,12 +3,18 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { NextIntlClientProvider, useTranslations } from "next-intl";
-import { cache } from "react";
-import { getPublishedMenu, publicActor, type GuestMenuSection } from "@/core";
+import { cache, type CSSProperties } from "react";
+import { getPublishedMenu, publicActor, type DisplayFont, type GuestMenuSection } from "@/core";
 import { setGuestLanguage } from "@/i18n/actions";
 import { LanguageSwitch } from "@/ui/language-switch";
 import { Price } from "@/ui/price";
+import { serifEthiopic, serifLatin } from "../../fonts";
 import { OpenDishButton, Ordering } from "./ordering";
+
+const displayFontClasses: Record<DisplayFont, string> = {
+  "noto-sans-ethiopic": "", // Inherits the default face from the root layout.
+  "noto-serif-ethiopic": `${serifEthiopic.variable} ${serifLatin.variable}`,
+};
 
 const loadMenu = cache(async (venueLinkToken: string) => {
   await connection();
@@ -25,16 +31,23 @@ export default async function GuestMenuPage({ params }: PageProps<"/v/[token]">)
   const [menu, t] = await Promise.all([loadMenu((await params).token), getTranslations("GuestMenu")]);
   if (!menu) notFound();
   const { Ordering: orderingMessages, Price: priceMessages } = await getMessages();
+  const { brand, theme } = menu;
+  const colours = {
+    "--color-paper": theme.paper,
+    "--color-paper-deep": theme.paperDeep,
+    "--color-brand-accent": theme.accent,
+    "--color-brand-readable": theme.readable,
+  } as CSSProperties;
 
   return (
-    <div className="mx-auto max-w-xl pb-28">
-      <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 bg-paper px-5 pt-3">
-        {menu.brand.logoUrl ? (
+    <div className={`mx-auto max-w-xl pb-28 font-sans ${displayFontClasses[brand.displayFont]}`} style={colours}>
+      <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-t-2 border-brand-accent bg-paper px-5 pt-3">
+        {brand.logoUrl ? (
           // A plain <img>: next/image would add client JavaScript to a page with a tight weight budget.
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={menu.brand.logoUrl} alt={menu.brand.name} height={48} className="h-12 w-auto" />
+          <img src={brand.logoUrl} alt={brand.name} height={48} className="h-12 w-auto" />
         ) : (
-          <span className="font-display text-xl font-semibold">{menu.brand.name}</span>
+          <span className="font-display text-xl font-semibold">{brand.name}</span>
         )}
         <LanguageSwitch area="guest" action={setGuestLanguage} />
       </header>
@@ -42,9 +55,13 @@ export default async function GuestMenuPage({ params }: PageProps<"/v/[token]">)
       <main>
         <div className="px-5 pt-6">
           <p className="text-sm text-ink-muted">
-            {menu.brand.name} · {menu.venue.name}
+            {brand.name} · {menu.venue.name}
           </p>
-          <h1 className="mt-1 font-display text-4xl leading-tight">{t("heading")}</h1>
+          <h1 className="mt-1 font-display text-4xl leading-tight text-brand-readable">{t("heading")}</h1>
+          {brand.coverUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={brand.coverUrl} alt="" loading="lazy" decoding="async" className="mt-4 aspect-[3/1] w-full rounded-lg bg-paper-deep object-cover" />
+          )}
         </div>
 
         {menu.sections.length === 0 ? (
@@ -94,7 +111,7 @@ function MenuSection({ section }: { section: GuestMenuSection }) {
   return (
     <section id={`section-${section.id}`} aria-labelledby={headingId} className="scroll-mt-36 px-5 pt-8">
       <div className="flex items-baseline justify-between border-b border-ink/70 pb-1.5">
-        <h2 id={headingId} className="text-sm font-semibold tracking-wide uppercase">
+        <h2 id={headingId} className="text-sm font-semibold tracking-wide text-brand-readable uppercase">
           {section.name}
         </h2>
         <span aria-hidden className="text-xs font-medium text-ink-muted">

@@ -17,7 +17,10 @@ type RefusalReason =
   | "waiterJoinUsed"
   | "waiterJoinExpired"
   | "waiterRejoin"
-  | "wrongPin";
+  | "wrongPin"
+  | "paymentDestinationRequired"
+  | "paymentOptionChanged"
+  | "paymentCodeConfirmationRequired";
 
 /** A refusal the caller can act on, as opposed to a bug or an outage. */
 export class MaasiiError extends Error {

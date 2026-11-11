@@ -1,5 +1,4 @@
-// Seeds the local database through the Maasii core: Bilo's Pastry, its Lancha venue with
-// tables 1-16, an Owner, and Bilo's Menu published by that Owner. Run with `pnpm db:seed`
+// Seeds the local database through the Maasii core. Run with `pnpm db:seed`
 // (or `pnpm db:reset`, which resets the database first).
 import {
   addBrandOwner,
@@ -14,32 +13,58 @@ import {
 } from "@/core";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { bilosMenu, LANCHA_LINK_TOKEN } from "./bilos";
-const OWNER_EMAIL = "owner@bilos.test";
+import { sabaMenu, SABA_LINK_TOKEN } from "./saba";
+
+const seeds = [
+  {
+    brand: {
+      name: "Bilo's Pastry",
+      logoUrl: "/brands/bilos/logo.webp",
+      coverUrl: "/brands/bilos/almond-cake.webp",
+      colour: "#EC6728",
+      displayFont: "noto-sans-ethiopic",
+    },
+    ownerEmail: "owner@bilos.test",
+    venue: "Lancha",
+    linkToken: LANCHA_LINK_TOKEN,
+    tableCount: 16,
+    menu: bilosMenu,
+  },
+  {
+    brand: { name: "Saba House", colour: "#568F69", displayFont: "noto-serif-ethiopic" },
+    ownerEmail: "owner@saba.test",
+    venue: "Bole",
+    linkToken: SABA_LINK_TOKEN,
+    tableCount: 8,
+    menu: sabaMenu,
+  },
+] as const;
 
 async function main() {
   process.loadEnvFile(".env.local");
 
-  if (await getPublishedMenu(publicActor, { venueLinkToken: LANCHA_LINK_TOKEN, language: "en" })) {
-    console.log("Already seeded. Run `pnpm db:reset` to start again from an empty database.");
-    return;
+  for (const seed of seeds) {
+    if (await getPublishedMenu(publicActor, { venueLinkToken: seed.linkToken, language: "en" })) {
+      console.log(`${seed.brand.name} is already seeded.`);
+      continue;
+    }
+
+    const brand = await createBrand(systemActor, seed.brand);
+    const { data, error } = await createAdminClient().auth.admin.createUser({
+      email: seed.ownerEmail,
+      email_confirm: true,
+    });
+    if (error) throw error;
+    await addBrandOwner(systemActor, { brandId: brand.id, userId: data.user.id });
+
+    const venue = await createVenue(systemActor, { brandId: brand.id, name: seed.venue, linkToken: seed.linkToken });
+    await addTables(systemActor, { venueId: venue.id, numbers: Array.from({ length: seed.tableCount }, (_, i) => i + 1) });
+    const menu = await publishMenu(staffActor(data.user.id), { brandId: brand.id, menu: seed.menu });
+
+    const dishCount = menu.sections.reduce((n, s) => n + s.dishes.length, 0);
+    console.log(`Seeded ${brand.name}: ${venue.name} with tables 1-${seed.tableCount}, Menu v${menu.number} with ${dishCount} dishes.`);
+    console.log(`Guest menu: http://localhost:${process.env.PORT ?? 3000}/v/${seed.linkToken}`);
   }
-
-  const brand = await createBrand(systemActor, { name: "Bilo's Pastry", logoUrl: "/brands/bilos/logo.webp" });
-  const { data, error } = await createAdminClient().auth.admin.createUser({
-    email: OWNER_EMAIL,
-    email_confirm: true,
-  });
-  if (error) throw error;
-  await addBrandOwner(systemActor, { brandId: brand.id, userId: data.user.id });
-
-  const lancha = await createVenue(systemActor, { brandId: brand.id, name: "Lancha", linkToken: LANCHA_LINK_TOKEN });
-  await addTables(systemActor, { venueId: lancha.id, numbers: Array.from({ length: 16 }, (_, i) => i + 1) });
-
-  const menu = await publishMenu(staffActor(data.user.id), { brandId: brand.id, menu: bilosMenu });
-
-  const dishCount = menu.sections.reduce((n, s) => n + s.dishes.length, 0);
-  console.log(`Seeded Bilo's Pastry: Lancha with tables 1-16, Menu v${menu.number} with ${dishCount} dishes.`);
-  console.log(`Guest menu: http://localhost:${process.env.PORT ?? 3000}/v/${LANCHA_LINK_TOKEN}`);
 }
 
 main().catch((error) => {

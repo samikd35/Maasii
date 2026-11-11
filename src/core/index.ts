@@ -4,6 +4,7 @@
 export { adminActor, publicActor, staffActor, systemActor, type Actor, type StaffActor } from "./actor";
 export { MaasiiError, type MaasiiErrorCode } from "./errors";
 export { languages, type Bilingual, type Language } from "./language";
+export { deriveBrandTheme, displayFonts, type DisplayFont } from "./brand-theme";
 
 export {
   addTables,
@@ -78,3 +79,16 @@ export {
   type OptionGroupInput,
   type PublishedMenuVersion,
 } from "./menu";
+export {
+  addPaymentOption,
+  listPaymentOptionChanges,
+  listPaymentOptions,
+  MAX_PAYMENT_QR_BYTES,
+  paymentOptionKinds,
+  paymentQrMimeTypes,
+  removePaymentOption,
+  updatePaymentOption,
+  type PaymentOption,
+  type PaymentOptionChange,
+  type PaymentOptionKind,
+} from "./payment-options";
