@@ -22,10 +22,11 @@ test("a Manager starts from Usual Tables, moves an assignment and ends the Shift
   await expect(suggested.getByLabel("Table 1")).toHaveValue(s.waiters.Sam.waiterId);
   await expect(suggested.getByLabel("Table 2")).toHaveValue(s.waiters.Sam.waiterId);
   await suggested.getByLabel("Table 2").selectOption({ label: "Hana" });
+  await page.setExtraHTTPHeaders({ "x-maasii-test-now": "2026-11-11T15:05:00.000Z" });
   await suggested.getByRole("button", { name: "Start Shift" }).click();
 
   const running = page.getByRole("region", { name: "Running Shift" });
-  await expect(running.getByText("Addis Ababa", { exact: false })).toBeVisible();
+  await expect(running.getByText(/18:05 \(Addis Ababa\)/)).toBeVisible();
   const unassigned = running.getByRole("region", { name: "Unassigned Tables" });
   await expect(unassigned.getByText("Table 3", { exact: true })).toBeVisible();
   const first = running.getByRole("listitem").filter({ has: page.getByLabel("Table 1") });
