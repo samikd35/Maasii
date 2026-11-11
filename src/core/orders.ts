@@ -73,6 +73,7 @@ type GuestVisit = {
   bill: Bill | null;
   closedAt: Date | null;
   paymentOptions: Awaited<ReturnType<typeof readGuestBillOptions>>;
+  canChangeTable: boolean;
 };
 
 const orderDetails = `id, visit_id as "visitId", table_id as "tableId", table_number as "tableNumber",
@@ -81,7 +82,7 @@ const orderDetails = `id, visit_id as "visitId", table_id as "tableId", table_nu
   accepted_by_name as "acceptedByName", accepted_at as "acceptedAt", declined_at as "declinedAt", lines`;
 const orderFields = `${orderDetails}, request_id as "requestId"`;
 
-async function orderVenue(tx: Tx, token: string): Promise<string> {
+export async function orderVenue(tx: Tx, token: string): Promise<string> {
   const { rows: [venue] } = await tx.query<{ id: string }>("select id from app.venues where link_token = $1", [token]);
   if (!venue) throw new MaasiiError("not_found", "Venue Link not found.");
   await tx.query("select set_config('app.order_venue_token', $1, true)", [token]);
@@ -129,6 +130,15 @@ export async function sendOrder(
       [venueId, tableId],
     );
     if (!table) throw new MaasiiError("invalid_input", "Choose an active Table at this Venue.", "orderTableUnavailable");
+    const { rows: [choice] } = await tx.query<{ locked: boolean }>(
+      `select exists (
+         select 1 from app.guest_table_choices g join app.visits v on v.id = g.visit_id
+         join app.orders o on o.visit_id = v.id and o.guest_user_id = g.guest_user_id
+         where g.venue_id = $1 and g.guest_user_id = $3 and v.closed_at is null and v.table_id <> $2
+           and o.state = 'accepted'
+       ) as locked`, [venueId, tableId, actor.userId],
+    );
+    if (choice.locked) throw new MaasiiError("invalid_input", "Ask your Waiter to change your Table.", "tableChoiceLocked");
     const published = (await readPublishedMenu(tx, { venueLinkToken }, at))!;
     const snapshots = lines.map((line): OrderLine => {
       const choices = [...new Set(line.choiceIds)].map((choiceId) => ({ choiceId, name: "" }));
@@ -200,6 +210,9 @@ export async function getGuestVisit(actor: Actor, input: z.input<typeof venueLin
     return {
       id: visit.id, table: { id: latest.tableId, number: latest.tableNumber }, orders,
       closedAt: visit.closedAt, bill,
+      canChangeTable: !visit.closedAt && !bill
+        && orders.some(({ requestId, state }) => requestId && state === "sent")
+        && !orders.some(({ requestId, state }) => requestId && state === "accepted"),
       totalSantim: bill?.totalSantim ?? running.totalSantim,
       discountSantim: running.discountSantim, removedLines: visit.removedLines,
       paymentOptions: bill && !visit.closedAt ? await readGuestBillOptions(tx, visit.venueId) : [],
@@ -268,7 +281,10 @@ export async function getMyTableOrders(
       ? (await readVenuePaymentOptions(tx, waiter.venueId, { activeOnly: true }))
         .map(({ id, kind, provider, accountOrMerchantCode }) => ({ id, kind, provider, accountOrMerchantCode }))
       : [];
-    return { orders, topic: waiter.topic, venueId: waiter.venueId, tableNumber, billVisitIds: [...billVisitIds], bills, paymentOptions };
+    const { rows: moveTables } = await tx.query<Table>(
+      "select id, number from app.tables where venue_id = $1 and active order by number", [waiter.venueId],
+    );
+    return { orders, moveTables, topic: waiter.topic, venueId: waiter.venueId, tableNumber, billVisitIds: [...billVisitIds], bills, paymentOptions };
   });
 }
 

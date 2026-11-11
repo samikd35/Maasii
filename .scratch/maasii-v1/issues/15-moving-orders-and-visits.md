@@ -6,9 +6,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] A waiter can move a single Order to another table before that Visit's Bill is prepared. The Order joins the target table's open Visit, or creates one, and goes to that table's waiter.
-- [ ] The guest device that sent the moved Order switches its Table Choice to the new table and sees the new Visit.
-- [ ] A guest can change their Table Choice from the slip until their first Order is accepted, and not after.
-- [ ] A waiter can move a whole Visit to a table with no open Visit. A move to an occupied table is refused with a clear message, because merging is not supported.
-- [ ] Every move is kept in the Order's or Visit's history, with who moved it and when.
-- [ ] Core tests cover single-Order moves, guest changes before and after acceptance, Visit moves and refused moves.
+- [x] A waiter can move a single Order to another table before that Visit's Bill is prepared. The Order joins the target table's open Visit, or creates one, and goes to that table's waiter.
+- [x] The guest device that sent the moved Order switches its Table Choice to the new table and sees the new Visit.
+- [x] A guest can change their Table Choice from the slip until their first Order is accepted, and not after.
+- [x] A waiter can move a whole Visit to a table with no open Visit. A move to an occupied table is refused with a clear message, because merging is not supported.
+- [x] Every move is kept in the Order's or Visit's history, with who moved it and when.
+- [x] Core tests cover single-Order moves, guest changes before and after acceptance, Visit moves and refused moves.

@@ -115,5 +115,6 @@ export { consumeOrderNotificationWake, removeWaiterPushSubscription, sendOrderNo
 export { adjustVisitBill, closeVisitUnpaid, confirmPayment, flagUnconfirmedBills, getClosingReport, getPreparedBills, prepareBill, reopenBill, type Bill, type PreparedBill, type PaymentConfirmation } from "./bills";
 export { getGuestReviewForm, getWaiterRatings, submitGuestReview, type GuestReviewForm } from "./reviews";
 
+export { changeGuestTable, getMoveHistory, moveOrder, moveVisit } from "./moves";
 export { getLiveFloor } from "./floor";
 export { getVenueInsights, updateVenueService, type ServicePeriod } from "./insights";

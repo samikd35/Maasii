@@ -1,4 +1,4 @@
-import { getGuestPendingOrders, getGuestReviewForm, getGuestVisit, getOrderService, MaasiiError, publicActor, sendOrder } from "@/core";
+import { changeGuestTable, getGuestPendingOrders, getGuestReviewForm, getGuestVisit, getOrderService, MaasiiError, publicActor, sendOrder } from "@/core";
 import { guestSession } from "@/lib/supabase/guest-session";
 
 export async function GET(_request: Request, { params }: RouteContext<"/v/[token]/orders">) {
@@ -46,6 +46,20 @@ export async function POST(request: Request, { params }: RouteContext<"/v/[token
   try {
     const order = await sendOrder(actor, { ...body, venueLinkToken });
     return Response.json(order, { headers: { "Cache-Control": "private, no-store" } });
+  } catch (error) {
+    if (error instanceof MaasiiError) return Response.json({ reason: error.reason }, { status: 409 });
+    throw error;
+  }
+}
+
+export async function PATCH(request: Request, { params }: RouteContext<"/v/[token]/orders">) {
+  const { actor } = await guestSession();
+  if (!actor) return new Response(null, { status: 401 });
+  const body = await request.json().catch(() => null);
+  const { token: venueLinkToken } = await params;
+  try {
+    await changeGuestTable(actor, { venueLinkToken, tableId: body?.tableId });
+    return new Response(null, { status: 204 });
   } catch (error) {
     if (error instanceof MaasiiError) return Response.json({ reason: error.reason }, { status: 409 });
     throw error;

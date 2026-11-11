@@ -25,6 +25,7 @@ export type SlipService = {
   tableLabel?: string;
   status?: string;
   locked: boolean;
+  canChangeTable?: boolean;
   controls: ReactNode;
   orders: ReactNode;
 };
@@ -58,9 +59,10 @@ export default function OrderService({
   const [feed, setFeed] = useState<VenueFeed>();
   const [loadError, setLoadError] = useState(false);
   const [orders, setOrders] = useState<LiveOrder[]>([]);
-  const [choosing, setChoosing] = useState(false);
+  const [choosing, setChoosing] = useState<"send" | "move">();
+  const refresh = useRef<() => Promise<void>>(async () => {});
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState<"chooseAgain" | "draftChanged" | "unavailable" | "requestConflict" | "billPrepared" | "orderTableBillPrepared">();
+  const [error, setError] = useState<"chooseAgain" | "draftChanged" | "unavailable" | "requestConflict" | "billPrepared" | "orderTableBillPrepared" | "tableChoiceLocked">();
 
   const saveDevice = useCallback((next: Device) => {
     current.current = next;
@@ -74,33 +76,59 @@ export default function OrderService({
   }, [storageKey]);
 
   const hasTable = !!device.table;
-  useEffect(() => watchOrders<VenueFeed>(url, (data) => {
-    setFeed(data);
-    setLoadError(false);
-    setOrders(data.orders);
-    if (!data.visit?.bill || data.visit.closedAt) {
-      setError((previous) => previous === "billPrepared" ? undefined : previous);
+  useEffect(() => {
+    const watcher = watchOrders<VenueFeed>(url, (data) => {
+      setFeed(data);
+      setLoadError(false);
+      setOrders(data.orders);
+      if (!data.visit?.bill || data.visit.closedAt) {
+        setError((previous) => previous === "billPrepared" ? undefined : previous);
+      }
+      const pending = current.current.pending;
+      const confirmed = pending && data.orders.find(({ requestId }) => requestId === pending.requestId);
+      if (pending && !confirmed) return;
+      const waiting = data.orders.findLast(({ partyPending }) => partyPending);
+      const table = waiting ? { id: waiting.tableId, number: waiting.tableNumber } : data.visit?.table;
+      if (pending && confirmed) {
+        onSent(pending.lines);
+        setError(undefined);
+        saveDevice({ table });
+      } else if (table?.id !== current.current.table?.id || table?.number !== current.current.table?.number) {
+        saveDevice({ table });
+      }
+    }, () => setLoadError(true));
+    refresh.current = watcher.refresh;
+    return watcher.stop;
+  }, [url, hasTable, saveDevice, onSent]);
+
+  async function changeTable(table: Table) {
+    setSending(true);
+    setError(undefined);
+    setChoosing(undefined);
+    try {
+      const response = await fetch(url, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tableId: table.id }),
+      });
+      if (!response.ok) {
+        const { reason } = await response.json();
+        setError(reason === "tableChoiceLocked" || reason === "billPrepared" ? reason : "chooseAgain");
+      }
+      await refresh.current();
+    } catch {
+      setError("chooseAgain");
+    } finally {
+      setSending(false);
     }
-    const pending = current.current.pending;
-    const confirmed = pending && data.orders.find(({ requestId }) => requestId === pending.requestId);
-    if (pending && !confirmed) return;
-    const waiting = data.orders.findLast(({ partyPending }) => partyPending);
-    const table = waiting ? { id: waiting.tableId, number: waiting.tableNumber } : data.visit?.table;
-    if (pending && confirmed) {
-      onSent(pending.lines);
-      setError(undefined);
-      saveDevice({ table });
-    } else if (table?.id !== current.current.table?.id || table?.number !== current.current.table?.number) {
-      saveDevice({ table });
-    }
-  }, () => setLoadError(true)).stop, [url, hasTable, saveDevice, onSent]);
+  }
 
   async function send(table: Table) {
     if (sending) return;
     const pending = current.current.pending ?? { table, requestId: crypto.randomUUID(), lines };
     saveDevice({ ...current.current, pending });
     setError(undefined);
-    setChoosing(false);
+    setChoosing(undefined);
     setSending(true);
     try {
       const session = await fetch(url, { method: "PUT" });
@@ -122,7 +150,7 @@ export default function OrderService({
           setError("requestConflict");
           return;
         }
-        if (reason === "billPrepared" || reason === "orderTableBillPrepared") {
+        if (reason === "billPrepared" || reason === "orderTableBillPrepared" || reason === "tableChoiceLocked") {
           setError(reason);
         } else if (reason === "noRunningShift") {
           setError("unavailable");
@@ -164,6 +192,7 @@ export default function OrderService({
     tableLabel: table ? t("table", { number: table.number }) : undefined,
     status: visit?.bill ? t(visit.closedAt ? "billPaid" : "billReady") : latest ? status(latest) : undefined,
     locked: !!device.pending || sending,
+    canChangeTable: visit?.canChangeTable && isAvailable,
     controls: (
       <>
         {error && error !== "billPrepared" && <p role="alert" className="mt-2 text-sm">{t(error)}</p>}
@@ -180,8 +209,8 @@ export default function OrderService({
               <legend className="text-sm font-semibold">{t("choose")}</legend>
               {feed ? (
                 <div className="mt-2 grid grid-cols-3 gap-2">
-                  {feed.tables.map((table) => (
-                    <button key={table.id} type="button" onClick={() => void send(table)}
+                  {feed.tables.filter(({ id }) => choosing === "send" || id !== table?.id).map((table) => (
+                    <button key={table.id} type="button" onClick={() => void (choosing === "move" ? changeTable(table) : send(table))}
                       className="min-h-11 rounded-lg border border-rule px-1 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-ink">
                       {t("table", { number: table.number })}
                     </button>
@@ -191,11 +220,16 @@ export default function OrderService({
             </fieldset>
           ) : lines.length > 0 && (
             <button type="button" disabled={!isAvailable || invalidDraft || billIsPrepared}
-              onClick={() => device.table && !visit?.closedAt ? void send(device.table) : setChoosing(true)}
+              onClick={() => device.table && !visit?.closedAt ? void send(device.table) : setChoosing("send")}
               className={`${sendButton} mt-2`}>
               {t("send")}
             </button>
           )}
+        {visit?.canChangeTable && !sending && !device.pending && !choosing && isAvailable && (
+          <button type="button" onClick={() => setChoosing("move")} className="mt-2 min-h-11 px-2 text-sm font-semibold underline">
+            {t("changeTable")}
+          </button>
+        )}
       </>
     ),
     orders: orders.length > 0 && (<>

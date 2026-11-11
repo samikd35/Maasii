@@ -513,7 +513,7 @@ function DraftSheet({
     <Sheet
       labelledBy={headingId}
       onClose={onClose}
-      footer={(lines.length > 0 || service?.locked) && (
+      footer={(lines.length > 0 || service?.locked || service?.canChangeTable) && (
         <>
           {lines.length > 0 && (
             <div className="flex items-center justify-between">

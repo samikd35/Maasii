@@ -1,4 +1,4 @@
-import { acceptOrder, declineOrder, getMyTableOrders, MaasiiError, undoOrderDecision } from "@/core";
+import { acceptOrder, declineOrder, getMyTableOrders, MaasiiError, moveOrder, moveVisit, undoOrderDecision } from "@/core";
 import { getSessionActor, waiterUnlockToken } from "@/lib/session";
 import { createSessionClient } from "@/lib/supabase/server";
 
@@ -33,6 +33,12 @@ export async function POST(request: Request) {
       case "undo":
         order = await undoOrderDecision(actor, { ...target, decisionId: body.decisionId });
         break;
+      case "moveOrder":
+        await moveOrder(actor, { ...target, tableId: body.tableId });
+        return new Response(null, { status: 204 });
+      case "moveVisit":
+        await moveVisit(actor, { unlockToken: target.unlockToken, visitId: body.visitId, tableId: body.tableId });
+        return new Response(null, { status: 204 });
       default:
         return new Response(null, { status: 400 });
     }
