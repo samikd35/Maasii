@@ -6,9 +6,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] The Live floor lists exceptions at the top, each with table, what is wrong, how long it has been, and one action that opens the relevant table or flow.
-- [ ] Below the exceptions, every open table shows its waiter, status in words, Bill total and age of its oldest unaccepted Order.
-- [ ] On narrow screens the view is a list. On wide screens it is a room grid of table tiles, each with a status word next to any status colour.
-- [ ] The view updates live.
-- [ ] Owners can open the Live floor for any of their venues.
-- [ ] Core tests cover the exceptions query for each exception type. A Playwright test checks the list and grid layouts at phone and laptop widths.
+- [x] The Live floor lists exceptions at the top, each with table, what is wrong, how long it has been, and one action that opens the relevant table or flow.
+- [x] Below the exceptions, every open table shows its waiter, status in words, Bill total and age of its oldest unaccepted Order.
+- [x] On narrow screens the view is a list. On wide screens it is a room grid of table tiles, each with a status word next to any status colour.
+- [x] The view updates live.
+- [x] Owners can open the Live floor for any of their venues.
+- [x] Core tests cover the exceptions query for each exception type. A Playwright test checks the list and grid layouts at phone and laptop widths.
