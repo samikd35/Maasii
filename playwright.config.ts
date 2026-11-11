@@ -23,7 +23,7 @@ export default defineConfig({
   projects: [{ name: "android-chrome", use: { ...devices["Pixel 7"] } }],
   webServer: {
     // A production build: the page-weight budget only means something with compression and no dev overlay.
-    command: `pnpm build && pnpm start -p ${port}`,
+    command: `pnpm build && node --import ./e2e/support/server-clock.mjs node_modules/next/dist/bin/next start -p ${port}`,
     url: `http://127.0.0.1:${port}`,
     reuseExistingServer: process.env.E2E_REUSE_SERVER === "1",
     timeout: 240_000,
