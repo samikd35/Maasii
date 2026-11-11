@@ -10,6 +10,8 @@ export {
   createVenue,
   getVenueSetup,
   listBrands,
+  renumberTable,
+  setTableActive,
   type Brand,
   type BrandSummary,
   type Table,

@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import {
   acceptInvitation,
+  addTables,
   createVenue,
   getInvitation,
   getMyAccess,
@@ -9,6 +10,8 @@ import {
   getVenueStaff,
   inviteManager,
   publicActor,
+  renumberTable,
+  setTableActive,
   staffActor,
 } from "@/core";
 import { scenario } from "../support/scenario";
@@ -70,6 +73,80 @@ test("the Owner sees each Venue's Managers and the invitations still waiting", a
     ],
   });
   await expect(getVenueStaff(s.managers.Hana.actor, { venueId: s.venue.id })).resolves.toBeDefined();
+});
+
+test("a Manager adds, renumbers, deactivates and reactivates their Venue's Tables", async () => {
+  const s = await scenario().venue("Lancha", { tables: 3 }).manager("Hana").build();
+  const hana = s.managers.Hana.actor;
+  const [, two, three] = s.venue.tables;
+
+  await addTables(hana, { venueId: s.venue.id, numbers: [4, 5] });
+  await renumberTable(hana, { tableId: three.id, number: 12 });
+  await setTableActive(hana, { tableId: two.id, active: false });
+
+  expect((await getVenueSetup(hana, { venueId: s.venue.id })).tables.map(({ number, active }) => [number, active])).toEqual([
+    [1, true],
+    [2, false],
+    [4, true],
+    [5, true],
+    [12, true],
+  ]);
+
+  await setTableActive(hana, { tableId: two.id, active: true });
+  expect((await getVenueSetup(hana, { venueId: s.venue.id })).tables.find((t) => t.id === two.id)?.active).toBe(true);
+});
+
+test("an Owner manages Tables at any Venue of their brand without being its Manager", async () => {
+  const s = await scenario().venue("Lancha", { tables: 2 }).venue("Bole", { tables: 0 }).build();
+
+  const added = await addTables(s.owner.actor, { venueId: s.venues.Bole.id, numbers: [1, 2, 3] });
+  await renumberTable(s.owner.actor, { tableId: added[0].id, number: 10 });
+
+  expect((await getVenueSetup(s.owner.actor, { venueId: s.venues.Bole.id })).tables.map((t) => t.number)).toEqual([
+    2, 3, 10,
+  ]);
+});
+
+test("a Table number can be used only once per Venue", async () => {
+  const s = await scenario().venue("Lancha", { tables: 3 }).build();
+
+  await expect(addTables(s.owner.actor, { venueId: s.venue.id, numbers: [3, 4] })).rejects.toMatchObject({
+    code: "invalid_input",
+    message: "Table 3 already exists at this venue.",
+  });
+  await expect(addTables(s.owner.actor, { venueId: s.venue.id, numbers: [7, 7] })).rejects.toMatchObject({
+    code: "invalid_input",
+  });
+  await expect(renumberTable(s.owner.actor, { tableId: s.venue.tables[0].id, number: 2 })).rejects.toMatchObject({
+    code: "invalid_input",
+    message: "Table 2 already exists at this venue.",
+  });
+  for (const number of [0, -1, 1.5]) {
+    await expect(renumberTable(s.owner.actor, { tableId: s.venue.tables[0].id, number })).rejects.toMatchObject({
+      code: "invalid_input",
+    });
+  }
+  expect((await getVenueSetup(s.owner.actor, { venueId: s.venue.id })).tables.map((t) => t.number)).toEqual([1, 2, 3]);
+});
+
+test("a Manager cannot touch another Venue's Tables, even in the same brand", async () => {
+  const s = await scenario().venue("Lancha", { tables: 2 }).venue("Bole", { tables: 2 }).manager("Hana").build();
+  const hana = s.managers.Hana.actor;
+  const boleTable = s.venues.Bole.tables[0];
+
+  await expect(addTables(hana, { venueId: s.venues.Bole.id, numbers: [9] })).rejects.toMatchObject({
+    code: "not_allowed",
+  });
+  await expect(renumberTable(hana, { tableId: boleTable.id, number: 9 })).rejects.toMatchObject({
+    code: "not_allowed",
+  });
+  await expect(setTableActive(hana, { tableId: boleTable.id, active: false })).rejects.toMatchObject({
+    code: "not_allowed",
+  });
+  expect((await getVenueSetup(s.owner.actor, { venueId: s.venues.Bole.id })).tables).toEqual([
+    { id: boleTable.id, number: 1, active: true },
+    expect.objectContaining({ number: 2, active: true }),
+  ]);
 });
 
 test("only the brand's Owner can create its Venues", async () => {

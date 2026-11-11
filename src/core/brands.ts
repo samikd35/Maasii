@@ -131,18 +131,89 @@ async function findVenue(tx: Tx, venueId: string): Promise<Venue> {
   return rows[0];
 }
 
+const tableNumber = z
+  .number({ error: "A table number must be a whole number from 1 to 9999." })
+  .int("A table number must be a whole number from 1 to 9999.")
+  .min(1, "A table number must be a whole number from 1 to 9999.")
+  .max(9999, "A table number must be a whole number from 1 to 9999.");
+
+/** A Venue's Manager or the brand's Owner adds Tables with new numbers. */
 export async function addTables(
   actor: Actor,
   input: { venueId: string; numbers: number[] },
 ): Promise<Table[]> {
-  requireSystem(actor);
+  const { numbers } = parseInput(z.object({ numbers: z.array(tableNumber) }), input);
+  const repeated = numbers.find((n, i) => numbers.indexOf(n) !== i);
+  if (repeated !== undefined) throw new MaasiiError("invalid_input", `Table ${repeated} is listed twice.`);
+
   return inTransaction(actor, async (tx) => {
-    const { rows } = await tx.query<Table>(
-      `insert into app.tables (venue_id, number)
-       select $1, n from unnest($2::int[]) as n
-       returning id, number`,
-      [input.venueId, input.numbers],
+    const venue = await findVenue(tx, input.venueId);
+    await requireVenueManager(tx, actor, venue.id);
+    const taken = await tx.query<{ number: number }>(
+      "select number from app.tables where venue_id = $1 and number = any($2::int[]) order by number",
+      [venue.id, numbers],
+    );
+    if (taken.rows[0]) throw tableNumberTaken(taken.rows[0].number);
+
+    const { rows } = await uniqueTableNumbers(() =>
+      tx.query<Table>(
+        `insert into app.tables (venue_id, number)
+         select $1, n from unnest($2::int[]) as n
+         returning id, number`,
+        [venue.id, numbers],
+      ),
     );
     return rows.sort((a, b) => a.number - b.number);
   });
+}
+
+/** Gives a Table a new number. Its history (Visits, Orders) stays with it. */
+export async function renumberTable(actor: Actor, input: { tableId: string; number: number }): Promise<void> {
+  const { number } = parseInput(z.object({ number: tableNumber }), input);
+  await inTransaction(actor, async (tx) => {
+    const table = await findTable(tx, actor, input.tableId);
+    const taken = await tx.query(
+      "select 1 from app.tables where venue_id = $1 and number = $2 and id <> $3",
+      [table.venueId, number, table.id],
+    );
+    if (taken.rowCount) throw tableNumberTaken(number);
+    await uniqueTableNumbers(() => tx.query("update app.tables set number = $2 where id = $1", [table.id, number]));
+  });
+}
+
+/** Deactivates a Table (guests can no longer choose it) or brings it back. Its number stays reserved. */
+export async function setTableActive(actor: Actor, input: { tableId: string; active: boolean }): Promise<void> {
+  const { active } = parseInput(z.object({ active: z.boolean() }), input);
+  await inTransaction(actor, async (tx) => {
+    const table = await findTable(tx, actor, input.tableId);
+    await tx.query("update app.tables set active = $2 where id = $1", [table.id, active]);
+  });
+}
+
+async function findTable(tx: Tx, actor: Actor, tableId: string): Promise<{ id: string; venueId: string }> {
+  const { rows } = z.uuid().safeParse(tableId).success
+    ? await tx.query<{ id: string; venueId: string }>(
+        `select id, venue_id as "venueId" from app.tables where id = $1`,
+        [tableId],
+      )
+    : { rows: [] };
+  if (!rows[0]) throw new MaasiiError("not_found", "Table not found.");
+  await requireVenueManager(tx, actor, rows[0].venueId);
+  return rows[0];
+}
+
+function tableNumberTaken(number: number): MaasiiError {
+  return new MaasiiError("invalid_input", `Table ${number} already exists at this venue.`);
+}
+
+/** Turns a race on the (venue, number) unique key into the same refusal as the check before it. */
+async function uniqueTableNumbers<T>(write: () => Promise<T>): Promise<T> {
+  try {
+    return await write();
+  } catch (error) {
+    if ((error as { code?: string }).code === "23505") {
+      throw new MaasiiError("invalid_input", "That table number already exists at this venue.");
+    }
+    throw error;
+  }
 }
