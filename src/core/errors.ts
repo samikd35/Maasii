@@ -43,6 +43,8 @@ type RefusalReason =
   | "orderUndoNotYours"
   | "orderTableOccupied"
   | "orderVisitClosed"
+  | "serviceHours"
+  | "servicePeriods"
   | "billPrepared"
   | "orderTableBillPrepared";
 
