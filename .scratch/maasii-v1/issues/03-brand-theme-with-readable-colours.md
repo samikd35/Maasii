@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (Guest sees Bilo's published menu)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] Brands store branding settings: logo, brand colour, cover photo and display font chosen from a curated list that includes Ethiopic faces such as Noto Serif Ethiopic and Noto Sans Ethiopic.
 - [x] The core derives theme colours from the brand colour in a perceptual colour space. Text and button colours reach at least 4.5:1 contrast against their backgrounds.

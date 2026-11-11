@@ -4,7 +4,7 @@
 
 **Blocked by:** 11 (Guest sends an Order and the waiter accepts it live), 10 (Sold Out and venue prices)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] Expanding an Order lets the waiter mark individual lines "Sold out" before accepting. Accepting then records those lines as Dropped Dishes with the reason.
 - [x] Marking a line sold out also switches the dish to Sold Out at that venue, using the same setting as ticket 10.

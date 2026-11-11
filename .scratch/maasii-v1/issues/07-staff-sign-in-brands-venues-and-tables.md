@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (Guest sees Bilo's published menu)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] A platform admin role exists. The admin can create a brand and send its owner an invitation.
 - [x] Owners and managers accept invitations and sign in with email or phone plus a password, through Supabase Auth.

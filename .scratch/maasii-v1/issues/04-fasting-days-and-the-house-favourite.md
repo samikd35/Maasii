@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (Guest sees Bilo's published menu)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] Dishes have a fasting flag, shown as a labelled tag (with a word, not just a colour) on dish rows.
 - [x] A fasting calendar holds Wednesdays and Fridays by default, plus dated seasons and dated exceptions such as non-fasting periods. Seed data covers the current year.

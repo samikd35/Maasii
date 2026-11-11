@@ -4,7 +4,7 @@
 
 **Blocked by:** 22 (Menu editor with draft, preview and publish)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] Owners can upload, replace and remove a dish photo. Uploads are resized and compressed for the guest menu, and stored in Supabase Storage.
 - [x] Owners can add, edit, reorder and remove Option Groups on a dish: choose the kind, whether a "choose one" group is required, and the choices with bilingual names and optional price changes.

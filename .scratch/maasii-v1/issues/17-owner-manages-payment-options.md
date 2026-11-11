@@ -4,7 +4,7 @@
 
 **Blocked by:** 07 (Staff sign-in, brands, venues and tables)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] Owners can add, edit, reorder, deactivate and remove Payment Options for any venue of their brand.
 - [x] Each Payment Option has a kind, provider, recipient name, account number or merchant code, an optional QR image and a display order.

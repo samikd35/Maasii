@@ -4,7 +4,7 @@
 
 **Blocked by:** 11 (Guest sends an Order and the waiter accepts it live)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] Tapping a table opens its detail: Orders with status and source (guest or waiter), the running Bill and available actions.
 - [x] Quick-add lets the waiter search dishes in either language, see recently used dishes first, choose options, quantity and note, and add the Order to the table's Visit. It creates the Visit if none is open.

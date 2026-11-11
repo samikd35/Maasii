@@ -4,7 +4,7 @@
 
 **Blocked by:** 03 (Brand theme with readable colours), 07 (Staff sign-in, brands, venues and tables)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] Owners can upload a logo and cover photo, pick a brand colour, and choose a display font from the curated list.
 - [x] A preview shows the guest menu header, a dish row and the slip in the chosen theme before saving.

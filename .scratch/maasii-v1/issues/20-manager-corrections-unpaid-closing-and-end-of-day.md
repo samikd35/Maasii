@@ -4,7 +4,7 @@
 
 **Blocked by:** 18 (Bill, payment and closing a Visit), 09 (Shifts, Usual Tables and Table Assignments)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] A manager or owner can remove any line or apply a whole-Bill discount at any time before the Visit closes. A reason is required, and the guest's Bill updates live.
 - [x] Every Bill adjustment is written to the audit log with who, when and why. Managers can view a Visit's adjustment history.

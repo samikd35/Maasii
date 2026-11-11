@@ -4,7 +4,7 @@
 
 **Blocked by:** 08 (Waiters join with a QR code and PIN)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] A manager can set each waiter's Usual Tables.
 - [x] Starting a Shift proposes a Table Assignment from Usual Tables, lets the manager change it, and starts the Shift with one tap. Only one Shift can run at a venue at a time.

@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (Guest sees Bilo's published menu)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] The header shows an አማ/EN switch. Switching changes all interface text and all Menu content without losing the guest's place on the page.
 - [x] The choice is remembered on the phone and applied on the next visit to any venue.

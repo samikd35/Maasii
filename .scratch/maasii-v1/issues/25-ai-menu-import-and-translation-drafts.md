@@ -4,7 +4,7 @@
 
 **Blocked by:** 23 (Photos, Option Groups and archiving in the editor)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] An owner can upload one or more photos of a paper menu. Maasii extracts sections, dish names, descriptions and prices into the draft, marked "Imported, please check".
 - [x] Imported entries never overwrite existing dishes. The owner reviews and keeps or discards each one.

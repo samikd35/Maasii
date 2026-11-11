@@ -4,7 +4,7 @@
 
 **Blocked by:** 19 (Forgotten confirmations), 20 (Manager corrections, unpaid closing and end of day)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] The Live floor lists exceptions at the top, each with table, what is wrong, how long it has been, and one action that opens the relevant table or flow.
 - [x] Below the exceptions, every open table shows its waiter, status in words, Bill total and age of its oldest unaccepted Order.

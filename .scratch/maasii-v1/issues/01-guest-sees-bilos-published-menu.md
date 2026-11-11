@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] The app and a local Supabase stack start with documented commands, and a fresh clone can reach a running guest menu by following the README.
 - [x] Migrations create the Brand, Venue, Table and Menu records this slice needs, including immutable published Menu versions, with dishes keeping a stable identifier across versions.
