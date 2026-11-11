@@ -116,3 +116,5 @@ export { adjustVisitBill, closeVisitUnpaid, confirmPayment, flagUnconfirmedBills
 export { getGuestReviewForm, getWaiterRatings, submitGuestReview, type GuestReviewForm } from "./reviews";
 
 export { changeGuestTable, getMoveHistory, moveOrder, moveVisit } from "./moves";
+export { getLiveFloor } from "./floor";
+export { getVenueInsights, updateVenueService, type ServicePeriod } from "./insights";

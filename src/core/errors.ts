@@ -44,6 +44,8 @@ type RefusalReason =
   | "orderTableOccupied"
   | "orderVisitClosed"
   | "tableChoiceLocked"
+  | "serviceHours"
+  | "servicePeriods"
   | "billPrepared"
   | "orderTableBillPrepared";
 
