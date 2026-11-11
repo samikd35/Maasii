@@ -125,6 +125,7 @@ test("staff installs a scoped worker, hears and sees an incoming Order, and open
     await expect(incoming).toHaveCount(1);
     await waiter.getByRole("link", { name: "Maasii Waiter" }).click();
     await waiter.getByRole("button", { name: "Lock", exact: true }).click();
+    await expect(waiter.getByLabel("PIN", { exact: true })).toBeVisible();
     await waiter.goto(path);
     await waiter.getByLabel("PIN", { exact: true }).fill("0427");
     await waiter.getByRole("button", { name: "Unlock", exact: true }).click();

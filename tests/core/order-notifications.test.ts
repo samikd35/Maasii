@@ -1,6 +1,6 @@
 import { createECDH, randomBytes, randomUUID } from "node:crypto";
 import { expect, test } from "vitest";
-import { acceptOrder, escalateOrders, flagUnconfirmedBills, getMyTableOrders, getWaiterSession, guestActor, prepareBill, reopenBill, removeWaiter, removeWaiterPushSubscription, sendOrder, sendOrderNotifications, setWaiterPushSubscription, startShift, systemActor, type OrderNotification } from "@/core";
+import { acceptOrder, declineOrder, escalateOrders, flagUnconfirmedBills, getMyTableOrders, getWaiterSession, guestActor, prepareBill, reopenBill, removeWaiter, removeWaiterPushSubscription, sendOrder, sendOrderNotifications, setWaiterPushSubscription, startShift, systemActor, undoOrderDecision, type OrderNotification } from "@/core";
 import { createPublicAuthClient } from "@/lib/supabase/public";
 import { scenario } from "../support/scenario";
 
@@ -34,6 +34,28 @@ test("an unassigned Table reaches every Waiter on its Shift immediately", async 
   expect(await orders(sam)).toEqual([order]);
   expect(await orders(hana)).toEqual([order]);
   expect(await orders(mimi)).toEqual([]);
+});
+
+test("two eligible Waiters racing to accept an unassigned Order get one winner and one clear refusal", async () => {
+  const { three, sam, hana, mimi, at, send, orders } = await service();
+  const order = await send(three.id);
+  const target = (waiter: typeof sam) => ({ orderId: order.id, unlockToken: waiter.unlockToken });
+  const clock = { now: at };
+  await expect(declineOrder(mimi.actor, target(mimi), clock)).rejects.toMatchObject({ code: "not_found" });
+  const waiters = [sam, hana];
+  const results = await Promise.allSettled(waiters.map((waiter) => acceptOrder(waiter.actor, target(waiter), clock)));
+  const [winner] = results.flatMap((result, index) => result.status === "fulfilled" ? [{ order: result.value, waiter: waiters[index] }] : []);
+  expect(results.filter(({ status }) => status === "fulfilled")).toHaveLength(1);
+  expect(results).toContainEqual(expect.objectContaining({
+    status: "rejected", reason: expect.objectContaining({ reason: "orderAlreadyDecided" }),
+  }));
+  await undoOrderDecision(winner.waiter.actor, { ...target(winner.waiter), decisionId: winner.order.decisionId }, clock);
+  const declined = await declineOrder(hana.actor, target(hana), clock);
+  expect(declined.state).toBe("declined");
+  expect(await orders(sam)).toEqual([]);
+  await expect(acceptOrder(sam.actor, target(sam), clock)).rejects.toMatchObject({ reason: "orderAlreadyDecided" });
+  await undoOrderDecision(hana.actor, { ...target(hana), decisionId: declined.decisionId }, clock);
+  expect(await orders(sam)).toEqual([order]);
 });
 
 test("an Order escalates at two minutes only while Sent, and any on-duty Waiter can accept it", async () => {
@@ -74,6 +96,32 @@ function pushSubscription(name: string) {
     keys: { p256dh: key.generateKeys("base64url"), auth: randomBytes(16).toString("base64url") },
   };
 }
+
+test("Undo restores pending Order alerts without resending alerts already delivered", async () => {
+  const { s, three, sam, hana, at, send } = await service();
+  const samPush = pushSubscription("sam");
+  const hanaPush = pushSubscription("hana");
+  await setWaiterPushSubscription(sam.actor, { subscription: samPush, unlockToken: sam.unlockToken }, { now: at });
+  await setWaiterPushSubscription(hana.actor, { subscription: hanaPush, unlockToken: hana.unlockToken }, { now: at });
+  const order = await send(three.id);
+  const scope = { now: at, venueId: s.venue.id };
+  const targets: string[] = [];
+  await sendOrderNotifications(systemActor, async ({ subscription }) => {
+    targets.push(subscription.endpoint);
+    return subscription.endpoint === samPush.endpoint ? "sent" : "retry";
+  }, scope);
+  expect(targets.sort()).toEqual([samPush.endpoint, hanaPush.endpoint].sort());
+
+  const target = { orderId: order.id, unlockToken: sam.unlockToken };
+  const declined = await declineOrder(sam.actor, target, { now: at });
+  await undoOrderDecision(sam.actor, { ...target, decisionId: declined.decisionId }, { now: at });
+  targets.length = 0;
+  await sendOrderNotifications(systemActor, async ({ subscription }) => {
+    targets.push(subscription.endpoint);
+    return "sent";
+  }, scope);
+  expect(targets).toEqual([hanaPush.endpoint]);
+});
 
 test("device notifications follow Order routing, retry without duplicate deliveries and stop after sign-out or removal", async () => {
   const { s, one, three, sam, hana, mimi, at, send } = await service();

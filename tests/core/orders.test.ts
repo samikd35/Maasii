@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { expect, test } from "vitest";
 import {
-  acceptOrder, addPaymentOption, confirmPayment, flagUnconfirmedBills, getGuestOrders, getGuestPendingOrders, getGuestVisit, getMyTableOrders, getOrderService, getPreparedBills, getPublishedMenu, guestActor,
-  prepareBill, publicActor, publishMenu, reassignTable, reopenBill, removeWaiter, sendOrder, setTableActive, setVenueDishPrice, startShift, systemActor, updatePaymentOption,
+  acceptOrder, addPaymentOption, confirmPayment, declineOrder, flagUnconfirmedBills, getGuestOrders, getGuestPendingOrders, getGuestVisit, getMyTableOrders, getOrderService, getPreparedBills, getPublishedMenu, getVenueMenuSettings, guestActor, listVenueDishChanges,
+  prepareBill, publicActor, publishMenu, reassignTable, reopenBill, removeWaiter, sendOrder, setTableActive, setVenueDishPrice, startShift, systemActor, undoOrderDecision, updatePaymentOption,
 } from "@/core";
 import { createPublicAuthClient } from "@/lib/supabase/public";
 import { scenario } from "../support/scenario";
@@ -61,7 +61,8 @@ test("only the currently assigned and unlocked Waiter can see and accept a pendi
   expect((await getMyTableOrders(sam.actor, { unlockToken: sam.unlockToken })).orders).toEqual([]);
   const accepted = await acceptOrder(hana.actor, { orderId: sent.id, unlockToken: hana.unlockToken });
   expect(accepted).toMatchObject({ state: "accepted", acceptedByName: "Hana" });
-  expect(await getGuestOrders(actor, { venueLinkToken: s.venue.linkToken })).toEqual([accepted]);
+  expect(await getGuestOrders(actor, { venueLinkToken: s.venue.linkToken }))
+    .toMatchObject([{ id: accepted.id, state: "accepted", acceptedByName: "Hana" }]);
   expect(await getGuestOrders(await guest(), { venueLinkToken: s.venue.linkToken })).toEqual([]);
   await removeWaiter(s.owner.actor, { venueId: s.venue.id, waiterId: hana.waiterId });
   await expect(getMyTableOrders(hana.actor, { unlockToken: hana.unlockToken })).rejects.toMatchObject({ code: "not_allowed" });
@@ -204,6 +205,140 @@ test("a prepared Bill freezes accepted lines and blocks Send from a phone in tha
   await reopenBill(s.managers.Yonas.actor, target);
   expect(await getGuestVisit(first, venue)).toMatchObject({ bill: null, totalSantim: 44_000 });
   await expect(send(first, "Macchiato", 1)).resolves.toMatchObject({ visitId: accepted.visitId });
+});
+
+test("partial acceptance keeps the Order snapshot, hides the Dropped Dish at that Venue, and excludes it from the Bill", async () => {
+  const s = await scenario().venue("Lancha").venue("Bole").waiter("Sam").publishedMenu().build();
+  const sam = s.waiters.Sam;
+  const tableId = s.venue.tables[0].id;
+  const venueId = s.venue.id;
+  const venue = { venueLinkToken: s.venue.linkToken };
+  const omelette = s.dishId("Omelette");
+  await startShift(s.owner.actor, { venueId, assignments: [{ tableId, waiterId: sam.waiterId }] });
+  await setVenueDishPrice(s.owner.actor, { venueId, dishId: omelette, priceSantim: 24_999 });
+  const actor = await guest();
+  const sent = await sendOrder(actor, {
+    ...venue, tableId, requestId: randomUUID(),
+    lines: [
+      { dishId: omelette, choiceIds: [], quantity: 2, note: "No salt" },
+      { dishId: s.dishId("Chechebsa"), choiceIds: [], quantity: 1, note: "" },
+    ],
+  });
+  const decision = { orderId: sent.id, unlockToken: sam.unlockToken };
+  await expect(acceptOrder(sam.actor, { ...decision, soldOutLineIndices: [0, 1] }))
+    .rejects.toMatchObject({ reason: "orderAllLinesDropped" });
+  const accepted = await acceptOrder(sam.actor, { ...decision, soldOutLineIndices: [0] });
+  expect(accepted.lines).toEqual([{ ...sent.lines[0], dropReason: "sold_out" }, sent.lines[1]]);
+  expect(await getGuestVisit(actor, venue)).toMatchObject({
+    orders: [{ id: accepted.id, state: "accepted", lines: accepted.lines }], totalSantim: 19_000,
+  });
+
+  const dishIds = async (venueLinkToken: string) =>
+    (await getPublishedMenu(publicActor, { venueLinkToken }))?.sections.flatMap((section) => section.dishes.map(({ id }) => id));
+  expect(await dishIds(s.venue.linkToken)).not.toContain(omelette);
+  expect(await dishIds(s.venues.Bole.linkToken)).toContain(omelette);
+  const settings = await getVenueMenuSettings(s.owner.actor, { venueId });
+  expect(settings.sections.flatMap(({ dishes }) => dishes)).toContainEqual(expect.objectContaining({
+    id: omelette, soldOut: true, venuePriceSantim: 24_999,
+  }));
+  expect((await listVenueDishChanges(s.owner.actor, { venueId }))[0]).toMatchObject({
+    dishId: omelette, actorUserId: sam.actor.userId, changedAt: accepted.acceptedAt, soldOut: true, priceSantim: 24_999,
+  });
+
+  await prepareBill(sam.actor, { venueId, visitId: sent.visitId, unlockToken: sam.unlockToken });
+  expect(await getGuestVisit(actor, venue)).toMatchObject({
+    bill: { lines: [sent.lines[1]], totalSantim: 19_000 },
+  });
+});
+
+test("Declined Orders stay visible to their guests and the last Decline frees the Table", async () => {
+  const s = await scenario().waiter("Sam").publishedMenu().build();
+  const sam = s.waiters.Sam;
+  const tableId = s.venue.tables[0].id;
+  const venue = { venueLinkToken: s.venue.linkToken };
+  await startShift(s.owner.actor, { venueId: s.venue.id, assignments: [{ tableId, waiterId: sam.waiterId }] });
+  const [first, second, next] = await Promise.all([guest(), guest(), guest()]);
+  const send = (actor: typeof first) => sendOrder(actor, {
+    ...venue, tableId, requestId: randomUUID(),
+    lines: [{ dishId: s.dishId("Omelette"), choiceIds: [], quantity: 1, note: "" }],
+  });
+  const initial = await send(first);
+  const pending = await send(second);
+  await declineOrder(sam.actor, { orderId: initial.id, unlockToken: sam.unlockToken });
+  expect(await getGuestVisit(first, venue)).toMatchObject({ id: initial.visitId, closedAt: null, totalSantim: 0 });
+
+  await declineOrder(sam.actor, { orderId: pending.id, unlockToken: sam.unlockToken });
+  for (const actor of [first, second]) {
+    expect(await getGuestVisit(actor, venue)).toMatchObject({
+      id: initial.visitId, closedAt: expect.any(Date), totalSantim: 0,
+      orders: [{ state: "declined" }, { state: "declined" }],
+    });
+  }
+  expect((await getMyTableOrders(sam.actor, { unlockToken: sam.unlockToken })).orders).toEqual([]);
+  const nextOrder = await send(next);
+  expect(nextOrder.visitId).not.toBe(initial.visitId);
+  expect(await getGuestVisit(next, venue)).toMatchObject({ orders: [nextOrder] });
+});
+
+test("Undo reopens an all-declined Visit, but a later party keeps its own Visit", async () => {
+  const s = await scenario().waiter("Sam").publishedMenu().build();
+  const sam = s.waiters.Sam;
+  const tableId = s.venue.tables[0].id;
+  const venue = { venueLinkToken: s.venue.linkToken };
+  await startShift(s.owner.actor, { venueId: s.venue.id, assignments: [{ tableId, waiterId: sam.waiterId }] });
+  const [first, next] = await Promise.all([guest(), guest()]);
+  const send = (actor: typeof first) => sendOrder(actor, {
+    ...venue, tableId, requestId: randomUUID(),
+    lines: [{ dishId: s.dishId("Omelette"), choiceIds: [], quantity: 1, note: "" }],
+  });
+  const sent = await send(first);
+  const target = { orderId: sent.id, unlockToken: sam.unlockToken };
+  const declined = await declineOrder(sam.actor, target);
+  const undo = { ...target, decisionId: declined.decisionId };
+  await expect(undoOrderDecision(sam.actor, undo, { now: declined.undoUntil })).rejects.toMatchObject({ reason: "orderUndoExpired" });
+  const at = new Date(declined.undoUntil.getTime() - 1);
+  await expect(undoOrderDecision(sam.actor, undo, { now: at })).resolves.toEqual(sent);
+  expect(await getGuestVisit(first, venue)).toMatchObject({ id: sent.visitId, closedAt: null, orders: [sent], totalSantim: 0 });
+
+  const declinedAgain = await declineOrder(sam.actor, target, { now: at });
+  await expect(undoOrderDecision(sam.actor, undo, { now: at })).rejects.toMatchObject({ reason: "orderAlreadyDecided" });
+  const nextOrder = await send(next);
+  expect(nextOrder.visitId).not.toBe(sent.visitId);
+  await expect(undoOrderDecision(sam.actor, { ...target, decisionId: declinedAgain.decisionId }, { now: at }))
+    .rejects.toMatchObject({ reason: "orderTableOccupied" });
+  expect(await getGuestVisit(first, venue)).toMatchObject({ closedAt: expect.any(Date), orders: [{ state: "declined" }] });
+  expect(await getGuestVisit(next, venue)).toMatchObject({ closedAt: null, orders: [nextOrder] });
+});
+
+test("Undo of partial acceptance restores the Sent snapshot and Bill total until the Bill is prepared", async () => {
+  const s = await scenario().waiter("Sam").publishedMenu().build();
+  const sam = s.waiters.Sam;
+  const tableId = s.venue.tables[0].id;
+  const venueId = s.venue.id;
+  const venue = { venueLinkToken: s.venue.linkToken };
+  const omelette = s.dishId("Omelette");
+  await startShift(s.owner.actor, { venueId, assignments: [{ tableId, waiterId: sam.waiterId }] });
+  const actor = await guest();
+  const sent = await sendOrder(actor, {
+    ...venue, tableId, requestId: randomUUID(),
+    lines: [
+      { dishId: omelette, choiceIds: [], quantity: 2, note: "" },
+      { dishId: s.dishId("Chechebsa"), choiceIds: [], quantity: 1, note: "" },
+    ],
+  });
+  const decision = { orderId: sent.id, unlockToken: sam.unlockToken, soldOutLineIndices: [0] };
+  const accepted = await acceptOrder(sam.actor, decision);
+  const at = new Date(accepted.undoUntil.getTime() - 1);
+  await expect(undoOrderDecision(sam.actor, { ...decision, decisionId: accepted.decisionId }, { now: at })).resolves.toEqual(sent);
+  expect(await getGuestVisit(actor, venue)).toMatchObject({ orders: [sent], totalSantim: 0 });
+  const settings = await getVenueMenuSettings(s.owner.actor, { venueId });
+  expect(settings.sections.flatMap(({ dishes }) => dishes)).toContainEqual(expect.objectContaining({ id: omelette, soldOut: true }));
+
+  const acceptedAgain = await acceptOrder(sam.actor, decision, { now: at });
+  await prepareBill(sam.actor, { venueId, visitId: sent.visitId, unlockToken: sam.unlockToken }, { now: at });
+  await expect(undoOrderDecision(sam.actor, { ...decision, decisionId: acceptedAgain.decisionId }, { now: at }))
+    .rejects.toMatchObject({ reason: "billPrepared" });
+  expect(await getGuestVisit(actor, venue)).toMatchObject({ bill: { totalSantim: 19_000 }, orders: [{ state: "accepted" }] });
 });
 
 test.each([22_000, 21_989])("Payment Confirmation closes the Visit and preserves its Bill when the receipt is %i santim", async (receiptAmountSantim) => {

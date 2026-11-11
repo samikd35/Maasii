@@ -6,9 +6,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] An owner can upload one or more photos of a paper menu. Maasii extracts sections, dish names, descriptions and prices into the draft, marked "Imported, please check".
-- [ ] Imported entries never overwrite existing dishes. The owner reviews and keeps or discards each one.
-- [ ] For any dish or section missing a language, the owner can request a translation draft, which fills the empty field marked "Suggested" until edited or accepted.
-- [ ] Requests to the AI model contain only Menu text and menu photos.
-- [ ] If the AI service fails or times out, the owner sees a clear message and the draft is unchanged.
-- [ ] The AI model sits behind one replaceable interface. Core tests use a fake model to cover the import and translation flows, including failures.
+- [x] An owner can upload one or more photos of a paper menu. Maasii extracts sections, dish names, descriptions and prices into the draft, marked "Imported, please check".
+- [x] Imported entries never overwrite existing dishes. The owner reviews and keeps or discards each one.
+- [x] For any dish or section missing a language, the owner can request a translation draft, which fills the empty field marked "Suggested" until edited or accepted.
+- [x] Requests to the AI model contain only Menu text and menu photos.
+- [x] If the AI service fails or times out, the owner sees a clear message and the draft is unchanged.
+- [x] The AI model sits behind one replaceable interface. Core tests use a fake model to cover the import and translation flows, including failures.

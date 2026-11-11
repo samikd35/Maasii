@@ -1,7 +1,7 @@
 "use client";
 
 import { NextIntlClientProvider, useLocale, useTranslations } from "next-intl";
-import { useState, useTransition, type FormEvent } from "react";
+import { useRef, useState, useTransition, type FormEvent } from "react";
 import type { Bilingual, GuestMenu, Language, MenuDraft, MenuDraftContent } from "@/core";
 import { localizeMenuSections } from "@/core/browser";
 import type { Messages } from "@/i18n/messages";
@@ -9,7 +9,7 @@ import { Field } from "@/ui/field";
 import { GuestMenuView } from "@/ui/guest-menu-view";
 import { languageButtonClass } from "@/ui/language-switch";
 import { Ordering } from "@/app/v/[token]/ordering";
-import { persistMenuDraft, prepareDishPhoto } from "./actions";
+import { persistMenuDraft, prepareDishPhoto, requestMenuAssistance } from "./actions";
 
 type Section = MenuDraftContent["sections"][number];
 type Dish = Section["dishes"][number];
@@ -31,8 +31,12 @@ function missingName({ am, en }: Bilingual) {
   return !am.trim() || !en.trim();
 }
 
+function canSuggest({ am, en }: Bilingual) {
+  return Boolean(am.trim()) !== Boolean(en.trim());
+}
+
 function missingTranslation({ name, description, optionGroups }: Dish) {
-  return missingName(name) || Boolean(description.am.trim()) !== Boolean(description.en.trim())
+  return missingName(name) || canSuggest(description)
     || optionGroups.some((group) => missingName(group.name) || group.choices.some((choice) => missingName(choice.name)));
 }
 
@@ -47,11 +51,13 @@ export function MenuEditor({
   theme,
   guestMessages,
   artwork,
+  maxImportPhotos,
 }: {
   initialDraft: MenuDraft;
   theme: GuestMenu["theme"];
   guestMessages: Record<Language, GuestMessages>;
   artwork: Artwork;
+  maxImportPhotos: number;
 }) {
   const t = useTranslations("MenuEditor");
   const errors = useTranslations("StaffErrors");
@@ -61,10 +67,17 @@ export function MenuEditor({
   const [tab, setTab] = useState<(typeof panelTabs)[number]>("edit");
   const [previewLanguage, setPreviewLanguage] = useState<Language>(locale);
   const [openedDish, setOpenedDish] = useState<string>();
-  const [status, setStatus] = useState<"saved" | "published">();
+  const [status, setStatus] = useState<"saved" | "published" | "menuImported" | "translationSuggested">();
+  const importInput = useRef<HTMLInputElement>(null);
+  const [importCount, setImportCount] = useState(0);
   const [error, setError] = useState<keyof Messages["StaffErrors"]>();
-  const [pending, startTransition] = useTransition();
+  const [saving, startTransition] = useTransition();
+  const [aiPending, startAiTransition] = useTransition();
+  const pending = saving || aiPending;
   const dirty = menu !== saved.menu && JSON.stringify(menu) !== JSON.stringify(saved.menu);
+  const needsReview = menu.sections.some((section) => section.imported || section.suggestedName || section.dishes.some(
+    (dish) => dish.imported || dish.suggestedName || dish.suggestedDescription,
+  ));
   const needsTranslation = menu.sections.flatMap(({ dishes }) => dishes).filter(missingTranslation).length;
 
   function changeSections(sections: Section[], archivedDishes = menu.archivedDishes) {
@@ -117,6 +130,40 @@ export function MenuEditor({
     });
   }
 
+  function requestAi(request: Parameters<typeof requestMenuAssistance>[3]) {
+    setError(undefined);
+    setStatus(undefined);
+    startAiTransition(async () => {
+      try {
+        const result = await requestMenuAssistance(saved.brand.id, saved.revision, menu, request);
+        if (result.draft) {
+          setSaved(result.draft);
+          setMenu(result.draft.menu);
+          setStatus(request instanceof FormData ? "menuImported" : "translationSuggested");
+          if (request instanceof FormData && importInput.current) {
+            importInput.current.value = "";
+            setImportCount(0);
+          }
+        } else {
+          setError(result.error ?? "invalid_input");
+        }
+      } catch {
+        setError("menuAiRequestFailed");
+      }
+    });
+  }
+
+  function importPhotos() {
+    const photos = Array.from(importInput.current?.files ?? []);
+    if (photos.length === 0 || photos.length > maxImportPhotos || photos.some((photo) => photo.size > artwork.maxFileBytes)) {
+      setError("menuAiPhotos");
+      return;
+    }
+    const form = new FormData();
+    for (const photo of photos) form.append("photos", photo);
+    requestAi(form);
+  }
+
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const publish = (event.nativeEvent as SubmitEvent).submitter?.getAttribute("value") === "publish";
@@ -165,12 +212,14 @@ export function MenuEditor({
           <button type="submit" form="menu-editor-fields" value="save" disabled={!dirty || pending} className={editorButton}>
             {t("save")}
           </button>
-          <button type="submit" form="menu-editor-fields" value="publish" disabled={pending || (!dirty && !saved.hasUnpublishedChanges)} className="min-h-11 rounded-md bg-ink px-4 text-sm font-semibold text-paper disabled:opacity-45">
+          <button type="submit" form="menu-editor-fields" value="publish" disabled={pending || needsReview || (!dirty && !saved.hasUnpublishedChanges)} className="min-h-11 rounded-md bg-ink px-4 text-sm font-semibold text-paper disabled:opacity-45">
             {t("publish")}
           </button>
         </div>
+        {needsReview && <p className="w-full text-sm font-medium text-amber-900">{t("reviewBeforePublish")}</p>}
         {needsTranslation > 0 && <p className="w-full text-sm font-medium text-amber-900">{t("translationCount", { count: needsTranslation })}</p>}
         <div className="w-full empty:hidden" aria-live="polite">
+          {aiPending && <p className="text-sm text-ink-muted">{t("requestingAssistance")}</p>}
           {status && <p className="text-sm text-ink-muted">{t(status)}</p>}
           {error && <p role="alert" className="text-sm font-medium text-red-800">{errors(error)}</p>}
         </div>
@@ -210,6 +259,14 @@ export function MenuEditor({
               if (details) details.open = true;
             }}>
               <fieldset disabled={pending} className="space-y-5">
+                <div className="space-y-2 rounded-xl border border-rule bg-white/35 p-4">
+                  <p id="menu-import-help" className="text-sm text-ink-muted">{t("importHelp", { count: maxImportPhotos })}</p>
+                  <Field ref={importInput} label={t("menuPhotos")} type="file" accept={artwork.accept} multiple
+                    aria-describedby="menu-import-help" onChange={(event) => setImportCount(event.currentTarget.files?.length ?? 0)} />
+                  <button type="button" className={editorButton} disabled={importCount === 0} onClick={importPhotos}>
+                    {t("importPhotos")}
+                  </button>
+                </div>
                 <button type="button" className={editorButton} onClick={() => changeSections([
                   ...menu.sections,
                   { sectionId: crypto.randomUUID(), name: emptyText, dishes: [] },
@@ -220,16 +277,32 @@ export function MenuEditor({
                   <fieldset key={section.sectionId} className="min-w-0 rounded-xl border border-rule bg-white/35 px-4 pb-4">
                     <legend className="px-2 text-sm font-semibold">{t("section", { number: sectionIndex + 1 })}</legend>
                     <div className="mt-2 grid grid-cols-2 gap-3">
-                      <Field label={t("sectionAm")} lang="am" value={section.name.am}
-                        onChange={(event) => updateSection(sectionIndex, { name: { ...section.name, am: event.target.value } })} />
-                      <Field label={t("sectionEn")} lang="en" value={section.name.en}
-                        onChange={(event) => updateSection(sectionIndex, { name: { ...section.name, en: event.target.value } })} />
+                      {dishLanguages.map((language) => {
+                        const label = t(language === "am" ? "sectionAm" : "sectionEn");
+                        return (
+                          <div key={language}>
+                            <Field label={label} lang={language} value={section.name[language]}
+                              onChange={(event) => updateSection(sectionIndex, {
+                                name: { ...section.name, [language]: event.target.value },
+                                suggestedName: section.suggestedName === language ? undefined : section.suggestedName,
+                              })} />
+                            {section.suggestedName === language && <SuggestionReview label={label}
+                              onAccept={() => updateSection(sectionIndex, { suggestedName: undefined })} />}
+                          </div>
+                        );
+                      })}
                     </div>
+                    {section.imported && <ImportReview kind="section"
+                      onKeep={() => updateSection(sectionIndex, { imported: undefined })}
+                      onDiscard={() => changeSections(menu.sections.filter((_, i) => i !== sectionIndex))} />}
                     <div className="mt-3 flex flex-wrap gap-2">
+                      {canSuggest(section.name) && <button type="button" className={editorButton}
+                        onClick={() => requestAi({ sectionId: section.sectionId })}>{t("suggestTranslation")}</button>}
                       <MoveButtons index={sectionIndex} count={menu.sections.length} onMove={(step) => changeSections(move(menu.sections, sectionIndex, step))} />
-                      <button type="button" className={editorButton} onClick={() => changeSections(menu.sections.filter((_, i) => i !== sectionIndex))}>
+                      {!section.imported && <button type="button" className={editorButton}
+                        onClick={() => changeSections(menu.sections.filter((_, i) => i !== sectionIndex))}>
                         {t("removeSection")}
-                      </button>
+                      </button>}
                     </div>
                     <div className="mt-4 divide-y divide-rule border-t border-rule">
                       {section.dishes.map((dish, dishIndex) => (
@@ -246,6 +319,10 @@ export function MenuEditor({
                           onMove={(step) => updateSection(sectionIndex, { dishes: move(section.dishes, dishIndex, step) })}
                           onFavourite={(checked) => setFavourite(dish.dishId, checked)}
                           onArchive={() => archiveDish(section, dish)}
+                          onDiscardImport={() => updateSection(sectionIndex, {
+                            dishes: section.dishes.filter((candidate) => candidate.dishId !== dish.dishId),
+                          })}
+                          onSuggest={() => requestAi({ sectionId: section.sectionId, dishId: dish.dishId })}
                           onPhoto={(file) => uploadPhoto(file, (photoUrl) => updateSection(sectionIndex, {
                             dishes: section.dishes.map((candidate) => candidate.dishId === dish.dishId ? { ...candidate, photoUrl } : candidate),
                           }))}
@@ -319,7 +396,39 @@ function MoveButtons({ index, count, onMove }: { index: number; count: number; o
   );
 }
 
-function DishFields({ dish, open, index, count, acceptArtwork, onChange, onMove, onFavourite, onArchive, onPhoto }: {
+function SuggestionReview({ label, onAccept }: { label: string; onAccept: () => void }) {
+  const t = useTranslations("MenuEditor");
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-2">
+      <span className="text-sm font-medium text-amber-900">{t("suggested")}</span>
+      <button type="button" className={editorButton} aria-label={t("acceptSuggestionFor", { field: label })}
+        onClick={onAccept}>{t("acceptSuggestion")}</button>
+    </div>
+  );
+}
+
+function ImportReview({ kind, missingPrice, onKeep, onDiscard }: {
+  kind: "section" | "dish";
+  missingPrice?: boolean;
+  onKeep: () => void;
+  onDiscard: () => void;
+}) {
+  const t = useTranslations("MenuEditor");
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      <p className="w-full text-sm font-medium text-amber-900">{t("imported")}</p>
+      {missingPrice && <p className="w-full text-sm text-ink-muted">{t("importPriceMissing")}</p>}
+      <button type="button" className={editorButton} disabled={missingPrice} onClick={onKeep}>
+        {t(kind === "section" ? "keepSection" : "keepDish")}
+      </button>
+      <button type="button" className={editorButton} onClick={onDiscard}>
+        {t(kind === "section" ? "discardSection" : "discardDish")}
+      </button>
+    </div>
+  );
+}
+
+function DishFields({ dish, open, index, count, acceptArtwork, onChange, onMove, onFavourite, onArchive, onDiscardImport, onSuggest, onPhoto }: {
   dish: Dish;
   open?: boolean;
   index: number;
@@ -329,6 +438,8 @@ function DishFields({ dish, open, index, count, acceptArtwork, onChange, onMove,
   onMove: (step: number) => void;
   onFavourite: (checked: boolean) => void;
   onArchive: () => void;
+  onDiscardImport: () => void;
+  onSuggest: () => void;
   onPhoto: (file: File) => void;
 }) {
   const t = useTranslations("MenuEditor");
@@ -337,7 +448,8 @@ function DishFields({ dish, open, index, count, acceptArtwork, onChange, onMove,
     <details open={open} className="min-w-0">
       <summary className="min-h-11 cursor-pointer py-3 font-medium">
         {dish.name[locale].trim() || named(dish.name) || t("untitledDish")}
-        {missingTranslation(dish) && <span className="ml-2 text-xs text-amber-900">{t("missingTranslation")}</span>}
+        {dish.imported && <span className="ml-2 text-xs text-amber-900">{" "}{t("imported")}</span>}
+        {missingTranslation(dish) && <span className="ml-2 text-xs text-amber-900">{" "}{t("missingTranslation")}</span>}
       </summary>
       <div className="grid grid-cols-2 gap-3">
         {dishLanguages.map((language) => (
@@ -345,26 +457,40 @@ function DishFields({ dish, open, index, count, acceptArtwork, onChange, onMove,
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">{t(language)}</p>
             <Field label={t("name")} aria-label={t(language === "am" ? "dishNameAm" : "dishNameEn")}
               lang={language} value={dish.name[language]}
-              onChange={(event) => onChange({ name: { ...dish.name, [language]: event.target.value } })} />
+              onChange={(event) => onChange({
+                name: { ...dish.name, [language]: event.target.value },
+                suggestedName: dish.suggestedName === language ? undefined : dish.suggestedName,
+              })} />
+            {dish.suggestedName === language && <SuggestionReview label={t(language === "am" ? "dishNameAm" : "dishNameEn")}
+              onAccept={() => onChange({ suggestedName: undefined })} />}
             <label className="mt-3 block text-sm font-medium">
               {t("description")}
               <textarea
                 aria-label={t(language === "am" ? "descriptionAm" : "descriptionEn")}
                 lang={language}
                 value={dish.description[language]}
-                onChange={(event) => onChange({ description: { ...dish.description, [language]: event.target.value } })}
+                onChange={(event) => onChange({
+                  description: { ...dish.description, [language]: event.target.value },
+                  suggestedDescription: dish.suggestedDescription === language ? undefined : dish.suggestedDescription,
+                })}
                 className="mt-1 min-h-20 w-full rounded-md border border-ink/30 bg-white p-2 text-base font-normal"
               />
             </label>
+            {dish.suggestedDescription === language && <SuggestionReview label={t(language === "am" ? "descriptionAm" : "descriptionEn")}
+              onAccept={() => onChange({ suggestedDescription: undefined })} />}
           </div>
         ))}
       </div>
+      {(canSuggest(dish.name) || canSuggest(dish.description)) && <button type="button"
+        className={`${editorButton} mt-3`} onClick={onSuggest}>{t("suggestTranslation")}</button>}
       <div className="mt-3 flex flex-wrap items-end gap-x-4">
-        <Field label={t("price")} type="number" min="0" max="21474836.47" step="0.01" inputMode="decimal" required
-          defaultValue={dish.priceSantim / 100}
+        <Field label={t("price")} type="number" min="0" max="21474836.47" step="0.01" inputMode="decimal"
+          required={dish.imported !== "missing_price"} defaultValue={dish.imported === "missing_price" ? "" : dish.priceSantim / 100}
           className="max-w-40"
           onChange={(event) => {
-            if (event.target.validity.valid) onChange({ priceSantim: Math.round(event.target.valueAsNumber * 100) });
+            if (event.target.validity.valid && event.target.value !== "") {
+              onChange({ priceSantim: Math.round(event.target.valueAsNumber * 100), imported: dish.imported && "review" });
+            }
           }} />
         <label className="flex min-h-11 items-center gap-2 text-sm font-medium">
           <input type="checkbox" checked={dish.fasting} onChange={(event) => onChange({ fasting: event.target.checked })} className="size-5 accent-ink" />
@@ -417,8 +543,10 @@ function DishFields({ dish, open, index, count, acceptArtwork, onChange, onMove,
       </fieldset>
       <div className="mt-3 flex flex-wrap gap-2 pb-3">
         <MoveButtons index={index} count={count} onMove={onMove} />
-        <button type="button" className={editorButton} onClick={onArchive}>{t("archiveDish")}</button>
+        {!dish.imported && <button type="button" className={editorButton} onClick={onArchive}>{t("archiveDish")}</button>}
       </div>
+      {dish.imported && <ImportReview kind="dish" missingPrice={dish.imported === "missing_price"}
+        onKeep={() => onChange({ imported: undefined })} onDiscard={onDiscardImport} />}
     </details>
   );
 }

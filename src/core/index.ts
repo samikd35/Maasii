@@ -77,9 +77,12 @@ export {
 export {
   getMenuDraft,
   getPublishedMenu,
+  importMenuPhotos,
+  MAX_MENU_IMPORT_PHOTOS,
   publishMenu,
   publishMenuDraft,
   saveMenuDraft,
+  suggestMenuTranslations,
   uploadDishPhoto,
   type GuestMenu,
   type GuestMenuDish,
@@ -92,6 +95,7 @@ export {
   type OptionGroupInput,
   type PublishedMenuVersion,
 } from "./menu";
+export type { MenuDraftModel } from "./menu-ai";
 export {
   addPaymentOption,
   listPaymentOptionChanges,
@@ -106,6 +110,6 @@ export {
   type PaymentOptionKind,
 } from "./payment-options";
 export { getVenueMenuSettings, listVenueDishChanges, setVenueDishPrice, setVenueDishSoldOut, type VenueMenuDish } from "./venue-menu";
-export { acceptOrder, escalateOrders, getGuestOrders, getGuestPendingOrders, getGuestVisit, getMyTableOrders, getOrderService, sendOrder, type Order } from "./orders";
+export { acceptOrder, declineOrder, escalateOrders, getGuestOrders, getGuestPendingOrders, getGuestVisit, getMyTableOrders, getOrderService, sendOrder, undoOrderDecision, type Order } from "./orders";
 export { consumeOrderNotificationWake, removeWaiterPushSubscription, sendOrderNotifications, setWaiterPushSubscription, type OrderNotification } from "./order-notifications";
 export { confirmPayment, flagUnconfirmedBills, getPreparedBills, prepareBill, reopenBill, type Bill, type PreparedBill, type PaymentConfirmation } from "./bills";

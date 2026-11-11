@@ -161,6 +161,42 @@ test("two guest phones share live Orders and the Bill while each Draft stays on 
   }
 });
 
+test("a waiter can drop a Sold Out Dish and undo a whole Decline while the guest sees both live", async ({ page, browser, baseURL }) => {
+  const { waiter, context, url } = await service(browser, baseURL!, test.info().project.use);
+  try {
+    await page.goto(url);
+    for (const dish of ["Omelette", "Chechebsa"]) {
+      await page.getByRole("button", { name: dish, exact: true }).click();
+      await page.getByRole("button", { name: "Add to order" }).click();
+    }
+    await page.getByRole("button", { name: /Your Draft/ }).click();
+    const sheet = page.getByRole("dialog");
+    await sheet.getByRole("button", { name: "Send", exact: true }).click();
+    await sheet.getByRole("button", { name: "Table 1", exact: true }).click();
+
+    const queue = waiter.getByRole("region", { name: "My tables" });
+    await queue.getByText("Order decisions", { exact: true }).click({ timeout: 6000 });
+    await queue.getByRole("button", { name: "Decline Order" }).click();
+    await expect(sheet.getByText("Declined. Please speak to your waiter.", { exact: true })).toBeVisible({ timeout: 4000 });
+    await queue.getByRole("button", { name: "Undo", exact: true }).click();
+    await expect(sheet.getByText("Sent", { exact: true })).toBeVisible({ timeout: 6000 });
+
+    await queue.getByText("Order decisions", { exact: true }).click();
+    await queue.getByRole("checkbox", { name: "Omelette sold out" }).check();
+    await queue.getByRole("button", { name: "Accept", exact: true }).click();
+    await expect(sheet.getByText("Accepted by Sam", { exact: true })).toBeVisible({ timeout: 6000 });
+    const dropped = sheet.getByRole("listitem").filter({ hasText: "1 × Omelette" }).last();
+    await expect(dropped.getByText("Sold out", { exact: true })).toBeVisible();
+    await expect(sheet.getByRole("region", { name: "Bill total" }).getByTestId("price")).toHaveText("190 ETB");
+    await expect(queue.getByRole("button", { name: "Undo", exact: true })).toBeVisible();
+    await expect(queue.getByRole("button", { name: "Undo", exact: true })).toHaveCount(0, { timeout: 6000 });
+    await page.reload();
+    await expect(page.getByRole("button", { name: "Omelette", exact: true })).toHaveCount(0);
+  } finally {
+    await context.close();
+  }
+});
+
 test("offline Send keeps the Draft and a lost acknowledgement can be retried without a duplicate", async ({ page, context, browser, baseURL }) => {
   const staff = await service(browser, baseURL!, test.info().project.use);
   try {

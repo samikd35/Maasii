@@ -6,11 +6,11 @@
 
 **Status:** ready-for-agent
 
-- [ ] Expanding an Order lets the waiter mark individual lines "Sold out" before accepting. Accepting then records those lines as Dropped Dishes with the reason.
-- [ ] Marking a line sold out also switches the dish to Sold Out at that venue, using the same setting as ticket 10.
-- [ ] A waiter can decline a whole Order. A Declined Order never counts towards the Bill.
-- [ ] A Visit whose only Orders are all Declined ends automatically, so the table is free again.
-- [ ] Accept and decline show a 5-second undo, which returns the Order to Sent with no trace on the Bill.
-- [ ] The guest's slip shows the Dropped Dishes with their reason, or a clear "Declined" message asking them to speak to a waiter.
-- [ ] If two waiters act on the same Order at once, exactly one action wins and the other sees a clear message.
-- [ ] Core tests cover partial acceptance, the Sold Out side effect, declining, the auto-ending Visit, undo and the race.
+- [x] Expanding an Order lets the waiter mark individual lines "Sold out" before accepting. Accepting then records those lines as Dropped Dishes with the reason.
+- [x] Marking a line sold out also switches the dish to Sold Out at that venue, using the same setting as ticket 10.
+- [x] A waiter can decline a whole Order. A Declined Order never counts towards the Bill.
+- [x] A Visit whose only Orders are all Declined ends automatically, so the table is free again.
+- [x] Accept and decline show a 5-second undo, which returns the Order to Sent with no trace on the Bill.
+- [x] The guest's slip shows the Dropped Dishes with their reason, or a clear "Declined" message asking them to speak to a waiter.
+- [x] If two waiters act on the same Order at once, exactly one action wins and the other sees a clear message.
+- [x] Core tests cover partial acceptance, the Sold Out side effect, declining, the auto-ending Visit, undo and the race.

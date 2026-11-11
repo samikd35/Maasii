@@ -20,12 +20,12 @@ export default async function TablePage({ params }: PageProps<"/staff/tables/[ta
     throw error;
   });
   if (table.tableNumber === undefined) notFound();
-  const [{ StaffOrders, Bills }, t] = await Promise.all([getMessages(), getTranslations("StaffWaiter")]);
+  const [{ StaffOrders, StaffErrors, Bills }, t] = await Promise.all([getMessages(), getTranslations("StaffWaiter")]);
   return (
     <>
       <StaffHeader home="/staff" label={t("waiter")} />
       <main className="mx-auto max-w-2xl px-5 pb-16">
-        <NextIntlClientProvider messages={{ StaffOrders, Bills }}>
+        <NextIntlClientProvider messages={{ StaffOrders, StaffErrors, Bills }}>
           <MyTables tableId={tableId} tableNumber={table.tableNumber} />
         </NextIntlClientProvider>
       </main>

@@ -60,7 +60,7 @@ e2e/               Playwright tests (seam 2).
 The core is the only place business rules live. Screens, scripts and tests import it only through `@/core` (a lint rule blocks deep imports).
 
 - **Every command and query takes the calling `Actor` first**: `publicActor` (no session, such as a guest browsing), `guestActor(userId)` (an anonymous Supabase identity created on the first Send), `staffActor(userId)` (a signed-in person whose roles come from memberships), `adminActor(userId)` (a signed-in person whose platform admin role is checked in the database), or `systemActor` (seeding and scheduled jobs).
-- **One transaction per call, acting as the actor.** `inTransaction(actor, work)` in `src/core/db.ts` opens a `pg` transaction and switches to the `anon` or `authenticated` role with that actor's JWT claims, so Postgres row-level security applies to every statement the core runs. `systemActor` runs as `postgres` and bypasses it.
+- **One transaction per database operation, acting as the actor.** `inTransaction(actor, work)` in `src/core/db.ts` opens a `pg` transaction and switches to the `anon` or `authenticated` role with that actor's JWT claims, so Postgres row-level security applies to every statement the core runs. `systemActor` runs as `postgres` and bypasses it.
 - **Two layers of checks.** A command checks permission explicitly (`src/core/access.ts`) and throws `MaasiiError` with code `not_allowed`, `not_found` or `invalid_input`. Row-level security in the migration enforces the same rules as a backstop, and also protects live subscriptions that read the database directly.
 - **Records live in the `app` schema**, which the Supabase Data API does not expose. Grant each table to `anon` or `authenticated` explicitly in its migration.
 - **Time is an input.** A command that records business time takes `{ now }` (defaulting to the current time) so tests can control it. Do not rely on SQL `now()` for business rules.
@@ -124,3 +124,9 @@ To enable delivery on a deployment:
 3. Check the `maasii-order-notifications` job in `cron.job_run_details`. Postgres issues a one-use authorization token for each request. Delivery rows survive transient failures and become eligible for retry on the next minute. Invalid or expired provider subscriptions are cleared.
 
 The deployed staff origin must use HTTPS. Local browser tests use a fixture at the browser push boundary. Core tests supply the delivery transport and control the escalation clock.
+
+## Menu assistance
+
+Set `OPENAI_API_KEY` and `MAASII_MENU_AI_MODEL` on the server to enable Menu photo import and translation suggestions. Choose a model that supports image input and Structured Outputs in the [Responses API](https://developers.openai.com/api/docs/guides/structured-outputs). Never use a `NEXT_PUBLIC_` prefix for these values.
+
+Owners can import one or two JPEG, PNG or WebP photos at a time, up to 4 MB each. Crop to the paper Menu and remove any personal information before upload. Maasii removes image metadata before sending the photos and sends only the source Menu fields and language codes for translations. The model call runs outside the database transaction. Maasii checks the draft revision again before saving a result. Keep or discard imported entries, and edit or accept suggested translations, before publishing the Menu manually. Core tests use a fake model.

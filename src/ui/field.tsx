@@ -1,7 +1,7 @@
-import type { InputHTMLAttributes } from "react";
+import type { ComponentProps } from "react";
 
 /** A labelled text input for management screens, sized for thumbs. */
-export function Field({ label, className, ...input }: { label: string } & InputHTMLAttributes<HTMLInputElement>) {
+export function Field({ label, className, ...input }: { label: string } & ComponentProps<"input">) {
   return (
     <label className={`block text-sm font-medium ${className ?? ""}`}>
       {label}

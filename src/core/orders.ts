@@ -13,6 +13,11 @@ import { parseInput } from "./validation";
 import { requireOrderWaiter } from "./waiters";
 
 const id = z.uuid().transform((value) => value.toLowerCase());
+const decisionTarget = z.object({ orderId: id, unlockToken: z.string().optional() });
+const acceptInput = decisionTarget.extend({
+  soldOutLineIndices: z.array(z.number().int().min(0).max(99)).max(100).default([]),
+});
+const undoInput = decisionTarget.extend({ decisionId: id });
 const venueLink = z.object({ venueLinkToken: z.string().min(1).max(200) });
 const sendInput = venueLink.extend({
   tableId: id,
@@ -41,7 +46,7 @@ export type Order = {
   visitId: string;
   tableId: string;
   tableNumber: number;
-  state: "sent" | "accepted";
+  state: "sent" | "accepted" | "declined";
   partyPending: boolean;
   sentAt: Date;
   escalatedAt: Date | null;
@@ -49,8 +54,11 @@ export type Order = {
   waiterName: string | null;
   acceptedByName: string | null;
   acceptedAt: Date | null;
+  declinedAt: Date | null;
   lines: OrderLine[];
 };
+
+type OrderDecision = Order & { decisionId: string; undoUntil: Date };
 
 type GuestOrder = Omit<Order, "requestId"> & { requestId: string | null };
 type GuestVisit = {
@@ -66,7 +74,7 @@ type GuestVisit = {
 const orderDetails = `id, visit_id as "visitId", table_id as "tableId", table_number as "tableNumber",
   state, party_pending as "partyPending", sent_at as "sentAt", escalated_at as "escalatedAt",
   waiter_id as "waiterId", waiter_name as "waiterName",
-  accepted_by_name as "acceptedByName", accepted_at as "acceptedAt", lines`;
+  accepted_by_name as "acceptedByName", accepted_at as "acceptedAt", declined_at as "declinedAt", lines`;
 const orderFields = `${orderDetails}, request_id as "requestId"`;
 
 async function orderVenue(tx: Tx, token: string): Promise<string> {
@@ -170,7 +178,7 @@ export async function getGuestVisit(actor: Actor, input: z.input<typeof venueLin
     const { rows: [visit] } = await tx.query<BillVisit>(
       `select ${billVisitFields} from app.visits where venue_id = (select id from app.venues where link_token = $1)
          and id in (select visit_id from app.guest_table_choices where guest_user_id = $2)
-         and (closed_at is null or closed_reason = 'paid')`,
+         and (closed_at is null or closed_reason in ('paid', 'all_declined'))`,
       [venueLinkToken, actor.userId],
     );
     if (!visit) return null;
@@ -230,7 +238,7 @@ export async function getMyTableOrders(
     const waiter = await requireOrderWaiter(tx, actor, unlockToken, now);
     const { rows } = await tx.query<Order & { servesTable: boolean }>(
       `select ${orderFields}, app.waiter_serves_order_table(venue_id, table_id) as "servesTable"
-       from app.orders where venue_id = $1 and ($2::uuid is null or table_id = $2)
+       from app.orders where venue_id = $1 and state <> 'declined' and ($2::uuid is null or table_id = $2)
         and app.waiter_order_visit_is_open(visit_id) order by (state <> 'sent'), sent_at, id`,
       [waiter.venueId, table ?? null],
     );
@@ -257,27 +265,69 @@ export async function getMyTableOrders(
 }
 
 export async function acceptOrder(
-  actor: Actor, input: { orderId: string; unlockToken?: string }, { now }: { now?: Date } = {},
-): Promise<Order> {
-  const { orderId, unlockToken } = parseInput(z.object({ orderId: id, unlockToken: z.string().optional() }), input);
+  actor: Actor, input: z.input<typeof acceptInput>, { now }: { now?: Date } = {},
+): Promise<OrderDecision> {
+  return decideOrder(actor, parseInput(acceptInput, input), "accepted", now);
+}
+
+export async function declineOrder(
+  actor: Actor, input: z.input<typeof decisionTarget>, { now }: { now?: Date } = {},
+): Promise<OrderDecision> {
+  return decideOrder(actor, parseInput(decisionTarget, input), "declined", now);
+}
+
+async function lockOrderDecision(tx: Tx, actor: Actor, unlockToken: string | undefined, now: Date | undefined) {
+  const waiter = await requireOrderWaiter(tx, actor, unlockToken, now ?? new Date());
+  await lockVenueShifts(tx, waiter.venueId);
+  const at = now ?? new Date();
+  await tx.query("select set_config('app.order_now', $1, true)", [at.toISOString()]);
+  return { waiter, at };
+}
+
+async function decideOrder(
+  actor: Actor,
+  { orderId, unlockToken, soldOutLineIndices = [] }: z.input<typeof acceptInput>,
+  state: "accepted" | "declined",
+  now: Date | undefined,
+) {
   return inTransaction(actor, async (tx) => {
-    const waiter = await requireOrderWaiter(tx, actor, unlockToken, now ?? new Date());
-    await lockVenueShifts(tx, waiter.venueId);
-    const at = now ?? new Date();
-    await tx.query("select set_config('app.order_now', $1, true)", [at.toISOString()]);
-    const { rows: [accepted] } = await tx.query<Order>(
-      `update app.orders set state = 'accepted', accepted_by = $3, accepted_by_name = $4, accepted_at = $5
-       where venue_id = $1 and id = $2 and state = 'sent'
-         and not party_pending and app.waiter_order_visit_is_open(visit_id) returning ${orderFields}`,
-      [waiter.venueId, orderId, waiter.id, waiter.name, at],
-    ).catch(throwPreparedBillError);
-    if (accepted) return accepted;
+    const { waiter, at } = await lockOrderDecision(tx, actor, unlockToken, now);
     const { rows: [prior] } = await tx.query<Order>(
-      `select ${orderFields} from app.orders where venue_id = $1 and id = $2 and state = 'accepted'`,
+      `select ${orderFields} from app.orders where venue_id = $1 and id = $2`,
       [waiter.venueId, orderId],
     );
-    if (prior) return prior;
-    throw new MaasiiError("not_found", "That Order is outside your My tables list.");
+    const alreadyDecided = prior ? prior.state !== "sent" : (await tx.query<{ decided: boolean }>(
+      "select app.waiter_order_already_decided($1, $2) as decided", [waiter.venueId, orderId],
+    )).rows[0].decided;
+    if (alreadyDecided) {
+      throw new MaasiiError("invalid_input", "Another decision has already been made for this Order.", "orderAlreadyDecided");
+    }
+    if (!prior) throw new MaasiiError("not_found", "That Order is outside your My tables list.");
+    if (prior.partyPending) throw new MaasiiError("invalid_input", "Resolve the new party before acting on its Order.", "orderTableBillPrepared");
+    const drops = new Set(soldOutLineIndices);
+    if (soldOutLineIndices.some((index) => index >= prior.lines.length)) {
+      throw new MaasiiError("invalid_input", "Choose lines from this Order.");
+    }
+    if (drops.size === prior.lines.length) {
+      throw new MaasiiError("invalid_input", "Accept at least one dish or decline the Order.", "orderAllLinesDropped");
+    }
+    const lines = prior.lines.map((line, index) => drops.has(index) ? { ...line, dropReason: "sold_out" } : line);
+    const { rows: [decided] } = await tx.query<OrderDecision>(
+      `update app.orders set state = $3,
+         accepted_by = case when $3 = 'accepted' then $4::uuid end,
+         accepted_by_name = case when $3 = 'accepted' then $5::text end,
+         accepted_at = case when $3 = 'accepted' then $6::timestamptz end,
+         declined_by = case when $3 = 'declined' then $4::uuid end,
+         declined_at = case when $3 = 'declined' then $6::timestamptz end,
+         lines = $7, decision_id = gen_random_uuid()
+       where venue_id = $1 and id = $2 and state = 'sent'
+         and app.waiter_order_visit_is_open(visit_id)
+       returning ${orderFields}, decision_id as "decisionId",
+         app.order_undo_until(coalesce(accepted_at, declined_at)) as "undoUntil"`,
+      [waiter.venueId, orderId, state, waiter.id, waiter.name, at, JSON.stringify(lines)],
+    ).catch(throwPreparedBillError);
+    if (decided) return decided;
+    throw new MaasiiError("not_found", "That Order is outside your assigned Tables.");
   });
 }
 
@@ -289,5 +339,49 @@ export async function escalateOrders(
   const venue = parseInput(id.optional(), venueId);
   await inTransaction(actor, async (tx) => {
     await tx.query("select app.escalate_orders($1, $2)", [now, venue ?? null]);
+  });
+}
+
+export async function undoOrderDecision(
+  actor: Actor, input: z.input<typeof undoInput>, { now }: { now?: Date } = {},
+): Promise<Order> {
+  const { orderId, decisionId, unlockToken } = parseInput(undoInput, input);
+  return inTransaction(actor, async (tx) => {
+    const { waiter, at } = await lockOrderDecision(tx, actor, unlockToken, now);
+    const { rows: [decision] } = await tx.query<{ id: string | null; waiterId: string | null; canUndo: boolean | null }>(
+      `select decision_id as id, coalesce(accepted_by, declined_by) as "waiterId",
+         coalesce(accepted_at, declined_at) <= $3 and $3 < app.order_undo_until(coalesce(accepted_at, declined_at)) as "canUndo"
+       from app.orders where venue_id = $1 and id = $2`,
+      [waiter.venueId, orderId, at],
+    );
+    if (!decision) throw new MaasiiError("not_found", "That Order is outside your assigned Tables.");
+    if (decision.id !== decisionId) {
+      throw new MaasiiError("invalid_input", "This Order has changed.", "orderAlreadyDecided");
+    }
+    if (decision.waiterId !== waiter.id) {
+      throw new MaasiiError("invalid_input", "Only the Waiter who made the decision can undo it.", "orderUndoNotYours");
+    }
+    if (!decision.canUndo) {
+      throw new MaasiiError("invalid_input", "The time to undo this decision has ended.", "orderUndoExpired");
+    }
+    const { rows: [restored] } = await tx.query<Order>(
+      `update app.orders set state = 'sent', accepted_by = null, accepted_by_name = null, accepted_at = null,
+         declined_by = null, declined_at = null, decision_id = null,
+         lines = (select jsonb_agg(line - 'dropReason' order by n)
+           from jsonb_array_elements(lines) with ordinality as l(line, n))
+       where venue_id = $1 and id = $2 and decision_id = $3 returning ${orderFields}`,
+      [waiter.venueId, orderId, decisionId],
+    ).catch((error: unknown) => {
+      const constraint = (error as { constraint?: string }).constraint;
+      if (constraint === "undo_table_occupied") {
+        throw new MaasiiError("invalid_input", "A new party has already ordered at this Table.", "orderTableOccupied");
+      }
+      if (constraint === "undo_visit_closed") {
+        throw new MaasiiError("invalid_input", "This Visit is closed.", "orderVisitClosed");
+      }
+      throwPreparedBillError(error);
+    });
+    if (!restored) throw new MaasiiError("not_found", "That Order is outside your assigned Tables.");
+    return restored;
   });
 }
