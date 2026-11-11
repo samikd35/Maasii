@@ -1,6 +1,8 @@
 "use server";
 
-import { getMenuDraft, publishMenuDraft, saveMenuDraft, uploadDishPhoto, type MenuDraftContent } from "@/core";
+import {
+  getMenuDraft, importMenuPhotos, publishMenuDraft, saveMenuDraft, suggestMenuTranslations, uploadDishPhoto, type MenuDraftContent,
+} from "@/core";
 import { forForm, requireStaff } from "@/lib/session";
 
 export async function persistMenuDraft(
@@ -26,4 +28,25 @@ export async function prepareDishPhoto(brandId: string, form: FormData) {
   let photoUrl: string | undefined;
   const result = await forForm(async () => { photoUrl = await uploadDishPhoto(actor, { brandId, photo }); });
   return { photoUrl, error: result?.error };
+}
+
+export async function requestMenuAssistance(
+  brandId: string,
+  revision: string | null,
+  menu: MenuDraftContent,
+  request: FormData | { sectionId: string; dishId?: string },
+) {
+  const actor = await requireStaff();
+  const input = { brandId, revision, menu };
+  const result = await forForm(async () => {
+    if (request instanceof FormData) {
+      const photos = request.getAll("photos");
+      if (!photos.every((photo) => photo instanceof File)) return { error: "menuAiPhotos" };
+      await importMenuPhotos(actor, { ...input, photos });
+    } else {
+      await suggestMenuTranslations(actor, { ...input, sectionId: request?.sectionId, dishId: request?.dishId });
+    }
+  });
+  if (result?.error) return { error: result.error };
+  return { draft: await getMenuDraft(actor, { brandId }) };
 }

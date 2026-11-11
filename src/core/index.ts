@@ -77,9 +77,12 @@ export {
 export {
   getMenuDraft,
   getPublishedMenu,
+  importMenuPhotos,
+  MAX_MENU_IMPORT_PHOTOS,
   publishMenu,
   publishMenuDraft,
   saveMenuDraft,
+  suggestMenuTranslations,
   uploadDishPhoto,
   type GuestMenu,
   type GuestMenuDish,
@@ -92,6 +95,7 @@ export {
   type OptionGroupInput,
   type PublishedMenuVersion,
 } from "./menu";
+export type { MenuDraftModel } from "./menu-ai";
 export {
   addPaymentOption,
   listPaymentOptionChanges,

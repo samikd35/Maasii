@@ -1,5 +1,6 @@
+import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
-import { updateBranding, updateStaffLanguage } from "@/core";
+import { getMenuDraft, importMenuPhotos, suggestMenuTranslations, updateBranding, updateStaffLanguage } from "@/core";
 import { LANGUAGE_COOKIE } from "@/i18n/config";
 import { sampleMenu, scenario } from "../tests/support/scenario";
 import type { TestUser } from "../tests/support/users";
@@ -207,4 +208,61 @@ test("an Owner edits Dish photos and Option Groups, then archives and restores t
   await guest.getByRole("button", { name: "Omelette", exact: true }).click();
   await expect(guestDish.locator("img")).toHaveCount(0);
   await expect(guestDish.locator("legend")).toHaveText(["Bread"]);
+});
+
+test("the Owner reviews imported dishes and suggested text before publishing", async ({ page }) => {
+  const s = await scenario().publishedMenu().build();
+  const actor = s.owner.actor;
+  const input = { brandId: s.brand.id };
+  const before = await getMenuDraft(actor, input);
+  const photo = new File([await readFile("public/brands/bilos/almond-cake.webp")], "paper.webp", { type: "image/webp" });
+  await importMenuPhotos(actor, { ...input, revision: before.revision, photos: [photo] }, {
+    model: async () => ({ sections: [{
+      name: { am: "ዳቦዎች", en: "Breads" },
+      dishes: [
+        { name: { am: "", en: "Honey bread" }, description: { am: "", en: "Sweet bread" }, priceSantim: 12500 },
+        { name: { am: "", en: "Toast" }, description: { am: "", en: "" }, priceSantim: null },
+      ],
+    }] }),
+  });
+  const draft = await getMenuDraft(actor, input);
+  const imported = draft.menu.sections.at(-1)!;
+  await suggestMenuTranslations(actor, {
+    ...input, revision: draft.revision, sectionId: imported.sectionId, dishId: imported.dishes[0].dishId,
+  }, { model: async () => ({ name: "የማር ዳቦ", description: "ጣፋጭ ዳቦ" }) });
+
+  await signIn(page, s.owner);
+  await page.getByRole("link", { name: "Brand menu" }).click();
+  const publish = page.getByRole("button", { name: "Publish", exact: true });
+  await expect(publish).toBeDisabled();
+  await expect(page.getByText("Review imported entries and suggested translations before publishing.")).toBeVisible();
+
+  const edit = page.getByRole("region", { name: "Edit" });
+  await edit.getByLabel("Paper Menu photos").setInputFiles({ name: "invalid.webp", mimeType: "image/webp", buffer: Buffer.from("invalid") });
+  await edit.getByRole("button", { name: "Import photos" }).click();
+  await expect(page.locator("#brand-menu-editor").getByRole("alert")).toHaveText("Choose a JPEG, PNG or WebP image up to 4 MB.");
+
+  await edit.getByRole("button", { name: "Keep section" }).click();
+  const bread = edit.locator("details").filter({ hasText: "Honey bread" });
+  await bread.locator("summary").click();
+  await expect(bread.getByText("Suggested", { exact: true })).toHaveCount(2);
+  await bread.getByRole("button", { name: "Accept suggestion for Dish name in Amharic" }).click();
+  await bread.getByRole("textbox", { name: "Description in Amharic", exact: true }).fill("ጣፋጭ የማር ዳቦ");
+  await expect(bread.getByText("Suggested", { exact: true })).toHaveCount(0);
+  await bread.getByRole("button", { name: "Keep dish" }).click();
+  const toast = edit.locator("details").filter({ hasText: "Toast" });
+  await toast.locator("summary").click();
+  const keepToast = toast.getByRole("button", { name: "Keep dish" });
+  await expect(keepToast).toBeDisabled();
+  await toast.getByLabel("Base price (ETB)").fill("80");
+  await expect(keepToast).toBeEnabled();
+  await toast.getByRole("button", { name: "Discard dish" }).click();
+  await expect(toast).toHaveCount(0);
+
+  await expect(publish).toBeEnabled();
+  await publish.click();
+  await expect(page.getByText("Menu published.")).toBeVisible();
+  await page.goto(`/v/${s.venue.linkToken}`);
+  await expect(page.getByRole("heading", { name: "Honey bread" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Toast" })).toHaveCount(0);
 });
