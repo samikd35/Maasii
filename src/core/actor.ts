@@ -7,9 +7,15 @@ export type Actor =
   | { kind: "public" }
   /** A signed-in staff member. Their roles come from memberships in the database, not from the token. */
   | { kind: "staff"; userId: string }
+  /**
+   * A signed-in person working in the platform admin area. The core still checks that they are a
+   * platform admin in the database; the actor only says which hat they are wearing.
+   */
+  | { kind: "admin"; userId: string }
   /** Seeding and scheduled jobs. Runs as `postgres` and bypasses row-level security. */
   | { kind: "system" };
 
 export const publicActor: Actor = { kind: "public" };
 export const systemActor: Actor = { kind: "system" };
 export const staffActor = (userId: string): Actor => ({ kind: "staff", userId });
+export const adminActor = (userId: string): Actor => ({ kind: "admin", userId });

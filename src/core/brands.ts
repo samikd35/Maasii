@@ -1,26 +1,48 @@
-import { requireSystem } from "./access";
+import { z } from "zod";
+import { requirePlatformAdmin, requireSystem } from "./access";
 import type { Actor } from "./actor";
 import { inTransaction } from "./db";
-
-// Only the platform (seeding and tests) sets up brands, venues and tables so far.
-// Ticket 07 opens these commands to the platform admin, owners and managers.
+import { parseInput } from "./validation";
 
 export type Brand = { id: string; name: string; logoUrl: string | null };
 export type Venue = { id: string; brandId: string; name: string; linkToken: string };
 export type Table = { id: string; number: number };
 
+const brandInput = z.object({
+  name: z.string().trim().min(1, "Give the brand a name."),
+  logoUrl: z.string().optional(),
+});
+
+/** The platform admin creates a Brand, then invites its Owner. */
 export async function createBrand(
   actor: Actor,
   input: { name: string; logoUrl?: string },
 ): Promise<Brand> {
-  requireSystem(actor);
+  const { name, logoUrl } = parseInput(brandInput, input);
   return inTransaction(actor, async (tx) => {
+    await requirePlatformAdmin(tx, actor);
     const { rows } = await tx.query<Brand>(
       `insert into app.brands (name, logo_url) values ($1, $2)
        returning id, name, logo_url as "logoUrl"`,
-      [input.name, input.logoUrl ?? null],
+      [name, logoUrl ?? null],
     );
     return rows[0];
+  });
+}
+
+export type BrandSummary = Brand & { venueCount: number };
+
+/** Every Brand on the platform, newest first, for the platform admin. */
+export async function listBrands(actor: Actor): Promise<BrandSummary[]> {
+  return inTransaction(actor, async (tx) => {
+    await requirePlatformAdmin(tx, actor);
+    const { rows } = await tx.query<BrandSummary>(
+      `select b.id, b.name, b.logo_url as "logoUrl",
+              (select count(*)::int from app.venues v where v.brand_id = b.id) as "venueCount"
+       from app.brands b
+       order by b.created_at desc, b.name`,
+    );
+    return rows;
   });
 }
 

@@ -43,7 +43,8 @@ async function actAs(tx: Tx, actor: Actor): Promise<void> {
     case "public":
       await tx.query("select set_config('role', 'anon', true)");
       return;
-    case "staff": {
+    case "staff":
+    case "admin": {
       const claims = { sub: actor.userId, role: "authenticated", is_anonymous: false };
       await tx.query(
         "select set_config('request.jwt.claims', $1, true), set_config('role', 'authenticated', true)",
