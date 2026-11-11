@@ -48,7 +48,7 @@ export default async function WaiterPage({ searchParams }: PageProps<"/staff">) 
 
   if (table.success) redirect(`/staff/tables/${table.data}`);
 
-  const [locale, { StaffOrders, Bills }] = await Promise.all([getLocale(), getMessages()]);
+  const [locale, { StaffOrders, StaffErrors, Bills }] = await Promise.all([getLocale(), getMessages()]);
   const other = locale === "am" ? "en" : "am";
   return (
     <>
@@ -63,7 +63,7 @@ export default async function WaiterPage({ searchParams }: PageProps<"/staff">) 
             <SubmitButton variant="quiet">{t("lock")}</SubmitButton>
           </form>
         </div>
-        <NextIntlClientProvider messages={{ StaffOrders, Bills }}>
+        <NextIntlClientProvider messages={{ StaffOrders, StaffErrors, Bills }}>
           <Notifications vapidKey={process.env.MAASII_VAPID_PUBLIC_KEY} subscribed={device.hasPush} />
           <MyTables />
         </NextIntlClientProvider>
