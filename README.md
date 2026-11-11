@@ -12,7 +12,7 @@ You need Node 22.12 or later, pnpm 10 and Docker (running).
 pnpm install
 pnpm exec playwright install chromium   # once per machine, for the browser tests
 pnpm db:start                           # start this checkout's Supabase stack and write .env.local
-pnpm db:reset                           # apply migrations and seed Bilo's Pastry
+pnpm db:reset                           # apply migrations and seed the guest menus
 pnpm dev                                # then open http://localhost:3000/v/bilos-lancha
 ```
 
@@ -28,7 +28,7 @@ pnpm dev                                # then open http://localhost:3000/v/bilo
 | `pnpm db:start` / `pnpm db:stop` | Start or stop this checkout's Supabase stack. `db:start` also runs `db:env`. |
 | `pnpm db:env` | Rewrite `.env.local` from the running stack (ports and keys). |
 | `pnpm db:reset` | Recreate the database from `supabase/migrations`, then run `db:seed`. |
-| `pnpm db:seed` | Seed Bilo's Pastry through the Maasii core. Skips if already seeded. |
+| `pnpm db:seed` | Seed Bilo's Pastry and Saba House through the Maasii core. Skips each Brand if already seeded. |
 | `pnpm supabase <args>` | The pinned Supabase CLI (3.1.0). Never use a global `supabase` binary. |
 
 ## One local Supabase stack per worktree
@@ -98,6 +98,8 @@ Interface messages live in `messages/en.json` and `messages/am.json`. The next-i
 ## Seed data
 
 `pnpm db:seed` creates Bilo's Pastry with its Lancha venue (tables 1-16) and an Owner (`owner@bilos.test`, no password yet), and publishes Bilo's Menu as that Owner through the core. English dish names and descriptions come from bilospastry.com. The Amharic Menu and interface text are drafts for a fluent speaker and Bilo's to review before the pilot. **All prices are placeholders** until Bilo's provides real ones (see `scripts/seed/bilos.ts`). Bilo's must confirm in writing that we may use its name, logo, photos and Menu.
+
+The seed also creates a fictional Saba House at `/v/saba-bole` with a green accent and Noto Serif Ethiopic. Open it alongside `/v/bilos-lancha` to compare the two Brand themes.
 
 ## Staff setup
 

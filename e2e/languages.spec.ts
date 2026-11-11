@@ -1,8 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 import { LANCHA_LINK_TOKEN } from "../scripts/seed/bilos";
+import { SABA_LINK_TOKEN } from "../scripts/seed/saba";
 import { scenario } from "../tests/support/scenario";
 
 const bilosMenuLink = `/v/${LANCHA_LINK_TOKEN}`;
+const sabaMenuLink = `/v/${SABA_LINK_TOKEN}`;
 
 const sectionChips = (page: Page) => page.getByRole("navigation", { name: /Menu sections|የምናሌ ክፍሎች/ }).getByRole("link");
 const dishRow = (page: Page, name: string) => page.getByRole("listitem").filter({ has: page.getByRole("heading", { name }) });
@@ -95,26 +97,35 @@ test.describe("on a phone set to Amharic", () => {
     expect(withoutNames).not.toMatch(/[A-Za-z]/);
   });
 
-  test("Amharic headings and body text are set in the Ethiopic web font", async ({ page }) => {
-    await page.goto(bilosMenuLink, { waitUntil: "networkidle" });
-    await expect(page.getByRole("heading", { name: "ኦምሌት" })).toBeVisible();
-    await page.evaluate(() => document.fonts.ready);
+  for (const [link, familyName] of [[bilosMenuLink, "Noto Sans Ethiopic"], [sabaMenuLink, "Noto Serif Ethiopic"]]) {
+    test(`Amharic headings and body text are set in ${familyName}`, async ({ page }) => {
+      await page.goto(link);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("ምናሌያችን");
+      await page.evaluate(() => document.fonts.ready);
 
-    const cdp = await page.context().newCDPSession(page);
-    await cdp.send("DOM.enable");
-    await cdp.send("CSS.enable");
-    const { root } = await cdp.send("DOM.getDocument");
-    for (const selector of ["h1", "main h3", "main li p"]) {
-      const { nodeId } = await cdp.send("DOM.querySelector", { nodeId: root.nodeId, selector });
-      const { fonts } = await cdp.send("CSS.getPlatformFontsForNode", { nodeId });
-      expect(fonts, selector).toContainEqual(expect.objectContaining({ familyName: "Noto Sans Ethiopic", isCustomFont: true }));
-    }
-  });
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send("DOM.enable");
+      await cdp.send("CSS.enable");
+      const { root } = await cdp.send("DOM.getDocument");
+      for (const selector of ["h1", "main h3", "main li p"]) {
+        const { nodeId } = await cdp.send("DOM.querySelector", { nodeId: root.nodeId, selector });
+        const { fonts } = await cdp.send("CSS.getPlatformFontsForNode", { nodeId });
+        expect(fonts, selector).toContainEqual(expect.objectContaining({ familyName, isCustomFont: true }));
+      }
+    });
+  }
 
   test("the Amharic guest menu weighs under 250 KB before photos, fonts included", async ({ page }) => {
     const bytes = await weighMenu(page);
     console.log(`Amharic guest menu weight before photos: ${(bytes.total / 1024).toFixed(1)} KB`);
-    expect(bytes.fonts).toBeGreaterThan(0);
+    expect(bytes.ethiopicFonts).toBe(1);
+    expect(bytes.total).toBeLessThan(250 * 1024);
+  });
+
+  test("Saba House's Amharic menu weighs under 250 KB and downloads one Ethiopic font", async ({ page }) => {
+    const bytes = await weighMenu(page, sabaMenuLink);
+    console.log(`Saba House Amharic menu weight before photos: ${(bytes.total / 1024).toFixed(1)} KB`);
+    expect(bytes.ethiopicFonts).toBe(1);
     expect(bytes.total).toBeLessThan(250 * 1024);
   });
 });
@@ -136,17 +147,28 @@ test("the English guest menu weighs under 250 KB before photos and downloads no 
   expect(bytes.total).toBeLessThan(250 * 1024);
 });
 
-async function weighMenu(page: Page) {
+test("Saba House's English menu weighs under 250 KB and only downloads its Latin font", async ({ page }) => {
+  const bytes = await weighMenu(page, sabaMenuLink);
+  console.log(`Saba House English menu weight before photos: ${(bytes.total / 1024).toFixed(1)} KB`);
+  expect(bytes.ethiopicFonts).toBe(0);
+  expect(bytes.fonts).toBeGreaterThan(0);
+  expect(bytes.total).toBeLessThan(250 * 1024);
+});
+
+async function weighMenu(page: Page, link = bilosMenuLink) {
   const pending: Promise<{ font: boolean; size: number }>[] = [];
   page.on("requestfinished", (request) => {
     if (request.resourceType() === "image") return;
     const font = request.resourceType() === "font";
     pending.push(request.sizes().then((sizes) => ({ font, size: sizes.responseBodySize + sizes.responseHeadersSize })));
   });
-  await page.goto(bilosMenuLink, { waitUntil: "networkidle" });
+  await page.goto(link, { waitUntil: "networkidle" });
   const sizes = await Promise.all(pending);
   return {
     total: sizes.reduce((total, { size }) => total + size, 0),
     fonts: sizes.filter(({ font }) => font).reduce((total, { size }) => total + size, 0),
+    ethiopicFonts: await page.evaluate(() => [...document.fonts].filter((font) =>
+      font.status === "loaded" && font.unicodeRange.toLowerCase().includes("u+1200"),
+    ).length),
   };
 }

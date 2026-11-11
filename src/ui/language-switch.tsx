@@ -25,7 +25,7 @@ export function LanguageSwitch({ area, action }: { area: Area; action: (formData
           value={language}
           lang={language}
           aria-pressed={language === current}
-          className="min-h-11 min-w-11 border border-ink/25 px-2 text-sm font-semibold first:rounded-l-full last:rounded-r-full aria-pressed:border-ink aria-pressed:bg-ink aria-pressed:text-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="min-h-11 min-w-11 border border-ink/25 px-2 text-sm font-semibold first:rounded-l-full last:rounded-r-full aria-pressed:border-brand-readable aria-pressed:bg-brand-readable aria-pressed:text-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           {t(language)}
         </button>

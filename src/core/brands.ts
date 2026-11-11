@@ -3,31 +3,42 @@ import QRCode from "qrcode";
 import { z } from "zod";
 import { requireBrandOwner, requirePlatformAdmin, requireSystem, requireVenueManager } from "./access";
 import type { Actor } from "./actor";
+import { brandColourInput, defaultBrandColour, displayFonts, type DisplayFont } from "./brand-theme";
 import { inTransaction, type Tx } from "./db";
 import { MaasiiError } from "./errors";
 import { parseInput } from "./validation";
 
-export type Brand = { id: string; name: string; logoUrl: string | null };
+export type Brand = {
+  id: string;
+  name: string;
+  logoUrl: string | null;
+  colour: string;
+  coverUrl: string | null;
+  displayFont: DisplayFont;
+};
 export type Venue = { id: string; brandId: string; name: string; linkToken: string };
 export type Table = { id: string; number: number };
 
 const brandInput = z.object({
   name: z.string().trim().min(1, "Give the brand a name."),
   logoUrl: z.string().optional(),
+  colour: brandColourInput.default(defaultBrandColour),
+  coverUrl: z.union([z.string().regex(/^\/(?![/\\])[^\s\\]*$/), z.url({ protocol: /^https?$/ })]).optional(),
+  displayFont: z.enum(displayFonts).default("noto-sans-ethiopic"),
 });
 
 /** The platform admin creates a Brand, then invites its Owner. */
 export async function createBrand(
   actor: Actor,
-  input: { name: string; logoUrl?: string },
+  input: z.input<typeof brandInput>,
 ): Promise<Brand> {
-  const { name, logoUrl } = parseInput(brandInput, input);
+  const { name, logoUrl, colour, coverUrl, displayFont } = parseInput(brandInput, input);
   return inTransaction(actor, async (tx) => {
     await requirePlatformAdmin(tx, actor);
     const { rows } = await tx.query<Brand>(
-      `insert into app.brands (name, logo_url) values ($1, $2)
-       returning id, name, logo_url as "logoUrl"`,
-      [name, logoUrl ?? null],
+      `insert into app.brands (name, logo_url, colour, cover_url, display_font) values ($1, $2, $3, $4, $5)
+       returning id, name, logo_url as "logoUrl", colour, cover_url as "coverUrl", display_font as "displayFont"`,
+      [name, logoUrl ?? null, colour, coverUrl ?? null, displayFont],
     );
     return rows[0];
   });
@@ -40,7 +51,7 @@ export async function listBrands(actor: Actor): Promise<BrandSummary[]> {
   return inTransaction(actor, async (tx) => {
     await requirePlatformAdmin(tx, actor);
     const { rows } = await tx.query<BrandSummary>(
-      `select b.id, b.name, b.logo_url as "logoUrl",
+      `select b.id, b.name, b.logo_url as "logoUrl", b.colour, b.cover_url as "coverUrl", b.display_font as "displayFont",
               (select count(*)::int from app.venues v where v.brand_id = b.id) as "venueCount"
        from app.brands b
        order by b.created_at desc, b.name`,

@@ -197,14 +197,14 @@ export function Ordering({ venueLinkToken, sections }: { venueLinkToken: string;
             type="button"
             aria-haspopup="dialog"
             onClick={() => setSheet({ draft: true })}
-            className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl bg-ink px-5 py-2.5 text-left text-paper shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl bg-brand-readable px-5 py-2.5 text-left text-paper shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             <span className="flex flex-col">
               <span className="font-semibold">
                 {t("yourDraft")} · {t("dishCount", { count: draft.dishCount })}
               </span>
               {draft.linesNeedingAttention > 0 && (
-                <span className="text-sm text-paper/85">{t("needAttention", { count: draft.linesNeedingAttention })}</span>
+                <span className="text-sm">{t("needAttention", { count: draft.linesNeedingAttention })}</span>
               )}
             </span>
             <span className="font-semibold whitespace-nowrap tabular-nums">{formatBirr(draft.totalSantim)} {price("currency")}</span>
@@ -337,7 +337,7 @@ function DishSheet({
               disabled={priced.problems.length > 0}
               aria-describedby={missing.length > 0 ? hintId : undefined}
               onClick={() => onSave(line)}
-              className="min-h-12 flex-1 rounded-xl bg-ink px-5 font-semibold text-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:bg-ink/35"
+              className="min-h-12 flex-1 rounded-xl bg-brand-readable px-5 font-semibold text-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:bg-ink/35"
             >
               {editing ? t("saveChanges") : t("addToOrder")}
             </button>

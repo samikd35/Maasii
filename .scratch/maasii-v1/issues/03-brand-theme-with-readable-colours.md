@@ -6,9 +6,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] Brands store branding settings: logo, brand colour, cover photo and display font chosen from a curated list that includes Ethiopic faces such as Noto Serif Ethiopic and Noto Sans Ethiopic.
-- [ ] The core derives theme colours from the brand colour in a perceptual colour space. Text and button colours reach at least 4.5:1 contrast against their backgrounds.
-- [ ] Bilo's orange #EC6728 produces an accessible text and button shade close to #B4461A, while the original orange is still used for decorative accents.
-- [ ] A core test checks the contrast guarantee for a wide range of input colours, including very light, very dark and saturated ones.
-- [ ] The guest menu uses the brand's logo, cover photo, display font and derived colours.
-- [ ] A second seeded brand with a different colour and font renders with its own theme, with no code change.
+- [x] Brands store branding settings: logo, brand colour, cover photo and display font chosen from a curated list that includes Ethiopic faces such as Noto Serif Ethiopic and Noto Sans Ethiopic.
+- [x] The core derives theme colours from the brand colour in a perceptual colour space. Text and button colours reach at least 4.5:1 contrast against their backgrounds.
+- [x] Bilo's orange #EC6728 produces an accessible text and button shade close to #B4461A, while the original orange is still used for decorative accents.
+- [x] A core test checks the contrast guarantee for a wide range of input colours, including very light, very dark and saturated ones.
+- [x] The guest menu uses the brand's logo, cover photo, display font and derived colours.
+- [x] A second seeded brand with a different colour and font renders with its own theme, with no code change.
