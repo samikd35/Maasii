@@ -1,14 +1,17 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
-import { getMyAccess } from "@/core";
+import { getMyAccess, getWaiterSession } from "@/core";
 import { requireStaff } from "@/lib/session";
 import { Field } from "@/ui/field";
 import { ActionForm, SubmitButton } from "@/ui/staff-forms";
 import { addVenue } from "./actions";
 
 export default async function ManageHome() {
-  const access = await getMyAccess(await requireStaff());
+  const actor = await requireStaff();
+  if (await getWaiterSession(actor)) redirect("/staff");
+  const access = await getMyAccess(actor);
   const t = await getTranslations("StaffManage");
   const staff = await getTranslations("Staff");
   const nothing = access.brands.length === 0 && access.venues.length === 0;

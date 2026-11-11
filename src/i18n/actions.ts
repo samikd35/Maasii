@@ -1,6 +1,9 @@
 "use server";
 
+import { refresh } from "next/cache";
 import { cookies } from "next/headers";
+import { updateStaffLanguage } from "@/core";
+import { getSessionActor } from "@/lib/session";
 import { isLocale, LANGUAGE_COOKIE, LANGUAGE_COOKIE_MAX_AGE, type Area } from "./config";
 
 /**
@@ -12,6 +15,14 @@ export async function setGuestLanguage(formData: FormData) {
 }
 
 export async function setStaffLanguage(formData: FormData) {
+  const language = formData.get("language");
+  if (!isLocale(language)) return;
+  const actor = await getSessionActor();
+  if (actor) {
+    await updateStaffLanguage(actor, { language });
+    refresh();
+    return;
+  }
   await setLanguage("staff", formData);
 }
 
@@ -22,5 +33,6 @@ async function setLanguage(area: Area, formData: FormData) {
     maxAge: LANGUAGE_COOKIE_MAX_AGE,
     path: "/",
     sameSite: "lax",
+    httpOnly: area === "staff",
   });
 }

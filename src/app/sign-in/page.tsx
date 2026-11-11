@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { signedInUserId } from "@/lib/session";
+import { getWaiterSession } from "@/core";
+import { getSessionActor } from "@/lib/session";
 import { Field } from "@/ui/field";
 import { ActionForm, SubmitButton } from "@/ui/staff-forms";
 import { StaffEntry } from "@/ui/staff-header";
@@ -13,7 +14,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function SignInPage() {
-  if (await signedInUserId()) redirect("/manage");
+  const actor = await getSessionActor();
+  if (actor) redirect(await getWaiterSession(actor) ? "/staff" : "/manage");
   const t = await getTranslations("StaffSignIn");
   const staff = await getTranslations("Staff");
 

@@ -1,7 +1,7 @@
 // The Maasii core's public interface. Screens, scripts and tests import only from "@/core".
 // Every command and query takes the calling Actor first and runs in one database transaction.
 
-export { adminActor, publicActor, staffActor, systemActor, type Actor } from "./actor";
+export { adminActor, publicActor, staffActor, systemActor, type Actor, type StaffActor } from "./actor";
 export { MaasiiError, type MaasiiErrorCode } from "./errors";
 export { languages, type Bilingual, type Language } from "./language";
 export { deriveBrandTheme, displayFonts, type DisplayFont } from "./brand-theme";
@@ -31,9 +31,12 @@ export {
   getBrandOwners,
   getInvitation,
   getMyAccess,
+  getStaffLanguage,
   getVenueStaff,
+  hasAuthSession,
   inviteManager,
   inviteOwner,
+  updateStaffLanguage,
   type BrandOwners,
   type Invitation,
   type InvitationStatus,
@@ -42,6 +45,17 @@ export {
   type StaffRole,
   type VenueStaff,
 } from "./staff";
+export {
+  createWaiterJoinCode,
+  getWaiterJoinCode,
+  getWaiterSession,
+  joinWaiter,
+  lockWaiter,
+  removeWaiter,
+  unlockWaiter,
+  WAITER_JOIN_MINUTES,
+  type WaiterSession,
+} from "./waiters";
 export {
   MAX_NOTE_LENGTH,
   MAX_QUANTITY,
@@ -65,3 +79,16 @@ export {
   type OptionGroupInput,
   type PublishedMenuVersion,
 } from "./menu";
+export {
+  addPaymentOption,
+  listPaymentOptionChanges,
+  listPaymentOptions,
+  MAX_PAYMENT_QR_BYTES,
+  paymentOptionKinds,
+  paymentQrMimeTypes,
+  removePaymentOption,
+  updatePaymentOption,
+  type PaymentOption,
+  type PaymentOptionChange,
+  type PaymentOptionKind,
+} from "./payment-options";

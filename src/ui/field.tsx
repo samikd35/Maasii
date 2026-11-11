@@ -12,3 +12,7 @@ export function Field({ label, className, ...input }: { label: string } & InputH
     </label>
   );
 }
+
+export function PinField({ label }: { label: string }) {
+  return <Field label={label} name="pin" type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="off" required />;
+}
