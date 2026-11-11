@@ -437,6 +437,10 @@
     "notificationUnsupported": "On iPhone, open Maasii from your Home Screen to enable notifications.",
     "notificationError": "Could not enable notifications. Try again."
   },
+  "Reviews": {
+    "waiterRatings": "Waiter Ratings",
+    "ratingsSummary": "{count} responses · {great} Great · {okay} Okay · {needsWork} Needs work"
+  },
   "Bills": {
     "paidQuestion": "Paid?",
     "previousPartyPaid": "Previous party paid",

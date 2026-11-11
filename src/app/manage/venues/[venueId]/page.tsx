@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
-import { getPreparedBills, getVenueLink, getVenueSetup, getVenueStaff, MaasiiError, type Actor, type VenueTable } from "@/core";
+import { getPreparedBills, getVenueLink, getVenueSetup, getVenueStaff, getWaiterRatings, MaasiiError, type Actor, type VenueTable } from "@/core";
 import { requireStaff, siteUrl } from "@/lib/session";
 import { Field } from "@/ui/field";
 import { formatBirr } from "@/ui/price";
@@ -17,13 +17,14 @@ export async function generateMetadata(): Promise<Metadata> {
 
 async function load(actor: Actor, venueId: string) {
   try {
-    const [setup, staff, link, bills] = await Promise.all([
+    const [setup, staff, link, bills, ratings] = await Promise.all([
       getVenueSetup(actor, { venueId }),
       getVenueStaff(actor, { venueId }),
       getVenueLink(actor, { venueId, siteUrl: await siteUrl() }),
       getPreparedBills(actor, { venueId }),
+      getWaiterRatings(actor, { venueId }),
     ]);
-    return { setup, staff, link, bills };
+    return { setup, staff, link, bills, ratings };
   } catch (error) {
     if (error instanceof MaasiiError && error.code !== "invalid_input") notFound();
     throw error;
@@ -32,7 +33,7 @@ async function load(actor: Actor, venueId: string) {
 
 export default async function VenuePage({ params }: PageProps<"/manage/venues/[venueId]">) {
   const { venueId } = await params;
-  const { setup, staff, link, bills } = await load(await requireStaff(), venueId);
+  const { setup, staff, link, bills, ratings } = await load(await requireStaff(), venueId);
   const { venue, brand, tables, isOwner } = setup;
   const t = await getTranslations("StaffManage");
   const common = await getTranslations("Staff");
@@ -41,6 +42,7 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
   const shifts = await getTranslations("Shifts");
   const menu = await getTranslations("VenueMenu");
   const billing = await getTranslations("Bills");
+  const reviews = await getTranslations("Reviews");
 
   return (
     <>
@@ -84,6 +86,20 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
                 <ActionForm action={reopenVisitBill.bind(null, venue.id, bill.visitId)}>
                   <SubmitButton variant="quiet">{billing("reopen")}</SubmitButton>
                 </ActionForm>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {ratings.length > 0 && (
+        <section aria-labelledby="waiter-ratings" className="mt-8">
+          <SectionHeading id="waiter-ratings">{reviews("waiterRatings")}</SectionHeading>
+          <ul className="divide-y divide-rule">
+            {ratings.map((rating) => (
+              <li key={rating.waiterId} className="py-2">
+                <p className="font-semibold">{rating.waiterName}</p>
+                <p className="text-sm">{reviews("ratingsSummary", rating)}</p>
               </li>
             ))}
           </ul>

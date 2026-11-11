@@ -437,6 +437,10 @@
     "notificationUnsupported": "በiPhone ላይ ማሳወቂያዎችን ለማብራት Maasiiን ከመነሻ ገጽዎ ይክፈቱ።",
     "notificationError": "ማሳወቂያዎችን ማብራት አልተቻለም። እንደገና ይሞክሩ።"
   },
+  "Reviews": {
+    "waiterRatings": "የአስተናጋጅ ግምገማዎች",
+    "ratingsSummary": "{count} ምላሾች · {great} በጣም ጥሩ · {okay} መካከለኛ · {needsWork} መሻሻል ይፈልጋል"
+  },
   "Bills": {
     "paidQuestion": "ተከፍሏል?",
     "previousPartyPaid": "የቀድሞዎቹ እንግዶች ከፍለዋል",
