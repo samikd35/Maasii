@@ -42,22 +42,36 @@ export type Scenario = {
   managers: Record<string, TestUser>;
   /** The Menu version published by `.publishedMenu()`, if it was called. */
   menu: PublishedMenuVersion | null;
-  /** The stable id of a published dish, looked up by name. */
+  /** The stable id of a published dish, looked up by its Amharic or English name. */
   dishId(name: string): string;
 };
 
 export const sampleMenu: MenuInput = {
   sections: [
     {
-      name: "Breakfast",
+      name: { en: "Breakfast", am: "ቁርስ" },
       dishes: [
-        { name: "Omelette", description: "Our classic omelette", priceSantim: 22_000 },
-        { name: "Chechebsa", description: "Spiced flatbread with a side of honey", priceSantim: 19_000 },
+        {
+          name: { en: "Omelette", am: "ኦምሌት" },
+          description: { en: "Our classic omelette", am: "የእኛ ክላሲክ ኦምሌት" },
+          priceSantim: 22_000,
+        },
+        {
+          name: { en: "Chechebsa", am: "ጨጨብሳ" },
+          description: { en: "Spiced flatbread with a side of honey", am: "በቅመም የተሰራ ቂጣ ከማር ጋር" },
+          priceSantim: 19_000,
+        },
       ],
     },
     {
-      name: "Drinks",
-      dishes: [{ name: "Macchiato", description: "Espresso with a dash of milk", priceSantim: 6_000 }],
+      name: { en: "Drinks", am: "መጠጦች" },
+      dishes: [
+        {
+          name: { en: "Macchiato", am: "ማኪያቶ" },
+          description: { en: "Espresso with a dash of milk", am: "ኤስፕሬሶ በትንሽ ወተት" },
+          priceSantim: 6_000,
+        },
+      ],
     },
   ],
 };
@@ -126,7 +140,7 @@ class ScenarioBuilder {
       managers,
       menu,
       dishId(name) {
-        const dish = menu?.sections.flatMap((s) => s.dishes).find((d) => d.name === name);
+        const dish = menu?.sections.flatMap((s) => s.dishes).find((d) => d.name.en === name || d.name.am === name);
         if (!dish) throw new Error(`No published dish called "${name}" in this scenario.`);
         return dish.dishId;
       },

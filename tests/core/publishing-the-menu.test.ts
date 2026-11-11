@@ -1,9 +1,11 @@
 import { expect, test } from "vitest";
 import { getPublishedMenu, publicActor, publishMenu, type MenuInput } from "@/core";
-import { sampleMenu, scenario } from "../support/scenario";
+import { scenario } from "../support/scenario";
 
 const breakfastOnly: MenuInput = {
-  sections: [{ name: "Breakfast", dishes: [{ name: "Waffle", description: "Golden", priceSantim: 18_000 }] }],
+  sections: [
+    { name: { en: "Breakfast" }, dishes: [{ name: { en: "Waffle" }, description: { en: "Golden" }, priceSantim: 18_000 }] },
+  ],
 };
 
 test("only the brand's Owner can publish its Menu", async () => {
@@ -17,9 +19,9 @@ test("only the brand's Owner can publish its Menu", async () => {
     publishMenu(publicActor, { brandId: bilos.brand.id, menu: breakfastOnly }),
   ).rejects.toMatchObject({ code: "not_allowed" });
 
-  const menu = await getPublishedMenu(publicActor, { venueLinkToken: bilos.venue.linkToken });
+  const menu = await getPublishedMenu(publicActor, { venueLinkToken: bilos.venue.linkToken, language: "en" });
   expect(menu?.menuVersion?.number).toBe(1);
-  expect(menu?.sections.map((s) => s.name)).toEqual(sampleMenu.sections.map((s) => s.name));
+  expect(menu?.sections.map((s) => s.name)).toEqual(["Breakfast", "Drinks"]);
 });
 
 test("a Menu cannot reuse another brand's dish", async () => {
@@ -32,8 +34,8 @@ test("a Menu cannot reuse another brand's dish", async () => {
       menu: {
         sections: [
           {
-            name: "Breakfast",
-            dishes: [{ dishId: bilos.dishId("Omelette"), name: "Omelette", priceSantim: 20_000 }],
+            name: { en: "Breakfast" },
+            dishes: [{ dishId: bilos.dishId("Omelette"), name: { en: "Omelette" }, priceSantim: 20_000 }],
           },
         ],
       },
@@ -41,15 +43,18 @@ test("a Menu cannot reuse another brand's dish", async () => {
   ).rejects.toMatchObject({ code: "invalid_input" });
 });
 
-test("a Menu with a negative price or an unnamed dish is refused", async () => {
+test("a Menu with a negative price or a dish unnamed in both languages is refused", async () => {
   const s = await scenario().build();
 
   for (const dish of [
-    { name: "Waffle", priceSantim: -100 },
-    { name: "  ", priceSantim: 18_000 },
+    { name: { en: "Waffle" }, priceSantim: -100 },
+    { name: { en: "  ", am: "" }, priceSantim: 18_000 },
   ]) {
     await expect(
-      publishMenu(s.owner.actor, { brandId: s.brand.id, menu: { sections: [{ name: "Breakfast", dishes: [dish] }] } }),
+      publishMenu(s.owner.actor, {
+        brandId: s.brand.id,
+        menu: { sections: [{ name: { en: "Breakfast" }, dishes: [dish] }] },
+      }),
     ).rejects.toMatchObject({ code: "invalid_input" });
   }
 });

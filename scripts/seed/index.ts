@@ -19,7 +19,7 @@ const OWNER_EMAIL = "owner@bilos.test";
 async function main() {
   process.loadEnvFile(".env.local");
 
-  if (await getPublishedMenu(publicActor, { venueLinkToken: LANCHA_LINK_TOKEN })) {
+  if (await getPublishedMenu(publicActor, { venueLinkToken: LANCHA_LINK_TOKEN, language: "en" })) {
     console.log("Already seeded. Run `pnpm db:reset` to start again from an empty database.");
     return;
   }

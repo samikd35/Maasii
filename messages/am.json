@@ -1,0 +1,60 @@
+{
+  "Metadata": {
+    "description": "ለኢትዮጵያ ካፌዎች እና ምግብ ቤቶች የጠረጴዛ አገልግሎት"
+  },
+  "Home": {
+    "tagline": "ምናሌውን ለመክፈት በጠረጴዛዎ ላይ ያለውን ካርድ ይንኩ ወይም ስካን ያድርጉ።"
+  },
+  "LanguageSwitch": {
+    "label": "ቋንቋ",
+    "am": "አማ",
+    "en": "EN"
+  },
+  "Price": {
+    "currency": "ብር"
+  },
+  "GuestMenu": {
+    "title": "{brand} · {venue} ምናሌ",
+    "notFoundTitle": "ምናሌው አልተገኘም · Maasii",
+    "heading": "ምናሌያችን",
+    "sections": "የምናሌ ክፍሎች",
+    "comingSoon": "ምናሌው በቅርቡ ይዘጋጃል። እባክዎ ሰራተኞቻችንን ይጠይቁ።"
+  },
+  "VenueLinkNotFound": {
+    "heading": "ይህን ምናሌ ማግኘት አልቻልንም",
+    "body": "ሊንኩ በስህተት ተጽፎ ሊሆን ይችላል፣ ወይም ቦታው አዲስ ሊንክ ሊኖረው ይችላል። በጠረጴዛዎ ላይ ያለውን ካርድ እንደገና ይንኩ ወይም ስካን ያድርጉ፣ አለበለዚያ ሰራተኞቻችንን ይጠይቁ።"
+  },
+  "Ordering": {
+    "close": "ይዝጉ",
+    "fasting": "የጾም",
+    "chooseOne": "አንድ ይምረጡ",
+    "addExtras": "ተጨማሪ ያክሉ",
+    "required": "አስፈላጊ",
+    "optional": "አማራጭ",
+    "note": "ለወጥ ቤቱ ማስታወሻ",
+    "notePlaceholder": "ለምሳሌ፣ ያለ ሽንኩርት",
+    "quantity": "ብዛት",
+    "dishQuantity": "{dish}፣ ብዛት",
+    "oneFewer": "አንድ ይቀንሱ",
+    "oneMore": "አንድ ይጨምሩ",
+    "price": "ዋጋ",
+    "addToOrder": "ወደ ትዕዛዝ ያክሉ",
+    "saveChanges": "ለውጦቹን ያስቀምጡ",
+    "stillToChoose": "መምረጥ ያለብዎት፦ {groups}",
+    "onlyOneChoice": "ከ«{group}» አንድ ብቻ ይምረጡ።",
+    "choiceGone": "{choice} ከእንግዲህ አይቀርብም።",
+    "yourDraft": "የትዕዛዝ ረቂቅዎ",
+    "yourTable": "ጠረጴዛዎ",
+    "draftHeading": "ረቂቅ · ገና አልተላከም",
+    "dishCount": "{count, plural, one {# ምግብ} other {# ምግቦች}}",
+    "needAttention": "{count, plural, one {# ምግብ ማስተካከል ያስፈልገዋል} other {# ምግቦች ማስተካከል ያስፈልጋቸዋል}}",
+    "total": "ጠቅላላ",
+    "edit": "ያስተካክሉ",
+    "remove": "ያስወግዱ",
+    "dishGone": "ይህ ምግብ ከምናሌው ተወግዷል። እባክዎ ያስወግዱት።",
+    "editToFix": "ምርጫዎን ያስተካክሉ ወይም ምግቡን ያስወግዱ።",
+    "added": "{dish} ወደ ትዕዛዝ ረቂቅዎ ተጨምሯል።",
+    "updated": "{dish} በትዕዛዝ ረቂቅዎ ተስተካክሏል።",
+    "removed": "{dish} ከትዕዛዝ ረቂቅዎ ተወግዷል።"
+  }
+}

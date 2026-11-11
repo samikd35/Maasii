@@ -3,6 +3,7 @@
 
 export { adminActor, publicActor, staffActor, systemActor, type Actor } from "./actor";
 export { MaasiiError, type MaasiiErrorCode } from "./errors";
+export { languages, type Bilingual, type Language } from "./language";
 
 export {
   addTables,
@@ -41,11 +42,25 @@ export {
   type VenueStaff,
 } from "./staff";
 export {
+  MAX_NOTE_LENGTH,
+  MAX_QUANTITY,
+  priceDraft,
+  priceDraftLine,
+  type DraftLine,
+  type DraftLineProblem,
+  type DraftMenu,
+  type PricedDraft,
+  type PricedDraftLine,
+} from "./draft";
+export {
   getPublishedMenu,
   publishMenu,
   type GuestMenu,
   type GuestMenuDish,
   type GuestMenuSection,
+  type GuestOptionChoice,
+  type GuestOptionGroup,
   type MenuInput,
+  type OptionGroupInput,
   type PublishedMenuVersion,
 } from "./menu";
