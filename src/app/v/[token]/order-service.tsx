@@ -152,7 +152,7 @@ export default function OrderService({
   const visit = feed?.visit?.id === latest?.visitId ? feed?.visit : null;
   const billIsPrepared = Boolean(visit?.bill && !visit.closedAt) || error === "billPrepared";
   const status = (order: LiveOrder) => order.state === "accepted"
-    ? t("accepted", { name: order.acceptedByName ?? "" }) : t("sent");
+    ? t("accepted", { name: order.acceptedByName ?? "" }) : t(order.state);
   const isAvailable = feed?.available ?? false;
 
   return render({
@@ -199,7 +199,9 @@ export default function OrderService({
         <ol>
           {orders.map((order) => (
             <li key={order.id} className="border-b border-rule py-3">
-              <p role="status" className="mb-2 text-sm font-semibold text-brand-readable">{status(order)}</p>
+              <p role="status" className="mb-2 text-sm font-semibold text-brand-readable">
+                {order.state === "declined" ? t("declinedMessage") : status(order)}
+              </p>
               <ul className="space-y-1">
                 {order.lines.map((line, index) => (
                   <li key={index} className="flex justify-between gap-3 text-sm">
@@ -212,7 +214,9 @@ export default function OrderService({
                       )}
                       {line.note && <p className="text-ink-muted italic">“{line.note}”</p>}
                     </div>
-                    <Price santim={line.unitPriceSantim * line.quantity} />
+                    {line.dropReason === "sold_out"
+                      ? <span className="shrink-0 font-medium">{t("soldOut")}</span>
+                      : order.state !== "declined" && <Price santim={line.unitPriceSantim * line.quantity} />}
                   </li>
                 ))}
               </ul>
@@ -222,7 +226,7 @@ export default function OrderService({
       </section>
       {visit?.bill ? (
         <GuestBill bill={visit.bill} paid={!!visit.closedAt} options={visit.paymentOptions} />
-      ) : visit && <BillTotal totalSantim={visit.totalSantim} label={t("billTotal")} />}
+      ) : visit && !visit.closedAt && <BillTotal totalSantim={visit.totalSantim} label={t("billTotal")} />}
     </>),
   });
 }

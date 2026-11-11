@@ -1,8 +1,9 @@
 import type { Order } from "@/core";
 
-export type LiveOrder = Omit<Order, "sentAt" | "acceptedAt" | "requestId"> & {
+export type LiveOrder = Omit<Order, "sentAt" | "acceptedAt" | "declinedAt" | "requestId"> & {
   sentAt: string;
   acceptedAt: string | null;
+  declinedAt: string | null;
   requestId: string | null;
 };
 type LiveConnection = { topic: string; accessToken: string; expiresAt: number };

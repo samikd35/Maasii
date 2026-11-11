@@ -41,7 +41,7 @@ export default async function WaiterPage() {
     );
   }
 
-  const [locale, { StaffOrders, Bills }] = await Promise.all([getLocale(), getMessages()]);
+  const [locale, { StaffOrders, StaffErrors, Bills }] = await Promise.all([getLocale(), getMessages()]);
   const other = locale === "am" ? "en" : "am";
   return (
     <>
@@ -56,7 +56,7 @@ export default async function WaiterPage() {
             <SubmitButton variant="quiet">{t("lock")}</SubmitButton>
           </form>
         </div>
-        <NextIntlClientProvider messages={{ StaffOrders, Bills }}>
+        <NextIntlClientProvider messages={{ StaffOrders, StaffErrors, Bills }}>
           <MyTables />
         </NextIntlClientProvider>
         {device.dishes.length > 0 && (

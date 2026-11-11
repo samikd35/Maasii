@@ -32,6 +32,12 @@ type RefusalReason =
   | "orderTableUnavailable"
   | "orderDraftChanged"
   | "orderRequestConflict"
+  | "orderAllLinesDropped"
+  | "orderAlreadyDecided"
+  | "orderUndoExpired"
+  | "orderUndoNotYours"
+  | "orderTableOccupied"
+  | "orderVisitClosed"
   | "billPrepared"
   | "orderTableBillPrepared";
 

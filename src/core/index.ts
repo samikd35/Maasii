@@ -106,5 +106,5 @@ export {
   type PaymentOptionKind,
 } from "./payment-options";
 export { getVenueMenuSettings, listVenueDishChanges, setVenueDishPrice, setVenueDishSoldOut, type VenueMenuDish } from "./venue-menu";
-export { acceptOrder, getGuestOrders, getGuestVisit, getMyTableOrders, getOrderService, sendOrder, type Order } from "./orders";
+export { acceptOrder, declineOrder, getGuestOrders, getGuestVisit, getMyTableOrders, getOrderService, sendOrder, undoOrderDecision, type Order } from "./orders";
 export { confirmPayment, getPreparedBills, prepareBill, reopenBill, type Bill, type PreparedBill, type PaymentConfirmation } from "./bills";

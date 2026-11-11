@@ -1,4 +1,4 @@
-import { acceptOrder, getMyTableOrders, MaasiiError } from "@/core";
+import { acceptOrder, declineOrder, getMyTableOrders, MaasiiError, undoOrderDecision } from "@/core";
 import { getSessionActor, waiterUnlockToken } from "@/lib/session";
 import { createSessionClient } from "@/lib/supabase/server";
 
@@ -21,11 +21,25 @@ export async function POST(request: Request) {
   if (!actor) return new Response(null, { status: 403 });
   const body = await request.json().catch(() => null);
   try {
-    const order = await acceptOrder(actor, { orderId: body?.orderId, unlockToken: await waiterUnlockToken() });
+    const target = { orderId: body?.orderId, unlockToken: await waiterUnlockToken() };
+    let order;
+    switch (body?.action) {
+      case "accept":
+        order = await acceptOrder(actor, { ...target, soldOutLineIndices: body.soldOutLineIndices });
+        break;
+      case "decline":
+        order = await declineOrder(actor, target);
+        break;
+      case "undo":
+        order = await undoOrderDecision(actor, { ...target, decisionId: body.decisionId });
+        break;
+      default:
+        return new Response(null, { status: 400 });
+    }
     return Response.json(order, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     if (error instanceof MaasiiError) {
-      return new Response(null, { status: error.code === "not_allowed" ? 403 : 409 });
+      return Response.json({ reason: error.reason ?? error.code }, { status: error.code === "not_allowed" ? 403 : 409 });
     }
     throw error;
   }
