@@ -1,19 +1,25 @@
 import type { Metadata, Viewport } from "next";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getTranslations } from "next-intl/server";
+import { ethiopic } from "./fonts";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "Maasii",
-  description: "Table service for Ethiopian cafés and restaurants",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Metadata");
+  return { title: "Maasii", description: t("description") };
+}
 
 export const viewport: Viewport = {
   themeColor: "#fbf7f0",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en">
-      <body className="min-h-dvh antialiased">{children}</body>
+    <html lang={await getLocale()} className={ethiopic.variable}>
+      <body className="min-h-dvh antialiased">
+        {/* Client components get no messages unless a layout passes the namespaces they use (see README). */}
+        <NextIntlClientProvider messages={null}>{children}</NextIntlClientProvider>
+      </body>
     </html>
   );
 }

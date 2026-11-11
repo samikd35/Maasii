@@ -1,23 +1,27 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import { getLocale, getTranslations } from "next-intl/server";
+import { useTranslations } from "next-intl";
 import { cache } from "react";
 import { getPublishedMenu, publicActor, type GuestMenuSection } from "@/core";
+import { setGuestLanguage } from "@/i18n/actions";
+import { LanguageSwitch } from "@/ui/language-switch";
 import { Price } from "@/ui/price";
 
 const loadMenu = cache(async (venueLinkToken: string) => {
   await connection();
-  return getPublishedMenu(publicActor, { venueLinkToken, language: "en" });
+  return getPublishedMenu(publicActor, { venueLinkToken, language: await getLocale() });
 });
 
 export async function generateMetadata({ params }: PageProps<"/v/[token]">): Promise<Metadata> {
-  const menu = await loadMenu((await params).token);
-  if (!menu) return { title: "Menu not found · Maasii" };
-  return { title: `${menu.brand.name} · ${menu.venue.name} menu` };
+  const [menu, t] = await Promise.all([loadMenu((await params).token), getTranslations("GuestMenu")]);
+  if (!menu) return { title: t("notFoundTitle") };
+  return { title: t("title", { brand: menu.brand.name, venue: menu.venue.name }) };
 }
 
 export default async function GuestMenuPage({ params }: PageProps<"/v/[token]">) {
-  const menu = await loadMenu((await params).token);
+  const [menu, t] = await Promise.all([loadMenu((await params).token), getTranslations("GuestMenu")]);
   if (!menu) notFound();
 
   return (
@@ -30,6 +34,7 @@ export default async function GuestMenuPage({ params }: PageProps<"/v/[token]">)
         ) : (
           <span className="font-display text-xl font-semibold">{menu.brand.name}</span>
         )}
+        <LanguageSwitch area="guest" action={setGuestLanguage} />
       </header>
 
       <main>
@@ -37,11 +42,11 @@ export default async function GuestMenuPage({ params }: PageProps<"/v/[token]">)
           <p className="text-sm text-ink-muted">
             {menu.brand.name} · {menu.venue.name}
           </p>
-          <h1 className="mt-1 font-display text-4xl leading-tight">Our menu</h1>
+          <h1 className="mt-1 font-display text-4xl leading-tight">{t("heading")}</h1>
         </div>
 
         {menu.sections.length === 0 ? (
-          <p className="px-5 pt-6 text-ink-muted">The menu is on its way. Please ask a member of staff.</p>
+          <p className="px-5 pt-6 text-ink-muted">{t("comingSoon")}</p>
         ) : (
           <>
             <SectionChips sections={menu.sections} />
@@ -56,9 +61,10 @@ export default async function GuestMenuPage({ params }: PageProps<"/v/[token]">)
 }
 
 function SectionChips({ sections }: { sections: GuestMenuSection[] }) {
+  const t = useTranslations("GuestMenu");
   return (
     <nav
-      aria-label="Menu sections"
+      aria-label={t("sections")}
       className="sticky top-0 z-10 mt-4 border-b border-rule bg-paper/95 backdrop-blur-sm"
     >
       <ul className="flex gap-2 overflow-x-auto px-5 py-2.5 [scrollbar-width:none]">
@@ -78,6 +84,7 @@ function SectionChips({ sections }: { sections: GuestMenuSection[] }) {
 }
 
 function MenuSection({ section }: { section: GuestMenuSection }) {
+  const t = useTranslations("Price");
   const headingId = `section-${section.id}-heading`;
   return (
     <section id={`section-${section.id}`} aria-labelledby={headingId} className="scroll-mt-20 px-5 pt-8">
@@ -86,7 +93,7 @@ function MenuSection({ section }: { section: GuestMenuSection }) {
           {section.name}
         </h2>
         <span aria-hidden className="text-xs font-medium text-ink-muted">
-          ETB
+          {t("currency")}
         </span>
       </div>
       <ul>

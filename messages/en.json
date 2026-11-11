@@ -1,0 +1,27 @@
+{
+  "Metadata": {
+    "description": "Table service for Ethiopian cafés and restaurants"
+  },
+  "Home": {
+    "tagline": "Tap or scan the card on your table to open the menu."
+  },
+  "LanguageSwitch": {
+    "label": "Language",
+    "am": "አማ",
+    "en": "EN"
+  },
+  "Price": {
+    "currency": "ETB"
+  },
+  "GuestMenu": {
+    "title": "{brand} · {venue} menu",
+    "notFoundTitle": "Menu not found · Maasii",
+    "heading": "Our menu",
+    "sections": "Menu sections",
+    "comingSoon": "The menu is on its way. Please ask a member of staff."
+  },
+  "VenueLinkNotFound": {
+    "heading": "We can't find this menu",
+    "body": "The link may be mistyped, or the venue may have a new one. Try tapping or scanning the card on your table again, or ask a member of staff."
+  }
+}
