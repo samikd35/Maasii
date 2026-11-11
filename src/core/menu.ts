@@ -203,7 +203,12 @@ export async function getPublishedMenu(
       ...section,
       dishes: dishes.rows
         .filter((dish) => dish.sectionId === section.id)
-        .map(({ sectionId: _sectionId, ...dish }) => dish),
+        .map((dish) => ({
+          id: dish.id,
+          name: dish.name,
+          description: dish.description,
+          priceSantim: dish.priceSantim,
+        })),
     }));
     return menu;
   });
