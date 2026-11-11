@@ -18,6 +18,10 @@ export async function proxy(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
+      cookieOptions: {
+        httpOnly: true,
+        secure: request.nextUrl.protocol === "https:" || request.headers.get("x-forwarded-proto") === "https",
+      },
       cookies: {
         getAll: () => request.cookies.getAll(),
         setAll(cookiesToSet, headers) {

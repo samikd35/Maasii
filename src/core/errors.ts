@@ -11,6 +11,13 @@ type RefusalReason =
   | "invitationWrongPerson"
   | "existingAccountPassword"
   | "shortPassword"
+  | "invalidPin"
+  | "waiterNameRequired"
+  | "waiterJoinInvalid"
+  | "waiterJoinUsed"
+  | "waiterJoinExpired"
+  | "waiterRejoin"
+  | "wrongPin"
   | "paymentDestinationRequired"
   | "paymentOptionChanged"
   | "paymentCodeConfirmationRequired";

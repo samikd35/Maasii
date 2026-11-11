@@ -6,10 +6,10 @@
 
 **Status:** ready-for-agent
 
-- [ ] A manager can display a short-lived join QR for their venue. An expired or reused code is refused with a clear message.
-- [ ] Scanning it lets a waiter enter their name and set a 4-digit PIN, creating a Waiter membership at that venue only.
-- [ ] The waiter's device stays signed in across days, and opening Maasii asks only for the PIN.
-- [ ] Repeated wrong PINs are rate-limited, and the device then needs a fresh join from a manager.
-- [ ] Removing a waiter revokes all their sessions, and their next action on any device is refused.
-- [ ] Staff screens default to Amharic and can switch to English per person. Dish names on staff screens always show both languages.
-- [ ] Core tests cover joining, expiry, PIN unlocking, rate limiting and removal.
+- [x] A manager can display a short-lived join QR for their venue. An expired or reused code is refused with a clear message.
+- [x] Scanning it lets a waiter enter their name and set a 4-digit PIN, creating a Waiter membership at that venue only.
+- [x] The waiter's device stays signed in across days, and opening Maasii asks only for the PIN.
+- [x] Repeated wrong PINs are rate-limited, and the device then needs a fresh join from a manager.
+- [x] Removing a waiter revokes all their sessions, and their next action on any device is refused.
+- [x] Staff screens default to Amharic and can switch to English per person. Dish names on staff screens always show both languages.
+- [x] Core tests cover joining, expiry, PIN unlocking, rate limiting and removal.

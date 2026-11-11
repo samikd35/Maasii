@@ -3,10 +3,11 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createPublicAuthClient } from "@/lib/supabase/public";
 import { requireBrandOwner, requirePlatformAdmin, requireSystem, requireVenueManager } from "./access";
-import { staffActor, type Actor } from "./actor";
+import { staffActor, systemActor, type Actor } from "./actor";
 import { contactText, parseStaffContact, type StaffContact } from "./contact";
 import { inTransaction, type Tx } from "./db";
 import { MaasiiError } from "./errors";
+import { languages, type Language } from "./language";
 import { parseInput } from "./validation";
 
 /** Makes an existing user an Owner of a Brand directly, for seeding and tests. People use invitations. */
@@ -92,6 +93,7 @@ export async function inviteManager(
 
 export type VenueStaff = {
   managers: { userId: string; name: string | null }[];
+  waiters: { id: string; name: string }[];
   /** Manager invitations not yet accepted, replaced or expired. */
   invitations: { invitationId: string; name: string; contact: string; expiresAt: Date }[];
 };
@@ -111,6 +113,10 @@ export async function getVenueStaff(
        order by name, created_at`,
       [input.venueId],
     );
+    const waiters = await tx.query<VenueStaff["waiters"][number]>(
+      `select id, name from app.memberships where venue_id = $1 and role = 'waiter' and active order by name, created_at`,
+      [input.venueId],
+    );
     const invitations = await tx.query<VenueStaff["invitations"][number]>(
       `select id as "invitationId", name, coalesce(email, phone) as contact, expires_at as "expiresAt"
        from app.invitations
@@ -119,7 +125,7 @@ export async function getVenueStaff(
        order by invited_at`,
       [input.venueId, now],
     );
-    return { managers: managers.rows, invitations: invitations.rows };
+    return { managers: managers.rows, waiters: waiters.rows, invitations: invitations.rows };
   });
 }
 
@@ -383,5 +389,41 @@ export async function getMyAccess(actor: Actor): Promise<MyAccess> {
           role: "manager" as const,
         })),
     };
+  });
+}
+
+/** The person's saved language, with Amharic as the default for staff. */
+export async function getStaffLanguage(actor: Actor): Promise<Language> {
+  if (actor.kind !== "staff" && actor.kind !== "admin") return "am";
+  return inTransaction(actor, async (tx) => {
+    const { rows } = await tx.query<{ language: Language }>(
+      "select language from app.staff_preferences where user_id = $1",
+      [actor.userId],
+    );
+    return rows[0]?.language ?? "am";
+  });
+}
+
+export async function updateStaffLanguage(actor: Actor, input: { language: Language; ifUnset?: boolean }): Promise<void> {
+  if (actor.kind !== "staff" && actor.kind !== "admin") throw new MaasiiError("not_allowed", "Sign in first.");
+  const language = parseInput(z.enum(languages), input.language);
+  await inTransaction(actor, async (tx) => {
+    await tx.query(
+      `insert into app.staff_preferences (language) values ($1) on conflict (user_id)
+       ${input.ifUnset ? "do nothing" : "do update set language = excluded.language"}`,
+      [language],
+    );
+  });
+}
+
+/** A verified JWT can outlive sign-out. Check its live Auth session before using it on the web. */
+export async function hasAuthSession(actor: Actor): Promise<boolean> {
+  if (actor.kind !== "staff" || !actor.sessionId) return false;
+  return inTransaction(systemActor, async (tx) => {
+    const { rowCount } = await tx.query("select 1 from auth.sessions where id = $1 and user_id = $2", [
+      actor.sessionId,
+      actor.userId,
+    ]);
+    return rowCount === 1;
   });
 }

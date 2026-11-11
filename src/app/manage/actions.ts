@@ -4,9 +4,12 @@ import { revalidatePath } from "next/cache";
 import {
   addTables,
   createVenue,
+  createWaiterJoinCode,
   inviteManager,
+  removeWaiter,
   renumberTable,
   setTableActive,
+  WAITER_JOIN_MINUTES,
 } from "@/core";
 import { forForm, requireStaff, siteUrl, type FormState } from "@/lib/session";
 
@@ -61,5 +64,25 @@ export async function inviteVenueManager(venueId: string, _state: FormState, for
       done: { key: "invitationReady" },
       link: new URL(`/invite/${invitation.token}`, await siteUrl()).toString(),
     };
+  });
+}
+
+export async function showWaiterJoinQr(venueId: string, _state: FormState, formData: FormData): Promise<FormState> {
+  const actor = await requireStaff();
+  return forForm(async () => {
+    const waiterId = String(formData.get("waiterId") ?? "") || undefined;
+    const code = await createWaiterJoinCode(actor, { venueId, waiterId, siteUrl: await siteUrl() });
+    return {
+      qr: `data:image/png;base64,${Buffer.from(code.qrPng).toString("base64")}`,
+      done: { key: "waiterJoinReady", values: { minutes: WAITER_JOIN_MINUTES } },
+    };
+  });
+}
+
+export async function removeVenueWaiter(venueId: string, waiterId: string): Promise<FormState> {
+  const actor = await requireStaff();
+  return forForm(async () => {
+    await removeWaiter(actor, { venueId, waiterId });
+    revalidatePath(`/manage/venues/${venueId}`);
   });
 }
