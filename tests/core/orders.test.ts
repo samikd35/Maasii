@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { expect, test } from "vitest";
 import {
-  acceptOrder, getGuestOrders, getMyTableOrders, getOrderService, getPublishedMenu, guestActor,
+  acceptOrder, getGuestOrders, getGuestVisit, getMyTableOrders, getOrderService, getPublishedMenu, guestActor,
   publicActor, publishMenu, reassignTable, removeWaiter, sendOrder, setTableActive, setVenueDishPrice, startShift,
 } from "@/core";
 import { createPublicAuthClient } from "@/lib/supabase/public";
@@ -118,4 +118,54 @@ test("Order lines keep bilingual Dish and option snapshots and the exact Venue p
     choices: [{ id: choice.id, name: { en: "Cheese", am: "አይብ" }, priceChangeSantim: 4001 }],
     quantity: 2, note: "No salt",
   }]);
+});
+
+test("phones at one Table share the Visit and only Accepted Orders count toward its Bill", async () => {
+  const s = await scenario().venue("Lancha", { tables: 2 }).venue("Bole").waiter("Sam").publishedMenu().build();
+  const [table, otherTable] = s.venue.tables;
+  const sam = s.waiters.Sam;
+  await startShift(s.owner.actor, {
+    venueId: s.venue.id, assignments: [{ tableId: table.id, waiterId: sam.waiterId }],
+  });
+  const [first, second, elsewhere] = await Promise.all([guest(), guest(), guest()]);
+  const venue = { venueLinkToken: s.venue.linkToken };
+  const at = new Date();
+  const send = (actor: typeof first, tableId: string, dish: string, quantity: number) => sendOrder(actor, {
+    ...venue, tableId, requestId: randomUUID(),
+    lines: [{ dishId: s.dishId(dish), choiceIds: [], quantity, note: "" }],
+  }, { now: at });
+
+  const omelette = await send(first, table.id, "Omelette", 2);
+  expect(await getGuestVisit(publicActor, venue)).toBeNull();
+  expect(await getGuestVisit(second, venue)).toBeNull();
+  const macchiato = await send(elsewhere, otherTable.id, "Macchiato", 1);
+  const chechebsa = await send(second, table.id, "Chechebsa", 1);
+  expect(await getGuestVisit(first, { venueLinkToken: s.venues.Bole.linkToken })).toBeNull();
+  expect(await getGuestVisit(elsewhere, venue)).toMatchObject({ orders: [macchiato], totalSantim: 0 });
+  expect(await getGuestVisit(first, venue)).toMatchObject({
+    id: omelette.visitId, table, totalSantim: 0,
+    orders: expect.arrayContaining([omelette, { ...chechebsa, requestId: null }]),
+  });
+  expect(await getGuestVisit(second, venue)).toMatchObject({
+    id: omelette.visitId, table, totalSantim: 0,
+    orders: expect.arrayContaining([{ ...omelette, requestId: null }, chechebsa]),
+  });
+
+  await acceptOrder(sam.actor, { orderId: omelette.id, unlockToken: sam.unlockToken });
+  expect(await getGuestVisit(first, venue)).toMatchObject({ totalSantim: 44_000 });
+  expect(await getGuestVisit(second, venue)).toMatchObject({ totalSantim: 44_000 });
+  await acceptOrder(sam.actor, { orderId: chechebsa.id, unlockToken: sam.unlockToken });
+  expect(await getGuestVisit(first, venue)).toMatchObject({ totalSantim: 63_000 });
+  expect(await getGuestVisit(second, venue)).toMatchObject({ totalSantim: 63_000 });
+  expect(await getGuestVisit(elsewhere, venue)).toMatchObject({ orders: [macchiato], totalSantim: 0 });
+
+  const later = await send(elsewhere, table.id, "Macchiato", 1);
+  expect(later.visitId).toBe(omelette.visitId);
+  await expect(sendOrder(elsewhere, {
+    ...venue, tableId: otherTable.id, requestId: macchiato.requestId,
+    lines: [{ dishId: s.dishId("Macchiato"), choiceIds: [], quantity: 1, note: "" }],
+  })).resolves.toEqual(macchiato);
+  expect(await getGuestVisit(elsewhere, venue)).toMatchObject({ id: omelette.visitId, totalSantim: 63_000 });
+  expect((await getGuestVisit(elsewhere, venue))?.orders.map(({ id }) => id).sort())
+    .toEqual([omelette.id, chechebsa.id, later.id].sort());
 });

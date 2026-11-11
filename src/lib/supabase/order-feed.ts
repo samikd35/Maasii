@@ -1,6 +1,10 @@
 import type { Order } from "@/core";
 
-export type LiveOrder = Omit<Order, "sentAt" | "acceptedAt"> & { sentAt: string; acceptedAt: string | null };
+export type LiveOrder = Omit<Order, "sentAt" | "acceptedAt" | "requestId"> & {
+  sentAt: string;
+  acceptedAt: string | null;
+  requestId: string | null;
+};
 type LiveConnection = { topic: string; accessToken: string; expiresAt: number };
 export type OrderFeed = { orders: LiveOrder[]; live: LiveConnection | null };
 
