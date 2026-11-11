@@ -22,9 +22,9 @@ async function service(browser: Browser, baseURL: string, use: object) {
   return { waiter, context, url: `/v/${s.venue.linkToken}`, s, shift, assignment };
 }
 
-async function openDraft(page: Page, url: string) {
+async function openDraft(page: Page, url: string, dish = "Omelette") {
   await page.goto(url);
-  await page.getByRole("button", { name: "Omelette", exact: true }).click();
+  await page.getByRole("button", { name: dish, exact: true }).click();
   await page.getByRole("button", { name: "Add to order" }).click();
   await page.getByRole("button", { name: /Your Draft/ }).click();
 }
@@ -51,6 +51,58 @@ test("a guest chooses a Table, the assigned Waiter sees the Order live and the g
     await expect(page.getByRole("dialog").getByText("Accepted by Sam", { exact: true })).toBeVisible();
   } finally {
     await context.close();
+  }
+});
+
+test("two guest phones share live Orders and the Bill while each Draft stays on its phone", async ({ page, browser, baseURL }) => {
+  const use = test.info().project.use;
+  const staff = await service(browser, baseURL!, use);
+  const context = await browser.newContext({ ...use, baseURL });
+  try {
+    const other = await context.newPage();
+    await openDraft(other, staff.url, "Chechebsa");
+    await pickDishAndSend(page, staff.url);
+    await page.getByRole("button", { name: "Table 1", exact: true }).click();
+
+    const first = page.getByRole("dialog");
+    const second = other.getByRole("dialog");
+    const bill = (sheet: typeof first) => sheet.getByRole("region", { name: "Bill total" }).getByTestId("price");
+    await expect(first.getByText("1 × Omelette", { exact: true })).toBeVisible();
+    await expect(first.getByText("Chechebsa", { exact: false })).toHaveCount(0);
+    await expect(second.getByText("Omelette", { exact: false })).toHaveCount(0);
+    await expect(bill(first)).toHaveText("0 ETB");
+
+    await second.getByRole("button", { name: "Send", exact: true }).click();
+    await second.getByRole("button", { name: "Table 1", exact: true }).click();
+    await expect(first.getByText("1 × Chechebsa", { exact: true })).toBeVisible({ timeout: 6000 });
+    await expect(second.getByText("1 × Omelette", { exact: true })).toBeVisible();
+    await expect(first.getByText("Sent", { exact: true })).toHaveCount(2);
+    await expect(second.getByText("Sent", { exact: true })).toHaveCount(2);
+    await expect(bill(second)).toHaveText("0 ETB");
+
+    await first.getByRole("button", { name: "Close", exact: true }).click();
+    await page.getByRole("button", { name: "Macchiato", exact: true }).click();
+    await page.getByRole("button", { name: "Add to order" }).click();
+    await page.getByRole("button", { name: /Your Draft/ }).click();
+    await expect(first.getByRole("heading", { name: "Draft · not sent yet" })).toBeVisible();
+    await expect(first.getByText("Macchiato", { exact: true })).toBeVisible();
+    await expect(second.getByText("Macchiato", { exact: false })).toHaveCount(0);
+
+    const queue = staff.waiter.getByRole("region", { name: "My tables" });
+    await expect(queue.getByRole("button", { name: "Accept" })).toHaveCount(2, { timeout: 6000 });
+    await queue.getByRole("button", { name: "Accept" }).first().click();
+    for (const sheet of [first, second]) {
+      await expect(sheet.getByText("Accepted by Sam", { exact: true })).toHaveCount(1, { timeout: 6000 });
+      await expect(bill(sheet)).toHaveText("220 ETB");
+    }
+    await queue.getByRole("button", { name: "Accept" }).click();
+    for (const sheet of [first, second]) {
+      await expect(sheet.getByText("Accepted by Sam", { exact: true })).toHaveCount(2, { timeout: 6000 });
+      await expect(bill(sheet)).toHaveText("410 ETB");
+    }
+  } finally {
+    await context.close();
+    await staff.context.close();
   }
 });
 

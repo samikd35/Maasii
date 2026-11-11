@@ -30,6 +30,7 @@ type OrderLine = {
   choices: { id: string; name: Bilingual; priceChangeSantim: number }[];
   quantity: number;
   note: string;
+  dropReason?: string | null;
 };
 
 export type Order = {
@@ -47,10 +48,14 @@ export type Order = {
   lines: OrderLine[];
 };
 
-const orderFields = `id, request_id as "requestId", visit_id as "visitId", table_id as "tableId", table_number as "tableNumber",
+type GuestOrder = Omit<Order, "requestId"> & { requestId: string | null };
+type GuestVisit = { id: string; table: Table; orders: GuestOrder[]; totalSantim: number };
+
+const orderDetails = `id, visit_id as "visitId", table_id as "tableId", table_number as "tableNumber",
   state, sent_at as "sentAt",
   waiter_id as "waiterId", waiter_name as "waiterName",
   accepted_by_name as "acceptedByName", accepted_at as "acceptedAt", lines`;
+const orderFields = `${orderDetails}, request_id as "requestId"`;
 
 async function orderVenue(tx: Tx, token: string): Promise<string> {
   const { rows: [venue] } = await tx.query<{ id: string }>("select id from app.venues where link_token = $1", [token]);
@@ -83,6 +88,7 @@ export async function sendOrder(
     const venueId = await orderVenue(tx, venueLinkToken);
     // Serialize the same request, even if a retry supplies a different Venue Link.
     await tx.query("select pg_advisory_xact_lock(hashtextextended($1::uuid::text, 1))", [requestId]);
+    await tx.query("select set_config('app.order_request_id', $1, true)", [requestId]);
     const { rows: [replay] } = await tx.query<Order>(
       `select ${orderFields} from app.orders where guest_user_id = $1 and request_id = $2`,
       [actor.userId, requestId],
@@ -124,6 +130,11 @@ export async function sendOrder(
       "insert into app.visits (venue_id, table_id, opened_at) values ($1, $2, $3) returning id", [venueId, tableId, at],
     )).rows[0].id;
     try {
+      await tx.query(
+        `insert into app.guest_table_choices (venue_id, visit_id) values ($1, $2)
+         on conflict (guest_user_id, venue_id) do update set visit_id = excluded.visit_id`,
+        [venueId, visitId],
+      );
       const { rows: [order] } = await tx.query<Order>(
         `insert into app.orders (
            visit_id, venue_id, table_id, table_number, shift_id, request_id, sent_at, waiter_id, waiter_name, lines
@@ -140,18 +151,34 @@ export async function sendOrder(
   });
 }
 
-export async function getGuestOrders(actor: Actor, input: z.input<typeof venueLink>): Promise<Order[]> {
-  if (actor.kind !== "guest") return [];
+export async function getGuestVisit(actor: Actor, input: z.input<typeof venueLink>): Promise<GuestVisit | null> {
+  if (actor.kind !== "guest") return null;
   const { venueLinkToken } = parseInput(venueLink, input);
   return inTransaction(actor, async (tx) => {
-    const { rows } = await tx.query<Order>(
-      `select ${orderFields} from app.orders where venue_id = (select id from app.venues where link_token = $1)
-         and guest_user_id = $2 and visit_id in (select id from app.visits where closed_at is null)
+    const { rows: orders } = await tx.query<GuestOrder>(
+      `select ${orderDetails}, case when guest_user_id = $2 then request_id end as "requestId"
+       from app.orders where venue_id = (select id from app.venues where link_token = $1)
+         and visit_id in (select visit_id from app.guest_table_choices where guest_user_id = $2)
+         and visit_id in (select id from app.visits where closed_at is null)
        order by sent_at, id`,
       [venueLinkToken, actor.userId],
     );
-    return rows;
+    const latest = orders.at(-1);
+    if (!latest) return null;
+    const totalSantim = orders.reduce((total, order) => {
+      if (order.state !== "accepted") return total;
+      return order.lines.reduce((subtotal, line) =>
+        line.dropReason == null ? subtotal + line.unitPriceSantim * line.quantity : subtotal, total);
+    }, 0);
+    return {
+      id: latest.visitId, table: { id: latest.tableId, number: latest.tableNumber }, orders, totalSantim,
+    };
   });
+}
+
+export async function getGuestOrders(actor: Actor, input: z.input<typeof venueLink>): Promise<Order[]> {
+  const visit = await getGuestVisit(actor, input);
+  return visit?.orders.filter((order): order is Order => order.requestId !== null) ?? [];
 }
 
 type OrderWaiter = { id: string; name: string; venueId: string; topic: string };

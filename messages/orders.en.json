@@ -11,5 +11,6 @@
   "draftChanged": "The menu has changed. Refresh and review your Draft before sending.",
   "serviceUnavailable": "Could not load tables. Try again.",
   "orders": "Orders",
+  "billTotal": "Bill total",
   "requestConflict": "This Send could not be verified. Ask your waiter before sending again."
 }

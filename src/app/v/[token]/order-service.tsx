@@ -11,7 +11,11 @@ import en from "../../../../messages/orders.en.json";
 type Line = DraftLine & { lineId: string };
 type Pending = { requestId: string; table: Table; lines: Line[] };
 type Device = { table?: Table; pending?: Pending };
-type VenueFeed = OrderFeed & { available: boolean; tables: Table[] };
+type VenueFeed = OrderFeed & {
+  available: boolean;
+  tables: Table[];
+  visit: { id: string; table: Table; totalSantim: number } | null;
+};
 
 export type SlipService = {
   tableLabel?: string;
@@ -73,8 +77,7 @@ export default function OrderService({
     const pending = current.current.pending;
     const confirmed = pending && data.orders.find(({ requestId }) => requestId === pending.requestId);
     if (pending && !confirmed) return;
-    const last = confirmed || data.orders.at(-1);
-    const table = last ? { id: last.tableId, number: last.tableNumber } : undefined;
+    const table = data.visit?.table;
     if (pending && confirmed) {
       onSent(pending.lines);
       setError(undefined);
@@ -126,7 +129,8 @@ export default function OrderService({
       }
       if (!response.ok) return;
       const order: LiveOrder = await response.json();
-      setOrders((previous) => [...previous.filter(({ id }) => id !== order.id), order]);
+      setOrders((previous) => previous.some(({ id }) => id === order.id)
+        ? previous : [...previous.filter(({ visitId }) => visitId === order.visitId), order]);
       onSent(pending.lines);
       saveDevice({ table: { id: order.tableId, number: order.tableNumber } });
     } catch {
@@ -138,6 +142,7 @@ export default function OrderService({
 
   const table = device.table ?? device.pending?.table;
   const latest = orders.at(-1);
+  const visit = feed?.visit;
   const status = (order: LiveOrder) => order.state === "accepted"
     ? t("accepted", { name: order.acceptedByName ?? "" }) : t("sent");
   const isAvailable = feed?.available ?? false;
@@ -179,7 +184,7 @@ export default function OrderService({
           )}
       </>
     ),
-    orders: orders.length > 0 && (
+    orders: orders.length > 0 && (<>
       <section className="pb-4">
         <h3 className="mt-4 border-b border-ink/70 pb-1.5 text-sm font-semibold uppercase">{t("orders")}</h3>
         <ol>
@@ -206,6 +211,14 @@ export default function OrderService({
           ))}
         </ol>
       </section>
-    ),
+      {visit && visit.id === latest?.visitId && (
+        <section aria-label={t("billTotal")} className="flex items-center justify-between border-t border-ink/70 py-4">
+          <h3 className="text-sm font-semibold">{t("billTotal")}</h3>
+          <div aria-live="polite">
+            <Price santim={visit.totalSantim} />
+          </div>
+        </section>
+      )}
+    </>),
   });
 }
