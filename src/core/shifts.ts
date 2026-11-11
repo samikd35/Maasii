@@ -2,9 +2,11 @@ import { z } from "zod";
 import { requireVenueManager } from "./access";
 import type { Actor } from "./actor";
 import { findVenue, type Table } from "./brands";
-import { inTransaction, type Tx } from "./db";
+import { inTransaction, lockVenueShifts, type Tx } from "./db";
 import { MaasiiError } from "./errors";
 import { parseInput } from "./validation";
+
+export { lockVenueShifts } from "./db";
 
 const idInput = z.uuid().transform((id) => id.toLowerCase());
 const venueInput = z.object({ venueId: idInput });
@@ -256,12 +258,6 @@ export async function closeWaiterAssignments(tx: Tx, venueId: string, waiterId: 
      where venue_id = $1 and waiter_id = $2 and ended_at is null`,
     [venueId, waiterId, at],
   );
-}
-
-/** Serialize Shift mutations and Waiter removal at this Venue. */
-export async function lockVenueShifts(tx: Tx, venueId: string): Promise<void> {
-  // ponytail: one lock per Venue, finer table locks if simultaneous reassignments become frequent.
-  await tx.query("select pg_advisory_xact_lock(hashtextextended($1::uuid::text, 0))", [venueId]);
 }
 
 async function requireActiveWaiters(tx: Tx, venueId: string, ids: string[]): Promise<void> {
