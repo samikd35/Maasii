@@ -14,7 +14,20 @@ export {
   type Table,
   type Venue,
 } from "./brands";
-export { addBrandOwner, addPlatformAdmin } from "./staff";
+export { parseStaffContact, type StaffContact } from "./contact";
+export {
+  acceptInvitation,
+  addBrandOwner,
+  addPlatformAdmin,
+  getInvitation,
+  getMyAccess,
+  inviteOwner,
+  type Invitation,
+  type InvitationStatus,
+  type MyAccess,
+  type NewInvitation,
+  type StaffRole,
+} from "./staff";
 export {
   getPublishedMenu,
   publishMenu,
