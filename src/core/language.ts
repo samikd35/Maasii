@@ -9,7 +9,11 @@ export type Bilingual = Record<Language, string>;
 
 const text = z.string().trim().default("");
 
-export const bilingualInput = z.object({ am: text, en: text });
+// Accept plain English text from existing Menu callers.
+export const bilingualInput = z.union([
+  z.object({ am: text, en: text }),
+  z.string().trim().transform((en) => ({ en, am: "" })),
+]);
 
 export const bilingualNameInput = bilingualInput.refine((name) => name.am !== "" || name.en !== "", {
   message: "Give a name in Amharic or English.",

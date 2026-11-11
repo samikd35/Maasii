@@ -37,7 +37,9 @@ test("switching language keeps the guest's place on the page", async ({ page }) 
   await sectionChips(page).filter({ hasText: "Cakes" }).click();
   await expect(page.getByRole("heading", { name: "Opera Cake" })).toBeInViewport();
 
-  await page.getByRole("button", { name: "አማ" }).click();
+  const amharic = page.getByRole("button", { name: "አማ" });
+  await expect(amharic).toBeInViewport();
+  await amharic.click();
 
   await expect(page.getByRole("heading", { name: "ኦፔራ ኬክ" })).toBeInViewport();
   await expect(page.getByRole("heading", { name: "ኬኮች", level: 2 })).toBeInViewport();

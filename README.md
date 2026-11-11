@@ -69,7 +69,9 @@ The core is the only place business rules live. Screens, scripts and tests impor
 
 Adding a command: write a failing core test first, put the command in the area file it belongs to (`menu.ts`, `brands.ts`, `staff.ts`, or a new area file), check access, export it from `src/core/index.ts`, and add the matching RLS policy and grant in a migration.
 
-Current interface: `createBrand`, `createVenue`, `addTables` and `addBrandOwner` (system only until ticket 07), `publishMenu` (the Brand's Owner), and `getPublishedMenu` (anyone, by Venue Link token). A published Menu is an immutable version; dishes and sections keep stable ids across versions, and the Brand points at its current version.
+Current interface: `createBrand`, `createVenue`, `addTables` and `addBrandOwner` (system only until ticket 07), `publishMenu` (the Brand's Owner), and `getPublishedMenu` (anyone, by Venue Link token). A published Menu is an immutable version; dishes, sections, Option Groups and their choices keep stable ids across versions when the publisher passes them, and the Brand points at its current version.
+
+**Browser-safe rules.** `priceDraftLine` and `priceDraft` price a guest's Draft from the published Menu and report what needs attention (a missing required choice, a dish or choice no longer on the Menu). They are pure, so client components import them from `@/core/browser`, the only other entry point the lint rule allows. Never import the database from `src/core/draft.ts` or anything `browser.ts` exports.
 
 ## Tests
 
@@ -89,6 +91,10 @@ The builder creates everything through core commands. Extend it with new steps (
 
 **Browser tests** (`e2e`, `pnpm test:e2e`) run Playwright on an Android-sized Chromium against a production build. They may use the seeded Bilo's Pastry (`/v/bilos-lancha`) or build their own tenant with the same scenario builder. The guest menu must stay under 250 KB transferred before photos, fonts included; the Next.js and React runtime alone is about 135 KB gzipped and one static Ethiopic font weight about 73 KB, so keep guest client components small.
 
+## Language
+
+Interface messages live in `messages/en.json` and `messages/am.json`. The next-intl request config uses the guest's saved preference or phone language. Staff have a separate preference and default to Amharic. Pass only the namespaces a client component uses to its `NextIntlClientProvider`. The Menu supplies localized names and descriptions through the core, with the other language as fallback. Drafts retain the dish and choice IDs when the guest switches language.
+
 ## Seed data
 
-`pnpm db:seed` creates Bilo's Pastry with its Lancha venue (tables 1-16) and an Owner (`owner@bilos.test`, no password yet), and publishes Bilo's Menu as that Owner through the core. Dish names and descriptions come from bilospastry.com. **All prices are placeholders** until Bilo's provides real ones (see `scripts/seed/bilos.ts`). Bilo's must confirm in writing that we may use its name, logo, photos and Menu.
+`pnpm db:seed` creates Bilo's Pastry with its Lancha venue (tables 1-16) and an Owner (`owner@bilos.test`, no password yet), and publishes Bilo's Menu as that Owner through the core. English dish names and descriptions come from bilospastry.com. The Amharic Menu and interface text are drafts for a fluent speaker and Bilo's to review before the pilot. **All prices are placeholders** until Bilo's provides real ones (see `scripts/seed/bilos.ts`). Bilo's must confirm in writing that we may use its name, logo, photos and Menu.

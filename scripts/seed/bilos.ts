@@ -1,4 +1,4 @@
-import type { MenuInput } from "@/core";
+import type { MenuInput, OptionGroupInput } from "@/core";
 
 /** The seeded Lancha venue's Venue Link is /v/bilos-lancha. */
 export const LANCHA_LINK_TOKEN = "bilos-lancha";
@@ -9,6 +9,41 @@ export const LANCHA_LINK_TOKEN = "bilos-lancha";
 // PLACEHOLDER PRICES: Bilo's website shows no prices. Every price below is invented for
 // development and must be replaced with Bilo's real prices before the pilot.
 const placeholderEtb = (birr: number) => birr * 100;
+
+// PLACEHOLDER OPTIONS: the choices below follow Bilo's descriptions ("your choice of bagel",
+// "add your choice of extras"), but the exact choices and price changes are invented and must be
+// confirmed with Bilo's. So are the fasting labels, which mark only dishes that are plainly vegan.
+const bagelChoice: OptionGroupInput = {
+  name: { en: "Bagel", am: "ቤግል" },
+  kind: "choose_one",
+  required: true,
+  choices: [
+    { name: { en: "Plain", am: "ተራ ቤግል" } },
+    { name: { en: "Sesame", am: "ሰሊጥ" } },
+    { name: { en: "Everything", am: "የዘሮች ቅልቅል" } },
+    { name: { en: "Whole wheat", am: "ሙሉ ስንዴ" }, priceChangeSantim: placeholderEtb(20) },
+  ],
+};
+
+const omeletteExtras: OptionGroupInput = {
+  name: { en: "Extras", am: "ተጨማሪዎች" },
+  kind: "add_extras",
+  choices: [
+    { name: { en: "Cheese", am: "አይብ" }, priceChangeSantim: placeholderEtb(40) },
+    { name: { en: "Mushrooms", am: "እንጉዳይ" }, priceChangeSantim: placeholderEtb(35) },
+    { name: { en: "Tomato & onion", am: "ቲማቲም እና ሽንኩርት" }, priceChangeSantim: placeholderEtb(20) },
+    { name: { en: "Green pepper", am: "አረንጓዴ ቃሪያ" }, priceChangeSantim: placeholderEtb(20) },
+  ],
+};
+
+const coffeeExtras: OptionGroupInput = {
+  name: { en: "Extras", am: "ተጨማሪዎች" },
+  kind: "add_extras",
+  choices: [
+    { name: { en: "Extra shot", am: "ተጨማሪ ኤስፕሬሶ" }, priceChangeSantim: placeholderEtb(30) },
+    { name: { en: "Vanilla syrup", am: "የቫኒላ ሽሮፕ" }, priceChangeSantim: placeholderEtb(25) },
+  ],
+};
 
 export const bilosMenu: MenuInput = {
   sections: [
@@ -22,6 +57,7 @@ export const bilosMenu: MenuInput = {
             am: "በእኛ ክላሲክ ኦምሌት ይጀምሩ፣ የሚፈልጉትን ተጨማሪ ይምረጡ",
           },
           priceSantim: placeholderEtb(240),
+          optionGroups: [omeletteExtras],
         },
         {
           name: { en: "Scrambled Eggs", am: "እንቁላል ፍርፍር" },
@@ -70,6 +106,18 @@ export const bilosMenu: MenuInput = {
             am: "የበሰለ አቮካዶ በቀላል ቅመም፣ በመረጡት ቶስት ላይ",
           },
           priceSantim: placeholderEtb(280),
+          optionGroups: [
+            {
+              name: { en: "Toast", am: "ቶስት" },
+              kind: "choose_one",
+              required: true,
+              choices: [
+                { name: { en: "White", am: "ነጭ ዳቦ" } },
+                { name: { en: "Whole wheat", am: "ሙሉ ስንዴ" } },
+                { name: { en: "Sourdough", am: "ሳወርዶ ዳቦ" }, priceChangeSantim: placeholderEtb(20) },
+              ],
+            },
+          ],
         },
         {
           name: { en: "Bread Spread", am: "ዳቦ ስፕሬድ" },
@@ -78,6 +126,14 @@ export const bilosMenu: MenuInput = {
             am: "ትኩስ የተጋገረ ቤግል ወይም ክሮሳን፣ ከጃም እና ከክሬም ቺዝ ጋር",
           },
           priceSantim: placeholderEtb(220),
+          optionGroups: [
+            {
+              name: { en: "Bread", am: "ዳቦ" },
+              kind: "choose_one",
+              required: true,
+              choices: [{ name: { en: "Bagel", am: "ቤግል" } }, { name: { en: "Croissant", am: "ክሮሳን" } }],
+            },
+          ],
         },
         {
           name: { en: "Oatmeal", am: "ኦትሚል" },
@@ -94,6 +150,7 @@ export const bilosMenu: MenuInput = {
             am: "ቀላል እና ጤናማ፣ በውሃ የበሰለ",
           },
           priceSantim: placeholderEtb(180),
+          fasting: true,
         },
       ],
     },
@@ -107,6 +164,16 @@ export const bilosMenu: MenuInput = {
             am: "በትክክል የበሰለ እንቁላል ያለው ክላሲክ የቁርስ ሳንድዊች",
           },
           priceSantim: placeholderEtb(260),
+          optionGroups: [
+            {
+              name: { en: "Extras", am: "ተጨማሪዎች" },
+              kind: "add_extras",
+              choices: [
+                { name: { en: "Cheese", am: "አይብ" }, priceChangeSantim: placeholderEtb(40) },
+                { name: { en: "Avocado", am: "አቮካዶ" }, priceChangeSantim: placeholderEtb(50) },
+              ],
+            },
+          ],
         },
         {
           name: { en: "Egg Croissant Sandwich", am: "የእንቁላል ክሮሳን ሳንድዊች" },
@@ -123,6 +190,7 @@ export const bilosMenu: MenuInput = {
             am: "የተፈረፈረ ቱና እና ትኩስ አትክልቶች፣ በመረጡት ቤግል ዳቦ ላይ",
           },
           priceSantim: placeholderEtb(380),
+          optionGroups: [bagelChoice],
         },
         {
           name: { en: "Salmon Sandwich", am: "የሳልሞን ሳንድዊች" },
@@ -163,6 +231,7 @@ export const bilosMenu: MenuInput = {
             am: "ትኩስ አትክልቶች እና ትንሽ ፔስቶ በመረጡት ቤግል ላይ",
           },
           priceSantim: placeholderEtb(300),
+          optionGroups: [bagelChoice],
         },
       ],
     },
@@ -221,6 +290,7 @@ export const bilosMenu: MenuInput = {
             am: "በቅቤ የተሰራ ጣፋጭ የአልሞንድ ኬክ",
           },
           priceSantim: placeholderEtb(200),
+          photoUrl: "/brands/bilos/almond-cake.webp",
         },
       ],
     },
@@ -242,6 +312,7 @@ export const bilosMenu: MenuInput = {
             am: "ያለ ወተት ተዋጽኦ የተዘጋጀ ማኪያቶ",
           },
           priceSantim: placeholderEtb(85),
+          fasting: true,
         },
         {
           name: { en: "Espresso", am: "ኤስፕሬሶ" },
@@ -258,6 +329,7 @@ export const bilosMenu: MenuInput = {
             am: "ኤስፕሬሶ በአረፋማ ወተት",
           },
           priceSantim: placeholderEtb(90),
+          optionGroups: [coffeeExtras],
         },
         {
           name: { en: "Cafe Latte", am: "ካፌ ላቴ" },
@@ -266,6 +338,7 @@ export const bilosMenu: MenuInput = {
             am: "ኤስፕሬሶ በእንፋሎት በሞቀ ወተት",
           },
           priceSantim: placeholderEtb(95),
+          optionGroups: [coffeeExtras],
         },
         {
           name: { en: "American Coffee", am: "አሜሪካን ቡና" },
@@ -335,6 +408,7 @@ export const bilosMenu: MenuInput = {
             am: "ቀዝቃዛ ኤስፕሬሶ ከወተት ጋር",
           },
           priceSantim: placeholderEtb(130),
+          optionGroups: [coffeeExtras],
         },
         {
           name: { en: "Iced Coffee", am: "አይስድ ቡና" },
@@ -351,6 +425,7 @@ export const bilosMenu: MenuInput = {
             am: "የወቅቱ ፍራፍሬዎች ቅልቅል",
           },
           priceSantim: placeholderEtb(150),
+          fasting: true,
         },
         {
           name: { en: "Avocado Juice", am: "የአቮካዶ ጁስ" },
@@ -359,6 +434,7 @@ export const bilosMenu: MenuInput = {
             am: "ክሬማማ የአቮካዶ ጭማቂ",
           },
           priceSantim: placeholderEtb(150),
+          fasting: true,
         },
         {
           name: { en: "Mango Juice", am: "የማንጎ ጁስ" },
@@ -367,6 +443,7 @@ export const bilosMenu: MenuInput = {
             am: "ጣፋጭ የማንጎ ጭማቂ",
           },
           priceSantim: placeholderEtb(140),
+          fasting: true,
         },
         {
           name: { en: "Papaya Juice", am: "የፓፓያ ጁስ" },
@@ -375,6 +452,7 @@ export const bilosMenu: MenuInput = {
             am: "የሐሩር ፓፓያ መጠጥ",
           },
           priceSantim: placeholderEtb(130),
+          fasting: true,
         },
         {
           name: { en: "Pineapple Juice", am: "የአናናስ ጁስ" },
@@ -383,6 +461,7 @@ export const bilosMenu: MenuInput = {
             am: "ኮምጠጥ ያለ የሚያነቃቃ የአናናስ ጭማቂ",
           },
           priceSantim: placeholderEtb(140),
+          fasting: true,
         },
         {
           name: { en: "Spritz", am: "ስፕሪትዝ" },

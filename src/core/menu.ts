@@ -7,12 +7,35 @@ import { bilingualInput, bilingualNameInput, inLanguage, languages, type Bilingu
 
 // ---- Publishing --------------------------------------------------------------------------------
 
+const choiceInput = z.object({
+  /** Omit for a new choice. Pass a previously published choice's id so guests' Drafts still match it. */
+  choiceId: z.uuid().optional(),
+  name: bilingualNameInput,
+  priceChangeSantim: z.number().int().nonnegative().default(0),
+});
+
+const optionGroupInput = z
+  .object({
+    optionGroupId: z.uuid().optional(),
+    name: bilingualNameInput,
+    kind: z.enum(["choose_one", "add_extras"]),
+    /** Only a "choose one" group can be required. */
+    required: z.boolean().default(false),
+    choices: z.array(choiceInput).min(1),
+  })
+  .refine((group) => !group.required || group.kind === "choose_one", {
+    message: 'Only a "choose one" Option Group can be required.',
+  });
+
 const dishInput = z.object({
   /** Omit for a new dish. Pass the id of a previously published dish to keep its identity. */
   dishId: z.uuid().optional(),
   name: bilingualNameInput,
   description: bilingualInput.default({ am: "", en: "" }),
   priceSantim: z.number().int().nonnegative(),
+  fasting: z.boolean().default(false),
+  photoUrl: z.string().trim().min(1).optional(),
+  optionGroups: z.array(optionGroupInput).default([]),
 });
 
 const sectionInput = z.object({
@@ -24,12 +47,25 @@ const sectionInput = z.object({
 const menuInput = z.object({ sections: z.array(sectionInput) });
 
 export type MenuInput = z.input<typeof menuInput>;
+export type OptionGroupInput = z.input<typeof optionGroupInput>;
 
 export type PublishedMenuVersion = {
   menuVersionId: string;
   number: number;
   publishedAt: Date;
-  sections: { sectionId: string; name: Bilingual; dishes: { dishId: string; name: Bilingual }[] }[];
+  sections: {
+    sectionId: string;
+    name: Bilingual;
+    dishes: {
+      dishId: string;
+      name: Bilingual;
+      optionGroups: {
+        optionGroupId: string;
+        name: Bilingual;
+        choices: { choiceId: string; name: Bilingual }[];
+      }[];
+    }[];
+  }[];
 };
 
 /**
@@ -55,11 +91,31 @@ export async function publishMenu(
     const sections = menu.sections.map((section) => ({
       ...section,
       sectionId: section.sectionId ?? crypto.randomUUID(),
-      dishes: section.dishes.map((dish) => ({ ...dish, dishId: dish.dishId ?? crypto.randomUUID() })),
+      dishes: section.dishes.map((dish) => ({
+        ...dish,
+        dishId: dish.dishId ?? crypto.randomUUID(),
+        optionGroups: dish.optionGroups.map((group) => ({
+          ...group,
+          optionGroupId: group.optionGroupId ?? crypto.randomUUID(),
+          choices: group.choices.map((choice) => ({ ...choice, choiceId: choice.choiceId ?? crypto.randomUUID() })),
+        })),
+      })),
     }));
     const dishes = sections.flatMap((section) =>
       section.dishes.map((dish, position) => ({ ...dish, sectionId: section.sectionId, position })),
     );
+    const optionGroups = dishes.flatMap((dish) =>
+      dish.optionGroups.map((group, position) => ({ ...group, dishId: dish.dishId, position })),
+    );
+    const choices = optionGroups.flatMap((group) =>
+      group.choices.map((choice, position) => ({ ...choice, optionGroupId: group.optionGroupId, position })),
+    );
+    if (new Set(optionGroups.map((g) => g.optionGroupId)).size !== optionGroups.length) {
+      throw new MaasiiError("invalid_input", "The Menu lists the same Option Group twice.");
+    }
+    if (new Set(choices.map((c) => c.choiceId)).size !== choices.length) {
+      throw new MaasiiError("invalid_input", "The Menu lists the same Option Group choice twice.");
+    }
 
     await ensureIdentities(tx, "menu_sections", input.brandId,
       menu.sections.map((s) => s.sectionId), sections.map((s) => s.sectionId));
@@ -89,10 +145,12 @@ export async function publishMenu(
     await tx.query(
       `insert into app.menu_version_dishes
          (menu_version_id, dish_id, section_id, position,
-          name_en, name_am, description_en, description_am, price_santim)
-       select $1, d.id, d.section_id, d.position, d.name_en, d.name_am, d.description_en, d.description_am, d.price
-       from unnest($2::uuid[], $3::uuid[], $4::int[], $5::text[], $6::text[], $7::text[], $8::text[], $9::int[])
-         as d (id, section_id, position, name_en, name_am, description_en, description_am, price)`,
+          name_en, name_am, description_en, description_am, price_santim, fasting, photo_url)
+       select $1, d.id, d.section_id, d.position, d.name_en, d.name_am, d.description_en, d.description_am,
+              d.price, d.fasting, d.photo_url
+       from unnest($2::uuid[], $3::uuid[], $4::int[], $5::text[], $6::text[], $7::text[], $8::text[],
+                   $9::int[], $10::boolean[], $11::text[])
+         as d (id, section_id, position, name_en, name_am, description_en, description_am, price, fasting, photo_url)`,
       [
         version.id,
         dishes.map((d) => d.dishId),
@@ -103,6 +161,41 @@ export async function publishMenu(
         dishes.map((d) => d.description.en),
         dishes.map((d) => d.description.am),
         dishes.map((d) => d.priceSantim),
+        dishes.map((d) => d.fasting),
+        dishes.map((d) => d.photoUrl ?? null),
+      ],
+    );
+    await tx.query(
+      `insert into app.menu_version_option_groups
+         (menu_version_id, option_group_id, dish_id, position, kind, required, name_en, name_am)
+       select $1, g.id, g.dish_id, g.position, g.kind, g.required, g.name_en, g.name_am
+       from unnest($2::uuid[], $3::uuid[], $4::int[], $5::text[], $6::boolean[], $7::text[], $8::text[])
+         as g (id, dish_id, position, kind, required, name_en, name_am)`,
+      [
+        version.id,
+        optionGroups.map((g) => g.optionGroupId),
+        optionGroups.map((g) => g.dishId),
+        optionGroups.map((g) => g.position),
+        optionGroups.map((g) => g.kind),
+        optionGroups.map((g) => g.required),
+        optionGroups.map((g) => g.name.en),
+        optionGroups.map((g) => g.name.am),
+      ],
+    );
+    await tx.query(
+      `insert into app.menu_version_option_choices
+         (menu_version_id, choice_id, option_group_id, position, name_en, name_am, price_change_santim)
+       select $1, c.id, c.option_group_id, c.position, c.name_en, c.name_am, c.price_change
+       from unnest($2::uuid[], $3::uuid[], $4::int[], $5::text[], $6::text[], $7::int[])
+         as c (id, option_group_id, position, name_en, name_am, price_change)`,
+      [
+        version.id,
+        choices.map((c) => c.choiceId),
+        choices.map((c) => c.optionGroupId),
+        choices.map((c) => c.position),
+        choices.map((c) => c.name.en),
+        choices.map((c) => c.name.am),
+        choices.map((c) => c.priceChangeSantim),
       ],
     );
     await tx.query("update app.brands set published_menu_version_id = $2 where id = $1", [
@@ -117,7 +210,15 @@ export async function publishMenu(
       sections: sections.map((s) => ({
         sectionId: s.sectionId,
         name: s.name,
-        dishes: s.dishes.map((d) => ({ dishId: d.dishId, name: d.name })),
+        dishes: s.dishes.map((d) => ({
+          dishId: d.dishId,
+          name: d.name,
+          optionGroups: d.optionGroups.map((g) => ({
+            optionGroupId: g.optionGroupId,
+            name: g.name,
+            choices: g.choices.map((c) => ({ choiceId: c.choiceId, name: c.name })),
+          })),
+        })),
       })),
     };
   });
@@ -158,7 +259,24 @@ async function ensureIdentities(
 
 // ---- Reading -----------------------------------------------------------------------------------
 
-export type GuestMenuDish = { id: string; name: string; description: string; priceSantim: number };
+export type GuestOptionChoice = { id: string; name: string; priceChangeSantim: number };
+export type GuestOptionGroup = {
+  id: string;
+  name: string;
+  kind: "choose_one" | "add_extras";
+  /** Only "choose one" groups can be required. */
+  required: boolean;
+  choices: GuestOptionChoice[];
+};
+export type GuestMenuDish = {
+  id: string;
+  name: string;
+  description: string;
+  priceSantim: number;
+  fasting: boolean;
+  photoUrl: string | null;
+  optionGroups: GuestOptionGroup[];
+};
 export type GuestMenuSection = { id: string; name: string; dishes: GuestMenuDish[] };
 export type GuestMenu = {
   brand: { id: string; name: string; logoUrl: string | null };
@@ -169,14 +287,14 @@ export type GuestMenu = {
 };
 
 /**
- * What a guest sees after opening a Venue Link, or null when no Venue has that link. Section and
- * dish text is in `language`, falling back to the other language where the Menu lacks it.
+ * What a guest sees after opening a Venue Link, or null when no Venue has that link. Menu text
+ * is in `language` (English by default), falling back to the other language where text is missing.
  */
 export async function getPublishedMenu(
   actor: Actor,
-  input: { venueLinkToken: string; language: Language },
+  input: { venueLinkToken: string; language?: Language },
 ): Promise<GuestMenu | null> {
-  const language = z.enum(languages).safeParse(input.language);
+  const language = z.enum(languages).default("en").safeParse(input.language);
   if (!language.success) throw new MaasiiError("invalid_input", "The Menu is only available in Amharic and English.");
   const text = (en: string, am: string) => inLanguage({ en, am }, language.data);
 
@@ -217,12 +335,56 @@ export async function getPublishedMenu(
       description_en: string;
       description_am: string;
       price_santim: number;
+      fasting: boolean;
+      photo_url: string | null;
     }>(
-      `select dish_id as id, section_id, name_en, name_am, description_en, description_am, price_santim
+      `select dish_id as id, section_id, name_en, name_am, description_en, description_am, price_santim,
+              fasting, photo_url
        from app.menu_version_dishes
        where menu_version_id = $1 order by position`,
       [row.version_id],
     );
+    const groups = await tx.query<{
+      id: string;
+      dish_id: string;
+      name_en: string;
+      name_am: string;
+      kind: GuestOptionGroup["kind"];
+      required: boolean;
+    }>(
+      `select option_group_id as id, dish_id, name_en, name_am, kind, required
+       from app.menu_version_option_groups
+       where menu_version_id = $1 order by position`,
+      [row.version_id],
+    );
+    const choices = await tx.query<{
+      id: string;
+      option_group_id: string;
+      name_en: string;
+      name_am: string;
+      price_change_santim: number;
+    }>(
+      `select choice_id as id, option_group_id, name_en, name_am, price_change_santim
+       from app.menu_version_option_choices
+       where menu_version_id = $1 order by position`,
+      [row.version_id],
+    );
+    const optionGroupsOf = (dishId: string): GuestOptionGroup[] =>
+      groups.rows
+        .filter((group) => group.dish_id === dishId)
+        .map((group) => ({
+          id: group.id,
+          name: text(group.name_en, group.name_am),
+          kind: group.kind,
+          required: group.required,
+          choices: choices.rows
+            .filter((choice) => choice.option_group_id === group.id)
+            .map((choice) => ({
+              id: choice.id,
+              name: text(choice.name_en, choice.name_am),
+              priceChangeSantim: choice.price_change_santim,
+            })),
+        }));
     menu.sections = sections.rows.map((section) => ({
       id: section.id,
       name: text(section.name_en, section.name_am),
@@ -233,6 +395,9 @@ export async function getPublishedMenu(
           name: text(dish.name_en, dish.name_am),
           description: text(dish.description_en, dish.description_am),
           priceSantim: dish.price_santim,
+          fasting: dish.fasting,
+          photoUrl: dish.photo_url,
+          optionGroups: optionGroupsOf(dish.id),
         })),
     }));
     return menu;

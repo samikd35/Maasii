@@ -14,4 +14,7 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default createNextIntlPlugin()(nextConfig);
+// Compile ICU messages at build time so the guest's phone does not download the parser.
+export default createNextIntlPlugin({
+  experimental: { messages: { path: "./messages", format: "json", locales: "infer", precompile: true } },
+})(nextConfig);

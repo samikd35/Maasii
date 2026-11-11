@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { getLocale, getTranslations } from "next-intl/server";
-import { useTranslations } from "next-intl";
+import { getLocale, getMessages, getTranslations } from "next-intl/server";
+import { NextIntlClientProvider, useTranslations } from "next-intl";
 import { cache } from "react";
 import { getPublishedMenu, publicActor, type GuestMenuSection } from "@/core";
 import { setGuestLanguage } from "@/i18n/actions";
 import { LanguageSwitch } from "@/ui/language-switch";
 import { Price } from "@/ui/price";
+import { OpenDishButton, Ordering } from "./ordering";
 
 const loadMenu = cache(async (venueLinkToken: string) => {
   await connection();
@@ -23,10 +24,11 @@ export async function generateMetadata({ params }: PageProps<"/v/[token]">): Pro
 export default async function GuestMenuPage({ params }: PageProps<"/v/[token]">) {
   const [menu, t] = await Promise.all([loadMenu((await params).token), getTranslations("GuestMenu")]);
   if (!menu) notFound();
+  const { Ordering: orderingMessages, Price: priceMessages } = await getMessages();
 
   return (
-    <div className="mx-auto max-w-xl pb-16">
-      <header className="flex min-h-16 items-center justify-between gap-3 px-5 pt-3">
+    <div className="mx-auto max-w-xl pb-28">
+      <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 bg-paper px-5 pt-3">
         {menu.brand.logoUrl ? (
           // A plain <img>: next/image would add client JavaScript to a page with a tight weight budget.
           // eslint-disable-next-line @next/next/no-img-element
@@ -56,6 +58,9 @@ export default async function GuestMenuPage({ params }: PageProps<"/v/[token]">)
           </>
         )}
       </main>
+      <NextIntlClientProvider messages={{ Ordering: orderingMessages, Price: priceMessages }}>
+        <Ordering venueLinkToken={menu.venue.linkToken} sections={menu.sections} />
+      </NextIntlClientProvider>
     </div>
   );
 }
@@ -65,7 +70,7 @@ function SectionChips({ sections }: { sections: GuestMenuSection[] }) {
   return (
     <nav
       aria-label={t("sections")}
-      className="sticky top-0 z-10 mt-4 border-b border-rule bg-paper/95 backdrop-blur-sm"
+      className="sticky top-16 z-10 mt-4 border-b border-rule bg-paper/95 backdrop-blur-sm"
     >
       <ul className="flex gap-2 overflow-x-auto px-5 py-2.5 [scrollbar-width:none]">
         {sections.map((section) => (
@@ -87,7 +92,7 @@ function MenuSection({ section }: { section: GuestMenuSection }) {
   const t = useTranslations("Price");
   const headingId = `section-${section.id}-heading`;
   return (
-    <section id={`section-${section.id}`} aria-labelledby={headingId} className="scroll-mt-20 px-5 pt-8">
+    <section id={`section-${section.id}`} aria-labelledby={headingId} className="scroll-mt-36 px-5 pt-8">
       <div className="flex items-baseline justify-between border-b border-ink/70 pb-1.5">
         <h2 id={headingId} className="text-sm font-semibold tracking-wide uppercase">
           {section.name}
@@ -98,14 +103,23 @@ function MenuSection({ section }: { section: GuestMenuSection }) {
       </div>
       <ul>
         {section.dishes.map((dish) => (
-          <li key={dish.id} className="flex items-start justify-between gap-4 border-b border-rule py-3.5">
+          <li key={dish.id} className="relative flex items-start justify-between gap-4 border-b border-rule py-3.5">
             <div className="min-w-0">
-              <h3 className="text-[1.0625rem] leading-snug font-semibold">{dish.name}</h3>
+              <h3 id={`dish-${dish.id}-name`} className="text-[1.0625rem] leading-snug font-semibold">
+                {dish.name}
+              </h3>
               {dish.description && (
-                <p className="mt-0.5 text-sm leading-snug text-ink-muted">{dish.description}</p>
+                <p id={`dish-${dish.id}-description`} className="mt-0.5 text-sm leading-snug text-ink-muted">
+                  {dish.description}
+                </p>
               )}
             </div>
             <Price santim={dish.priceSantim} />
+            <OpenDishButton
+              dishId={dish.id}
+              labelledBy={`dish-${dish.id}-name`}
+              describedBy={dish.description ? `dish-${dish.id}-description` : undefined}
+            />
           </li>
         ))}
       </ul>
