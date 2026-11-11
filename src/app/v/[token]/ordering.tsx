@@ -29,6 +29,8 @@ type SheetRequest = { dishId: string } | { lineId: string } | { draft: true };
 // ---- The Draft in local storage ----------------------------------------------------------------
 
 const noLines: Line[] = [];
+const readNoLines = () => noLines;
+const ignoreStorage = () => () => {};
 const listeners = new Set<() => void>();
 let cached: { raw: string | null; lines: Line[] } = { raw: null, lines: noLines };
 let storageUnavailable = false;
@@ -129,28 +131,29 @@ function sendBrowsingEvent(venueLinkToken: string, pageLoadId: string, dishId?: 
   }).catch(() => {});
 }
 
-export function Ordering({ venueLinkToken, sections, recordBrowsing, orderService }: {
+export function Ordering({ venueLinkToken, sections, recordBrowsing, preview = false, orderService }: {
   venueLinkToken: string;
   sections: GuestMenuSection[];
   recordBrowsing: boolean;
+  preview?: boolean;
   orderService?: boolean;
 }) {
   const t = useTranslations("Ordering");
   const key = draftKey(venueLinkToken);
-  const lines = useSyncExternalStore(subscribe, () => readDraft(key), () => noLines);
+  const lines = useSyncExternalStore(preview ? ignoreStorage : subscribe, preview ? readNoLines : () => readDraft(key), readNoLines);
   const [sheet, setSheet] = useState<SheetRequest | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [Service, setService] = useState<typeof import("./order-service").default>();
   const serviceKey = `maasii:orders:${venueLinkToken}`;
   const showSlip = !!sheet && "draft" in sheet;
   useEffect(() => {
-    if (Service || !orderService) return;
+    if (preview || Service || !orderService) return;
     let remembered = false;
     try {
       remembered = !!localStorage.getItem(serviceKey);
     } catch {}
     if (showSlip || remembered) void import("./order-service").then(({ default: service }) => setService(() => service)).catch(() => {});
-  }, [Service, orderService, serviceKey, showSlip]);
+  }, [preview, Service, orderService, serviceKey, showSlip]);
 
   useEffect(() => {
     if (recordBrowsing && browsingPage?.venueLinkToken !== venueLinkToken) {
@@ -195,7 +198,7 @@ export function Ordering({ venueLinkToken, sections, recordBrowsing, orderServic
           menu={menu}
           dish={dish}
           onClose={() => setSheet(null)}
-          onSave={(line) => {
+          onSave={preview ? undefined : (line) => {
             save([...lines, { ...line, lineId: newLineId() }], t("added", { dish: dish.name }));
             setSheet(null);
           }}
@@ -265,7 +268,7 @@ export function Ordering({ venueLinkToken, sections, recordBrowsing, orderServic
 
   return (
     <>
-      {Service && orderService ? (
+      {!preview && Service && orderService ? (
         <Service
           key={serviceKey}
           storageKey={serviceKey}
@@ -349,7 +352,7 @@ function DishSheet({
   editing?: Line;
   notices?: string[];
   onClose: () => void;
-  onSave: (line: DraftLine) => void;
+  onSave?: (line: DraftLine) => void;
 }) {
   const t = useTranslations("Ordering");
   const price = useTranslations("Price");
@@ -399,9 +402,9 @@ function DishSheet({
             </div>
             <button
               type="button"
-              disabled={priced.problems.length > 0}
+              disabled={!onSave || priced.problems.length > 0}
               aria-describedby={missing.length > 0 ? hintId : undefined}
-              onClick={() => onSave(line)}
+              onClick={() => onSave?.(line)}
               className="min-h-12 flex-1 rounded-xl bg-brand-readable px-5 font-semibold text-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:bg-ink/35"
             >
               {editing ? t("saveChanges") : t("addToOrder")}

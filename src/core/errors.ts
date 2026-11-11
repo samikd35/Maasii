@@ -24,6 +24,8 @@ type RefusalReason =
   | "paymentCodeConfirmationRequired"
   | "shiftAlreadyRunning"
   | "shiftChanged"
+  | "menuDraftChanged"
+  | "menuDraftInvalid"
   | "noRunningShift"
   | "orderTableUnavailable"
   | "orderDraftChanged"
