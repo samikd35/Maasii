@@ -33,6 +33,7 @@ type RefusalReason =
   | "menuAiText"
   | "menuDraftChanged"
   | "menuDraftInvalid"
+  | "venueMenuConflict"
   | "noRunningShift"
   | "orderTableUnavailable"
   | "orderDraftChanged"

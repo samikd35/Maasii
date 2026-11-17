@@ -197,6 +197,16 @@ async function writeMenuVersion(
   now: Date,
   importedMenu?: z.output<typeof menuInput>,
 ): Promise<PublishedMenuVersion> {
+  const { rows: venueRevisions } = await tx.query<{ changes: VenueMenuChanges }>(
+    `select distinct on (r.venue_id) r.changes
+     from app.venue_menu_revisions r join app.venues v on v.id = r.venue_id
+     where v.brand_id = $1 order by r.venue_id, r.id desc`, [brandId],
+  );
+  for (const { changes } of venueRevisions) {
+    if (!menuInput.safeParse(mergeVenueMenu(sections, changes)).success) {
+      throw new MaasiiError("invalid_input", "Resolve the affected Venue Menu before publishing the Brand Menu.", "venueMenuConflict");
+    }
+  }
   const dishes = sections.flatMap((section) =>
     section.dishes.map((dish, position) => ({ ...dish, sectionId: section.sectionId, position })),
   );

@@ -354,6 +354,7 @@
     "translationCount": "{count, plural, one {# dish is missing a translation.} other {# dishes are missing a translation.}}"
   },
   "StaffErrors": {
+    "venueMenuConflict": "This change conflicts with a published Venue Menu. Update that Venue Menu before publishing the Brand Menu.",
     "menuRequestFailed": "Could not confirm the change. Your edits are still here. Check your connection and try again.",
     "serviceHours": "Choose different opening and closing times.",
     "servicePeriods": "Name every Service Period uniquely and make sure times do not overlap.",

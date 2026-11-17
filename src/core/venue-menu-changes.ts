@@ -4,7 +4,11 @@ type Section = MenuDraftContent["sections"][number];
 type Dish = Section["dishes"][number];
 
 export type VenueMenuChanges = {
-  edits: Record<string, Partial<Omit<Dish, "dishId" | "photoUrl">> & { photoUrl?: string | null }>;
+  edits: Record<string, Partial<Omit<Dish, "dishId" | "photoUrl" | "name" | "description">> & {
+    photoUrl?: string | null;
+    name?: Partial<Dish["name"]>;
+    description?: Partial<Dish["description"]>;
+  }>;
   additions: Section[];
   removed: string[];
 };
@@ -16,8 +20,11 @@ export function mergeVenueMenu(base: Section[], changes?: VenueMenuChanges | nul
     dishes: section.dishes.map((dish) => {
       const patch = changes.edits[dish.dishId];
       if (!patch) return dish;
-      const { photoUrl, ...fields } = patch;
-      return { ...dish, ...fields, photoUrl: photoUrl === undefined ? dish.photoUrl : photoUrl ?? undefined };
+      const { photoUrl, name, description, ...fields } = patch;
+      return {
+        ...dish, ...fields, name: { ...dish.name, ...name }, description: { ...dish.description, ...description },
+        photoUrl: photoUrl === undefined ? dish.photoUrl : photoUrl ?? undefined,
+      };
     }),
   }));
   for (const local of changes.additions) {

@@ -5,9 +5,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createPublicAuthClient } from "@/lib/supabase/public";
 import { requireOutsideBrandSupport, requireVenueManager } from "./access";
 import { staffActor, systemActor, type Actor } from "./actor";
+import { findVenue } from "./brands";
 import { inTransaction, type Tx } from "./db";
 import type { Bilingual } from "./language";
 import { MaasiiError } from "./errors";
+import { readPublishedMenu } from "./menu";
 import { qrPng } from "./qr";
 import { closeWaiterAssignments, lockVenueShifts } from "./shifts";
 import { parseInput } from "./validation";
@@ -215,15 +217,10 @@ export async function getWaiterSession(
         tokenHash(input.unlockToken) !== device.unlockHash) {
       return { status: "locked" };
     }
-    const dishes = await tx.query<{ id: string } & Bilingual>(
-      `select d.dish_id as id, d.name_am as am, d.name_en as en
-       from app.venues v join app.brands b on b.id = v.brand_id
-       join app.menu_version_sections s on s.menu_version_id = b.published_menu_version_id
-       join app.menu_version_dishes d on d.menu_version_id = s.menu_version_id and d.section_id = s.section_id
-       where v.id = $1 order by s.position, d.position`,
-      [device.venueId],
-    );
-    return { status: "unlocked", name: device.name, venue: { id: device.venueId, name: device.venueName }, hasPush: device.hasPush, dishes: dishes.rows };
+    const venue = await findVenue(tx, device.venueId);
+    const published = await readPublishedMenu(tx, { venueLinkToken: venue.linkToken }, now);
+    const dishes = published?.menuSections.flatMap((section) => section.dishes.map((dish) => ({ id: dish.dishId, ...dish.name }))) ?? [];
+    return { status: "unlocked", name: device.name, venue: { id: device.venueId, name: device.venueName }, hasPush: device.hasPush, dishes };
   });
 }
 

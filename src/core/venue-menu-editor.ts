@@ -18,7 +18,7 @@ const edit = target.extend({
   publish: z.boolean(),
 });
 type Dish = MenuDraftContent["sections"][number]["dishes"][number];
-const fields = ["name", "description", "priceSantim", "fasting", "photoUrl", "houseFavourite", "optionGroups"] as const;
+const fields = ["priceSantim", "fasting", "photoUrl", "houseFavourite", "optionGroups"] as const;
 
 async function venueContext(tx: Tx, venueId: string) {
   const { rows: [venue] } = await tx.query<{
@@ -29,9 +29,10 @@ async function venueContext(tx: Tx, venueId: string) {
     `select v.name, b.published_menu_version_id as version,
             jsonb_build_object('id', b.id, 'name', b.name, 'logoUrl', b.logo_url, 'colour', b.colour,
                                'coverUrl', b.cover_url, 'displayFont', b.display_font) as brand,
-            p.id as "publishedId", p.published_at as "publishedAt", p.changes as published,
+            p.id as "publishedId", coalesce(p.published_at, m.published_at) as "publishedAt", p.changes as published,
             d.revision as "draftId", d.changes as draft
      from app.venues v join app.brands b on b.id = v.brand_id
+     left join app.menu_versions m on m.id = b.published_menu_version_id
      left join app.venue_menu_drafts d on d.venue_id = v.id
      left join lateral (
        select id, published_at, changes from app.venue_menu_revisions where venue_id = v.id order by id desc limit 1
@@ -125,8 +126,20 @@ export async function saveVenueMenu(actor: Actor, input: z.input<typeof edit>, {
         else removed.add(dish.dishId);
         if (original) {
           const patch: VenueMenuChanges["edits"][string] = { ...edits[dish.dishId] };
+          const restoring = reset.has(dish.dishId);
+          for (const field of ["name", "description"] as const) {
+            const localized: Partial<Dish["name"]> = { ...patch[field] };
+            for (const language of ["am", "en"] as const) {
+              const value = dish[field][language];
+              if (!restoring && value === last?.[field][language]) continue;
+              if (value === original[field][language]) delete localized[language];
+              else localized[language] = value;
+            }
+            if (Object.keys(localized).length) patch[field] = localized;
+            else delete patch[field];
+          }
           for (const field of fields) {
-            if (!reset.has(dish.dishId) && isDeepStrictEqual(dish[field], last?.[field])) continue;
+            if (!restoring && isDeepStrictEqual(dish[field], last?.[field])) continue;
             if (isDeepStrictEqual(dish[field], original[field])) delete patch[field];
             else Object.assign(patch, { [field]: dish[field] ?? null });
           }
@@ -144,7 +157,7 @@ export async function saveVenueMenu(actor: Actor, input: z.input<typeof edit>, {
     const preview = mergeVenueMenu(base, updated);
     validateIdentity(preview);
     if (publish) {
-      parseInput(menuInput, preview);
+      parseInput(menuInput, preview, "menuDraftInvalid");
       const newIds = updated.additions.flatMap((section) => section.dishes.map((dish) => dish.dishId));
       if (newIds.length) {
         await tx.query(
