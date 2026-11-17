@@ -22,6 +22,12 @@
     "houseFavourite": "House favourite",
     "comingSoon": "The menu is on its way. Please ask a member of staff."
   },
+  "GuestPayment": {
+    "heading": "Payment details",
+    "backToMenu": "Back to menu",
+    "instructions": "Use your own payment app or pay your waiter in cash if listed.",
+    "empty": "No payment details are listed. Please ask your waiter."
+  },
   "VenueLinkNotFound": {
     "heading": "We can't find this menu",
     "body": "The link may be mistyped, or the venue may have a new one. Try tapping or scanning the card on your table again, or ask a member of staff."

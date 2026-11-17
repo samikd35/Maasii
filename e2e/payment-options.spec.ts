@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import QRCode from "qrcode";
-import { listPaymentOptions, updatePaymentOption } from "@/core";
+import { addPaymentOption, listPaymentOptions, updatePaymentOption } from "@/core";
 import { scenario } from "../tests/support/scenario";
 import type { TestUser } from "../tests/support/users";
 
@@ -86,4 +86,91 @@ test("an Owner reviews an account change, and a stale comparison cannot overwrit
   await row.getByRole("button", { name: "Remove Payment Option" }).click();
   await expect(row).toHaveCount(0);
   await expect(history.getByText("Removed", { exact: true })).toBeVisible();
+});
+
+test("a guest can find and copy current payment details before ordering, without losing their Draft", async ({
+  page, context,
+}) => {
+  const s = await scenario().venue("Lancha").publishedMenu().build();
+  const option = await addPaymentOption(s.owner.actor, {
+    venueId: s.venue.id,
+    kind: "bank_transfer",
+    provider: "Public Test Bank",
+    recipientName: "Test Recipient",
+    accountOrMerchantCode: "0012345",
+    qrImage: await QRCode.toDataURL("https://example.test/pay"),
+    displayOrder: 1,
+  });
+  const venuePath = `/v/${s.venue.linkToken}`;
+  const response = await page.goto(`${venuePath}/payment`);
+  expect(response?.status()).toBe(200);
+  await expect(page.getByRole("heading", { name: "Payment details" })).toBeVisible();
+  await expect(page.getByText("Public Test Bank")).toBeVisible();
+  await expect(page.getByText("Test Recipient")).toBeVisible();
+  expect((await context.cookies()).filter(({ name }) => name.startsWith("sb-"))).toEqual([]);
+
+  const qr = page.getByRole("img", { name: "Payment QR image" });
+  await expect.poll(() => qr.evaluate((img) => (img as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  const copy = page.getByRole("button", { name: "Copy account number or merchant code" });
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: async () => { throw new DOMException("Denied", "NotAllowedError"); } },
+      configurable: true,
+    });
+  });
+  await copy.focus();
+  await copy.press("Enter");
+  await expect(page.getByRole("status")).toContainText("Could not copy");
+  await expect(page.getByText("0012345", { exact: true })).toHaveCSS("user-select", "text");
+  await expect(copy).toBeFocused();
+
+  await page.evaluate(() => Reflect.deleteProperty(navigator, "clipboard"));
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await copy.click();
+  await expect(page.getByRole("status")).toHaveText("Copied");
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("0012345");
+
+  await page.getByRole("link", { name: "Back to menu" }).click();
+  await expect(page).toHaveURL((url) => url.pathname === venuePath);
+  await page.getByRole("button", { name: "Omelette", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Add to order" }).click();
+  const draft = page.getByRole("button", { name: /Your Draft/ });
+  await expect(draft).toBeVisible();
+  await page.getByRole("link", { name: "Payment details" }).click();
+  await expect(page.getByText("Public Test Bank")).toBeVisible();
+  await page.getByRole("link", { name: "Back to menu" }).click();
+  await expect(draft).toBeVisible();
+
+  // Keep newly picked items even if the browser rejects Draft writes.
+  await page.evaluate(() => {
+    const save = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key, value) {
+      if (key.startsWith("maasii:draft:")) throw new DOMException("Denied", "SecurityError");
+      save.call(this, key, value);
+    };
+  });
+  await page.getByRole("button", { name: "Omelette", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Add to order" }).click();
+  await expect(draft).toContainText("2 dishes");
+  await page.getByRole("link", { name: "Payment details" }).click();
+  await page.getByRole("link", { name: "Back to menu" }).click();
+  await expect(draft).toContainText("2 dishes");
+
+  await updatePaymentOption(s.owner.actor, {
+    venueId: s.venue.id, paymentOptionId: option.id, revision: option.revision, changes: { active: false },
+  });
+  await page.goto(`${venuePath}/payment`);
+  await expect(page.getByText("No payment details are listed. Please ask your waiter.")).toBeVisible();
+  await expect(page.getByText("Public Test Bank")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "አማ", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "የክፍያ መረጃ" })).toBeVisible();
+  await page.getByRole("link", { name: "ወደ ምናሌው ይመለሱ" }).click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "am");
+});
+
+test("an invalid payment Venue Link follows the guest not-found flow", async ({ page }) => {
+  const response = await page.goto("/v/no-such-venue-for-payment/payment");
+  expect(response?.status()).toBe(404);
+  await expect(page.getByRole("heading", { name: "We can't find this menu" })).toBeVisible();
 });

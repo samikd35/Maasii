@@ -71,7 +71,7 @@ test("a guest chooses a Table, the assigned Waiter sees the Order live and the g
     await page.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin: baseURL });
     await page.bringToFront();
     await paymentOptions.getByRole("button", { name: "Copy account number or merchant code" }).click();
-    await expect(paymentOptions.getByRole("button", { name: "Copied" })).toBeVisible();
+    await expect(paymentOptions.getByRole("status").filter({ hasText: "Copied" })).toBeVisible();
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("001234");
 
     await sheet.getByRole("button", { name: "Close", exact: true }).click();

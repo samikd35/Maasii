@@ -8,10 +8,11 @@ import { Price } from "./price";
 
 /** The same Menu layout for a Venue Link and the Owner's preview. */
 export function GuestMenuView({
-  brand, venueName, theme, sections, fastingDishes, houseFavourite, languageSwitch, ordering, preview,
+  brand, venueName, theme, sections, fastingDishes, houseFavourite, languageSwitch, navigation, ordering, preview,
 }: Pick<GuestMenu, "brand" | "theme" | "sections" | "fastingDishes" | "houseFavourite"> & {
   venueName: string | null;
   languageSwitch: ReactNode;
+  navigation?: ReactNode;
   ordering: ReactNode;
   preview?: boolean;
 }) {
@@ -35,6 +36,8 @@ export function GuestMenuView({
           heading={preview ? "h3" : "h1"}
           coverUrl={brand.coverUrl !== houseFavourite?.photoUrl ? brand.coverUrl : null}
         />
+
+        {navigation && <div className="px-5">{navigation}</div>}
 
         {houseFavourite?.photoUrl && (
           <article aria-labelledby="house-favourite-label" className="relative mx-5 mt-4 flex items-center gap-4 overflow-hidden rounded-lg border border-rule bg-paper-deep">

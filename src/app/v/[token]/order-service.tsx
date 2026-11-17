@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { GuestReviews } from "./guest-reviews";
 import type { Bill, DraftLine, GuestReviewForm, getGuestVisit, Table } from "@/core";
 import { watchOrders, type LiveOrder, type OrderFeed } from "@/lib/supabase/order-feed";
+import { GuestPaymentOptions } from "@/ui/guest-payment-options";
 import { formatBirr, Price } from "@/ui/price";
 import am from "../../../../messages/orders.am.json";
 import en from "../../../../messages/orders.en.json";
@@ -313,49 +314,9 @@ function GuestBill({ bill, options, paid }: { bill: LiveBill; options: GuestPaym
       {options.length > 0 && (
         <section aria-label={t("paymentOptions")} className="pb-5">
           <h3 className="border-b border-ink/70 pb-1.5 text-sm font-semibold uppercase">{t("paymentOptions")}</h3>
-          <ul className="divide-y divide-rule">
-            {options.map((option) => (
-              <li key={option.id} className="space-y-1 py-3 text-sm">
-                <p className="font-semibold">{option.provider ?? t(option.kind)}</p>
-                {option.recipientName && <p>{option.recipientName}</p>}
-                {option.accountOrMerchantCode && (
-                  <CopyPaymentCode key={option.accountOrMerchantCode} code={option.accountOrMerchantCode} t={t} />
-                )}
-                {option.qrImage && (
-                  // Payment Options carry bounded raster images.
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={option.qrImage} alt={t("paymentQr")} width={128} height={128} loading="lazy"
-                    className="h-auto max-w-full bg-white" />
-                )}
-              </li>
-            ))}
-          </ul>
+          <GuestPaymentOptions options={options} />
         </section>
       )}
-    </>
-  );
-}
-
-function CopyPaymentCode({ code, t }: { code: string; t: (key: "copyCode" | "copied" | "copyFailed") => string }) {
-  const [copied, setCopied] = useState(false);
-  const [failed, setFailed] = useState(false);
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      setFailed(false);
-    } catch {
-      setFailed(true);
-    }
-  }
-  return (
-    <>
-      <p className="break-all font-mono">{code}</p>
-      <button type="button" onClick={() => void copy()}
-        className="min-h-11 rounded-md border border-ink/40 px-3 font-medium">
-        {t(copied ? "copied" : "copyCode")}
-      </button>
-      {failed && <p role="status">{t("copyFailed")}</p>}
     </>
   );
 }

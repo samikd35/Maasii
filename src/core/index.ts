@@ -15,6 +15,7 @@ export {
   createBrand,
   createVenue,
   getBranding,
+  getGuestVenue,
   getVenueLink,
   getVenueSetup,
   listBrands,
@@ -98,6 +99,7 @@ export {
 export type { MenuDraftModel } from "./menu-ai";
 export {
   addPaymentOption,
+  getGuestPaymentDetails,
   listPaymentOptionChanges,
   listPaymentOptions,
   MAX_PAYMENT_QR_BYTES,
@@ -108,6 +110,7 @@ export {
   type PaymentOption,
   type PaymentOptionChange,
   type PaymentOptionKind,
+  type GuestPaymentOption,
 } from "./payment-options";
 export { getVenueMenuSettings, listVenueDishChanges, setVenueDishPrice, setVenueDishSoldOut, type VenueMenuDish } from "./venue-menu";
 export { getVenueMenuDraft, saveVenueMenu, uploadVenueDishPhoto } from "./venue-menu-editor";

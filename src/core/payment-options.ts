@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { requireBrandOwner, requireVenueManager } from "./access";
 import type { Actor } from "./actor";
-import { findVenue } from "./brands";
+import { findVenue, readGuestVenue } from "./brands";
 import { inTransaction, type Tx } from "./db";
 import { MaasiiError } from "./errors";
 import { parseInput } from "./validation";
@@ -89,6 +89,27 @@ function requirePaymentDestination(option: z.output<typeof details>) {
       "paymentDestinationRequired",
     );
   }
+}
+
+export type GuestPaymentOption = Pick<PaymentOption,
+  "kind" | "provider" | "recipientName" | "accountOrMerchantCode" | "qrImage">;
+
+/** Browse only the active payment directions published for a Venue Link. */
+export async function getGuestPaymentDetails(actor: Actor, { venueLinkToken }: { venueLinkToken: string }) {
+  const token = z.string().min(1).max(200).safeParse(venueLinkToken);
+  if (!token.success) return null;
+  return inTransaction(actor, async (tx) => {
+    const context = await readGuestVenue(tx, token.data);
+    if (!context) return null;
+    const { rows: options } = await tx.query<GuestPaymentOption & { displayOrder: number }>(
+      `select kind, provider, recipient_name as "recipientName",
+              account_or_merchant_code as "accountOrMerchantCode", qr_image as "qrImage",
+              display_order as "displayOrder"
+       from app.guest_payment_details($1)`,
+      [token.data],
+    );
+    return { ...context, options };
+  });
 }
 
 /** A Venue's Payment Options, including inactive options, in display order. */

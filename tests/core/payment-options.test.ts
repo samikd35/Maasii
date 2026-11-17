@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { addPaymentOption, listPaymentOptionChanges, listPaymentOptions, publicActor, removePaymentOption, updatePaymentOption, type PaymentOption } from "@/core";
+import { addPaymentOption, getGuestPaymentDetails, listPaymentOptionChanges, listPaymentOptions, publicActor, removePaymentOption, updatePaymentOption, type PaymentOption } from "@/core";
 import { scenario } from "../support/scenario";
 
 const bankTransfer = {
@@ -29,6 +29,32 @@ test("an Owner sets Payment Options per Venue and a Manager can read only their 
   for (const actor of [another.owner.actor, publicActor]) {
     await expect(listPaymentOptions(actor, lancha)).rejects.toMatchObject({ code: "not_allowed" });
   }
+});
+
+test("a Venue Link exposes only current active public Payment details before any Order", async () => {
+  const s = await scenario().venue("Lancha").venue("Bole").build();
+  const target = { venueLinkToken: s.venue.linkToken };
+  const venueId = s.venue.id;
+  const owner = s.owner.actor;
+  const transfer = await addPaymentOption(owner, { venueId, ...bankTransfer });
+  const cash = await addPaymentOption(owner, { venueId, kind: "cash", displayOrder: 1 });
+  await addPaymentOption(owner, {
+    venueId: s.venues.Bole.id, ...bankTransfer, accountOrMerchantCode: "010101010",
+  });
+
+  const details = await getGuestPaymentDetails(publicActor, target);
+  expect(details?.venue.name).toBe("Lancha");
+  expect(details?.options).toEqual([
+    { kind: "cash", provider: null, recipientName: null, accountOrMerchantCode: null, qrImage: null, displayOrder: 1 },
+    { ...bankTransfer, qrImage: null },
+  ]);
+
+  await updatePaymentOption(owner, { ...optionTarget(transfer), changes: { active: false } });
+  await removePaymentOption(owner, optionTarget(cash));
+  expect((await getGuestPaymentDetails(publicActor, target))?.options).toEqual([]);
+  expect((await getGuestPaymentDetails(publicActor, { venueLinkToken: s.venues.Bole.linkToken }))?.options[0])
+    .toMatchObject({ accountOrMerchantCode: "010101010" });
+  expect(await getGuestPaymentDetails(publicActor, { venueLinkToken: "not-a-venue-link" })).toBeNull();
 });
 
 test("adding a Payment Option records its values, actor and time in the Owner's change log", async () => {
