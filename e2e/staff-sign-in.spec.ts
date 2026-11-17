@@ -163,11 +163,36 @@ test("a Manager cannot open another venue's page", async ({ page }) => {
   const s = await scenario().venue("Lancha").venue("Bole").manager("Hana", { venue: "Bole" }).build();
 
   await signIn(page, s.managers.Hana.email, s.managers.Hana.password);
+  await expect(page).toHaveURL(/\/manage\/operations$/);
+  const operations = page.getByRole("navigation", { name: "Bole operations" });
+  await expect(operations.getByRole("link", { name: "Shifts" })).toBeVisible();
+  await expect(operations.getByRole("link", { name: "Venue menu" })).toBeVisible();
   await expect(page.getByRole("link", { name: /Bole/ })).toBeVisible();
   const response = await page.goto(`/manage/venues/${s.venues.Lancha.id}`);
   expect(response?.status()).toBe(404);
   const qr = await page.request.get(`/manage/venues/${s.venues.Lancha.id}/qr`);
   expect(qr.status()).toBe(404);
+});
+
+test("an Owner who manages another Brand's Venue can switch between both roles", async ({ page }) => {
+  const owned = await scenario().brand("Owned Brand").venue("Lancha").build();
+  const other = await scenario().brand("Other Brand").venue("Bole").build();
+  const { token } = await inviteManager(other.owner.actor, {
+    venueId: other.venue.id, name: "Hana", contact: owned.owner.email,
+  });
+  await acceptInvitation(publicActor, { token, password: owned.owner.password });
+
+  await signIn(page, owned.owner.email, owned.owner.password);
+  await expect(page.getByRole("heading", { name: "Owned Brand" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Other Brand" })).toHaveCount(0);
+  await page.getByRole("link", { name: "Venue operations", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Venue operations" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Bole", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Lancha", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Waiters" })).toBeVisible();
+  await page.goto("/manage/operations");
+  await page.getByRole("link", { name: "Owner overview" }).click();
+  await expect(page.getByRole("heading", { name: "Owned Brand" })).toBeVisible();
 });
 
 test("every management screen fits a phone, with touch targets of at least 44 by 44 pixels", async ({ page }) => {

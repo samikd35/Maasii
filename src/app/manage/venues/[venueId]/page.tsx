@@ -49,7 +49,7 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
 
   return (
     <>
-      <Link href="/manage" className="inline-flex min-h-11 items-center text-sm font-medium underline">
+      <Link href="/manage/operations" className="inline-flex min-h-11 items-center text-sm font-medium underline">
         {t("allVenues")}
       </Link>
       <p className="mt-2 text-sm text-ink-muted">{brand.name}</p>

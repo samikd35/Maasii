@@ -9,7 +9,7 @@ async function signIn(page: Page, user: TestUser) {
   await page.getByLabel("Email or phone").fill(user.email);
   await page.getByLabel("Password").fill(user.password);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/manage$/);
+  await expect(page).toHaveURL(/\/manage(?:\/operations)?$/);
 }
 
 test("Venue staff change the price and Sold Out status guests see without publishing", async ({ page, browser }) => {

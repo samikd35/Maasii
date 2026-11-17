@@ -13,6 +13,9 @@ export default async function ManageHome({ searchParams }: PageProps<"/manage">)
   const actor = await requireStaff();
   if (await getWaiterSession(actor)) redirect("/staff");
   const access = await getMyAccess(actor);
+  if (access.brands.length === 0 && access.venues.length > 0 && !access.isPlatformAdmin) {
+    redirect("/manage/operations");
+  }
   const t = await getTranslations("StaffManage");
   const staff = await getTranslations("Staff");
   const menu = await getTranslations("MenuEditor");
@@ -23,6 +26,12 @@ export default async function ManageHome({ searchParams }: PageProps<"/manage">)
   return (
     <>
       <h1 className="font-display text-3xl">{access.name ? t("greeting", { name: access.name }) : t("yourVenues")}</h1>
+
+      {(owned.length > 0 || access.venues.length > 0) && (
+        <Link href="/manage/operations" className="mt-4 me-4 inline-flex min-h-11 items-center font-semibold underline">
+          {t("operations")}
+        </Link>
+      )}
 
       {access.isPlatformAdmin && (
         <Link href="/admin" className="mt-4 inline-flex min-h-11 items-center font-semibold underline">
@@ -60,17 +69,6 @@ export default async function ManageHome({ searchParams }: PageProps<"/manage">)
         </section>
       ))}
 
-      {access.venues.length > 0 && (
-        <section aria-labelledby="managed-venues" className="mt-8">
-          <div className="flex items-baseline justify-between gap-3 border-b border-ink/70 pb-1.5">
-            <h2 id="managed-venues" className="text-xl font-semibold">
-              {t("managedVenues")}
-            </h2>
-            <span className="text-sm text-ink-muted">{staff("manager")}</span>
-          </div>
-          <VenueList venues={access.venues.map((v) => ({ id: v.id, name: v.name, detail: v.brandName }))} />
-        </section>
-      )}
     </>
   );
 }
