@@ -69,9 +69,14 @@ test("a Manager publishes scoped changes to prices and Dishes without rewriting 
   const publishedBrand = (await getVenueMenuDraft(manager, { venueId })).inherited;
   const brandDish = publishedBrand.flatMap((s) => s.dishes).find((d) => d.dishId === omelette)!;
   brandDish.name.en = "New Brand name";
+  brandDish.description.am = "አዲስ መግለጫ";
   brandDish.priceSantim = 24000;
   await publishMenu(s.owner.actor, { brandId: s.brand.id, menu: { sections: publishedBrand } });
-  expect((await published()).find((d) => d.id === omelette)).toMatchObject({ name: "New Brand name", priceSantim: 0 });
+  expect((await published()).find((d) => d.id === omelette)).toMatchObject({
+    name: "New Brand name", description: "Lancha special", priceSantim: 0,
+  });
+  const am = await getPublishedMenu(publicActor, { venueLinkToken, language: "am" });
+  expect(am?.sections.flatMap((s) => s.dishes).find((d) => d.id === omelette)?.description).toBe("አዲስ መግለጫ");
   expect((await published()).some((d) => d.id === local)).toBe(false);
   const replay = await addWaiterOrder(waiter.actor, {
     tableId, unlockToken: waiter.unlockToken, requestId: order.requestId!,
@@ -88,4 +93,28 @@ test("a Manager publishes scoped changes to prices and Dishes without rewriting 
   await saveVenueMenu(manager, { venueId, revision: draft.revision!, menu: draft.menu, inherit: [omelette], publish: true });
   expect((await published()).find((d) => d.id === omelette)?.priceSantim).toBe(24000);
   expect((await published()).some((d) => d.id === local)).toBe(true);
+});
+
+test("a Brand publish cannot introduce a second House favourite at a Venue", async () => {
+  const s = await scenario().venue("Lancha").manager("Hana").publishedMenu().build();
+  const venueId = s.venue.id;
+  const manager = s.managers.Hana.actor;
+  const { draft, inherited: base } = await getVenueMenuDraft(manager, { venueId });
+  for (const section of base) for (const dish of section.dishes) dish.houseFavourite = false;
+  base[0].dishes[0].photoUrl = "/brands/bilos/almond-cake.webp";
+  await publishMenu(s.owner.actor, { brandId: s.brand.id, menu: { sections: base } });
+  await expect(saveVenueMenu(manager, { venueId, revision: draft.revision!, menu: draft.menu, publish: true }))
+    .rejects.toMatchObject({ reason: "menuDraftChanged" });
+  const { draft: current, inherited } = await getVenueMenuDraft(manager, { venueId });
+  const local = structuredClone(current.menu);
+  local.sections[0].dishes[0].houseFavourite = true;
+  await saveVenueMenu(manager, { venueId, revision: current.revision!, menu: local, publish: true });
+  const sections = inherited.map((section, i) => ({
+    ...section, dishes: i ? section.dishes : [...section.dishes, {
+      name: { en: "Brand cake", am: "" }, priceSantim: 10000, houseFavourite: true,
+      photoUrl: "/brands/bilos/almond-cake.webp",
+    }],
+  }));
+  await expect(publishMenu(s.owner.actor, { brandId: s.brand.id, menu: { sections } }))
+    .rejects.toMatchObject({ reason: "venueMenuConflict" });
 });

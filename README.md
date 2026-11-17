@@ -1,6 +1,6 @@
 # Maasii
 
-Table service for Ethiopian cafés and restaurants: guests open the Venue Link on their table to read the Menu and order, staff run service, and owners manage the Menu and learn from orders and feedback. One Next.js web app serves every role ([ADR 0001](docs/adr/0001-one-web-app-for-every-role.md)) on top of Supabase.
+Table service for Ethiopian cafés and restaurants: guests open the Venue Link on their table to see the Menu, place an Order, find Payment details, leave private Reviews and follow the Brand's social links. Managers run service at their assigned Venues; Owners manage the Brand and learn from orders and feedback. One Next.js web app serves every role ([ADR 0001](docs/adr/0001-one-web-app-for-every-role.md)) on top of Supabase.
 
 Read these first: [`GLOSSARY.md`](GLOSSARY.md) (use its terms in code, tests and UI), [`docs/adr/`](docs/adr), and the v1 spec and tickets in [`.scratch/maasii-v1/`](.scratch/maasii-v1).
 
@@ -71,6 +71,8 @@ Adding a command: write a failing core test first, put the command in the area f
 
 A published Menu is an immutable version. Dishes, sections, Option Groups and their choices keep stable IDs across versions when the publisher passes them, and the Brand points at its current version.
 
+A Venue Menu combines that Brand Menu with the Venue's latest published local changes ([ADR 0007](docs/adr/0007-managers-publish-venue-local-menu-changes.md)). The guest Menu, Send and Quick add all use that offering. Saved Venue drafts are private. Local publishes never rewrite an existing Order or Bill.
+
 **Browser-safe rules.** `priceDraftLine` and `priceDraft` price a guest's Draft from the published Menu and report what needs attention (a missing required choice, a dish or choice no longer on the Menu). They are pure, so client components import them from `@/core/browser`, the only other entry point the lint rule allows. Never import the database from `src/core/draft.ts` or anything `browser.ts` exports.
 
 ## Tests
@@ -107,6 +109,8 @@ The seed also creates a fictional Saba House at `/v/saba-bole` with a green acce
 ## Staff setup
 
 To provision the first platform admin, create a confirmed Supabase Auth user with a password, then call `addPlatformAdmin(systemActor, { userId })` from a server script. At `/sign-in`, sign in and open **Platform admin** to create a Brand and copy its Owner invitation link. Owners create Venues and share Manager invitations from `/manage`. Invitation links are single-use and expire after seven days.
+
+Owners open their Brand overview at `/manage`. Managers land in **Venue operations** at `/manage/operations`, where they can open Shifts, Tables, Waiters and the Venue Menu. Owners can enter the same operational controls for their Venues. From **Venue menu**, use **Edit Venue Menu** to save and preview a draft, then publish changes for that Venue only. **Use Brand dish details** restores inheritance; **Sold Out** is immediate and separate from archiving a dish. Brand Menu, Brand social links and Payment Options stay under Owner control.
 
 In a Venue's **Waiters** section, show a QR for a new Waiter or select an existing Waiter to connect another phone. Each QR expires after five minutes and works once. Waiters open `/staff` on their enrolled phone and use their four-digit PIN to unlock. The unlock lasts up to eight hours in the current browser session. After five wrong PINs, the Manager needs to show a fresh QR. Removing a Waiter revokes every enrolled phone's Auth session.
 
