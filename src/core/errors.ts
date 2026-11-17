@@ -4,6 +4,7 @@ type RefusalReason =
   | "invalidFastingDates"
   | "fastingPeriodExists"
   | "invalidBrandArtwork"
+  | "invalidSocialLinks"
   | "invalidContact"
   | "invalidTableNumber"
   | "tableNumberTaken"

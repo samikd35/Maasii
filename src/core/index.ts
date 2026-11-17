@@ -30,6 +30,7 @@ export {
   type VenueSetup,
   type VenueTable,
 } from "./brands";
+export { getBrandSocialLinks, getGuestSocialLinks, socialLinkLimits, updateBrandSocialLinks, type SocialLink } from "./social-links";
 export { parseStaffContact, type StaffContact } from "./contact";
 export {
   acceptInvitation,

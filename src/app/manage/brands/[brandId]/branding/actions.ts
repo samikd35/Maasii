@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { updateBranding, type DisplayFont } from "@/core";
+import { updateBranding, updateBrandSocialLinks, type DisplayFont } from "@/core";
 import { forForm, requireStaff, type FormState } from "@/lib/session";
 
 export async function saveBranding(brandId: string, _state: FormState, form: FormData): Promise<FormState> {
@@ -26,4 +26,18 @@ export async function saveBranding(brandId: string, _state: FormState, form: For
 function chosenFile(file: File | null): File | undefined {
   // An untouched file input submits a nameless, zero-byte placeholder.
   return file && (file.name !== "" || file.size !== 0) ? file : undefined;
+}
+
+export async function saveSocialLinks(brandId: string, _state: FormState, form: FormData): Promise<FormState> {
+  const actor = await requireStaff();
+  const names = form.getAll("socialName");
+  const urls = form.getAll("socialUrl");
+  if (names.length !== urls.length || !names.every((name) => typeof name === "string") || !urls.every((url) => typeof url === "string")) {
+    return { error: "invalidSocialLinks" };
+  }
+  return forForm(async () => {
+    await updateBrandSocialLinks(actor, { brandId, links: names.map((name, index) => ({ name, url: urls[index] })) });
+    revalidatePath(`/manage/brands/${brandId}/branding`);
+    return { done: { key: "socialLinksSaved" } };
+  });
 }

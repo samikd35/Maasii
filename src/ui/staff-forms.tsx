@@ -13,16 +13,18 @@ export function ActionForm({
   action,
   children,
   className,
+  "aria-labelledby": labelledBy,
 }: {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
   children: ReactNode;
   className?: string;
+  "aria-labelledby"?: string;
 }) {
   const t = useTranslations("StaffForms");
   const errors = useTranslations("StaffErrors");
   const [state, formAction] = useActionState(action, undefined);
   return (
-    <form action={formAction} className={className}>
+    <form action={formAction} className={className} aria-labelledby={labelledBy}>
       {children}
       {state?.error && (
         <p role="alert" className="mt-2 basis-full text-sm font-medium text-red-800">

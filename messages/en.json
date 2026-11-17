@@ -28,6 +28,11 @@
     "instructions": "Use your own payment app or pay your waiter in cash if listed.",
     "empty": "No payment details are listed. Please ask your waiter."
   },
+  "GuestSocial": {
+    "heading": "Social media",
+    "backToMenu": "Back to menu",
+    "empty": "This brand has not added any social media links yet."
+  },
   "VenueLinkNotFound": {
     "heading": "We can't find this menu",
     "body": "The link may be mistyped, or the venue may have a new one. Try tapping or scanning the card on your table again, or ask a member of staff."
@@ -251,7 +256,22 @@
     "exampleDish": "Macchiato",
     "exampleDescription": "Espresso with a dash of milk"
   },
+  "StaffSocialLinks": {
+    "heading": "Social media links",
+    "brandHelp": "These links appear at every venue of this brand.",
+    "empty": "No social media links yet.",
+    "urlHelp": "Use the full profile address starting with https://.",
+    "position": "Link {position}",
+    "name": "Link name",
+    "url": "Profile URL",
+    "moveUp": "Move link {position} up",
+    "moveDown": "Move link {position} down",
+    "remove": "Remove link {position}",
+    "add": "Add social link",
+    "save": "Save social links"
+  },
   "StaffForms": {
+    "socialLinksSaved": "Social media links saved for every venue.",
     "copyFailed": "Could not copy. Select the link and copy it manually.",
     "fastingPeriodSaved": "Calendar period saved.",
     "usualTablesSaved": "Usual Tables saved.",
@@ -355,6 +375,7 @@
   },
   "StaffErrors": {
     "venueMenuConflict": "This change conflicts with a published Venue Menu. Update that Venue Menu before publishing the Brand Menu.",
+    "invalidSocialLinks": "Give each link a name and a public HTTPS profile address without a username or password in the address.",
     "menuRequestFailed": "Could not confirm the change. Your edits are still here. Check your connection and try again.",
     "serviceHours": "Choose different opening and closing times.",
     "servicePeriods": "Name every Service Period uniquely and make sure times do not overlap.",
