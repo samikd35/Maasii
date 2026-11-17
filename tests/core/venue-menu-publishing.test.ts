@@ -21,6 +21,7 @@ test("a Manager publishes scoped changes to prices and Dishes without rewriting 
   const initial = await getVenueMenuDraft(manager, { venueId });
   const menu = structuredClone(initial.draft.menu);
   const local = randomUUID();
+  const choiceId = randomUUID();
   const section = menu.sections.find(({ dishes }) => dishes.some((d) => d.dishId === omelette))!;
   const dish = section.dishes.find((d) => d.dishId === omelette)!;
   expect(dish.priceSantim).toBe(23000);
@@ -28,7 +29,11 @@ test("a Manager publishes scoped changes to prices and Dishes without rewriting 
   dish.description.en = "Lancha special";
   section.dishes.push({
     dishId: local, name: { en: "Local stew", am: "" }, description: { en: "", am: "" },
-    priceSantim: 25000, fasting: false, houseFavourite: false, optionGroups: [],
+    priceSantim: 25000, fasting: false, houseFavourite: false,
+    optionGroups: [{
+      optionGroupId: randomUUID(), name: { en: "Side", am: "" }, kind: "choose_one", required: true,
+      choices: [{ choiceId, name: { en: "Bread", am: "" }, priceChangeSantim: 1000 }],
+    }],
   });
   const input = { venueId, revision: initial.draft.revision!, menu, publish: false };
   await expect(saveVenueMenu(manager, { ...input, venueId: s.venues.Bole.id })).rejects.toMatchObject({ code: "not_allowed" });
@@ -49,7 +54,10 @@ test("a Manager publishes scoped changes to prices and Dishes without rewriting 
   expect(quick.dishes).toEqual(expect.arrayContaining([expect.objectContaining({ dishId: local, priceSantim: 25000 })]));
   const order = await addWaiterOrder(waiter.actor, {
     tableId, unlockToken: waiter.unlockToken, requestId: randomUUID(),
-    lines: [{ dishId: local, choiceIds: [], quantity: 1, note: "" }],
+    lines: [{ dishId: local, choiceIds: [choiceId], quantity: 1, note: "" }],
+  });
+  expect(order.lines[0]).toMatchObject({
+    unitPriceSantim: 26000, choices: [{ id: choiceId, name: { en: "Bread" }, priceChangeSantim: 1000 }],
   });
   await recordBrowsingEvent(publicActor, {
     venueLinkToken, event: { kind: "dish_opened", pageLoadId: randomUUID(), dishId: local },
@@ -80,7 +88,7 @@ test("a Manager publishes scoped changes to prices and Dishes without rewriting 
   expect((await published()).some((d) => d.id === local)).toBe(false);
   const replay = await addWaiterOrder(waiter.actor, {
     tableId, unlockToken: waiter.unlockToken, requestId: order.requestId!,
-    lines: [{ dishId: local, choiceIds: [], quantity: 1, note: "" }],
+    lines: [{ dishId: local, choiceIds: [choiceId], quantity: 1, note: "" }],
   });
   expect(replay.lines).toEqual(order.lines);
 
