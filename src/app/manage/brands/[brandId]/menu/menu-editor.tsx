@@ -83,7 +83,7 @@ export function MenuEditor({
   const [aiPending, startAiTransition] = useTransition();
   const pending = saving || aiPending;
   const [inherit, setInherit] = useState<string[]>([]);
-  const [priceReset, setPriceReset] = useState(0);
+  const [priceReset, setPriceReset] = useState<Record<string, number>>({});
   const dirty = inherit.length > 0 || (menu !== saved.menu && JSON.stringify(menu) !== JSON.stringify(saved.menu));
   const inherited = new Map(venue?.inherited.flatMap((section) => section.dishes.map((dish) => [dish.dishId, dish] as const)));
   const inheritedSections = new Set(venue?.inherited.map((s) => s.sectionId));
@@ -331,8 +331,9 @@ export function MenuEditor({
                     <div className="mt-4 divide-y divide-rule border-t border-rule">
                       {section.dishes.map((dish, dishIndex) => (
                         <DishFields
-                          key={`${dish.dishId}:${priceReset}`}
+                          key={dish.dishId}
                           dish={dish}
+                          priceReset={priceReset[dish.dishId]}
                           open={openedDish === dish.dishId || undefined}
                           index={dishIndex}
                           count={section.dishes.length}
@@ -352,7 +353,7 @@ export function MenuEditor({
                               current.dishId === dish.dishId ? inherited.get(dish.dishId)! : current) });
                             setInherit((ids) => [...new Set([...ids, dish.dishId])]);
                             setOpenedDish(dish.dishId);
-                            setPriceReset((count) => count + 1);
+                            setPriceReset((keys) => ({ ...keys, [dish.dishId]: (keys[dish.dishId] ?? 0) + 1 }));
                           } : undefined}
                           onPhoto={(file) => uploadPhoto(file, (photoUrl) => updateSection(sectionIndex, {
                             dishes: section.dishes.map((candidate) => candidate.dishId === dish.dishId ? { ...candidate, photoUrl } : candidate),
@@ -459,9 +460,10 @@ function ImportReview({ kind, missingPrice, onKeep, onDiscard }: {
   );
 }
 
-function DishFields({ dish, open, index, count, acceptArtwork, onChange, onMove, onFavourite, onArchive, onDiscardImport, onSuggest, onInherit, onPhoto }: {
+function DishFields({ dish, open, priceReset, index, count, acceptArtwork, onChange, onMove, onFavourite, onArchive, onDiscardImport, onSuggest, onInherit, onPhoto }: {
   dish: Dish;
   open?: boolean;
+  priceReset?: number;
   index: number;
   count: number;
   acceptArtwork: string;
@@ -516,7 +518,7 @@ function DishFields({ dish, open, index, count, acceptArtwork, onChange, onMove,
       {onSuggest && (canSuggest(dish.name) || canSuggest(dish.description)) && <button type="button"
         className={`${editorButton} mt-3`} onClick={onSuggest}>{t("suggestTranslation")}</button>}
       <div className="mt-3 flex flex-wrap items-end gap-x-4">
-        <Field label={t("price")} type="number" min="0" max="21474836.47" step="0.01" inputMode="decimal"
+        <Field key={priceReset} label={t("price")} type="number" min="0" max="21474836.47" step="0.01" inputMode="decimal"
           required={dish.imported !== "missing_price"} defaultValue={dish.imported === "missing_price" ? "" : dish.priceSantim / 100}
           className="max-w-40"
           onChange={(event) => {
