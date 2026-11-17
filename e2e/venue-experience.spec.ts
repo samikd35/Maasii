@@ -1,0 +1,109 @@
+import { expect, test } from "@playwright/test";
+import {
+  addPaymentOption, createWaiterJoinCode, getShiftSetup, startShift, updateBrandSocialLinks,
+} from "@/core";
+import { scenario } from "../tests/support/scenario";
+
+test("a local Venue Menu flows through the homepage, Guest and Waiter Orders, payment and private Reviews", async ({ page, browser, baseURL }) => {
+  const s = await scenario().venue("Lancha").venue("Bole").manager("Hana").publishedMenu().build();
+  const venueId = s.venue.id;
+  const home = `/v/${s.venue.linkToken}`;
+  const { url } = await createWaiterJoinCode(s.owner.actor, { venueId, siteUrl: baseURL! });
+  await addPaymentOption(s.owner.actor, {
+    venueId, kind: "bank_transfer", provider: "Test Bank", recipientName: "Lancha Café",
+    accountOrMerchantCode: "001234", displayOrder: 1,
+  });
+  await updateBrandSocialLinks(s.owner.actor, {
+    brandId: s.brand.id, links: [{ name: "Official Instagram", url: "https://www.instagram.com/lanchacafe/" }],
+  });
+
+  const staff = await browser.newContext({ ...test.info().project.use, baseURL });
+  try {
+    const manager = await staff.newPage();
+    await manager.goto("/sign-in");
+    await manager.getByRole("button", { name: "EN", exact: true }).click();
+    const hana = s.managers.Hana;
+    await manager.getByLabel("Email or phone").fill(hana.email);
+    await manager.getByLabel("Password").fill(hana.password);
+    await manager.getByRole("button", { name: "Sign in", exact: true }).click();
+    await expect(manager.getByRole("heading", { name: "Venue operations" })).toBeVisible();
+    await manager.getByRole("link", { name: "Venue menu", exact: true }).click();
+    await manager.getByRole("link", { name: "Edit Venue Menu" }).click();
+    const editor = manager.getByRole("region", { name: "Edit", exact: true });
+    const dish = editor.locator("details").filter({ hasText: "Omelette" }).first();
+    await dish.locator("summary").click();
+    await dish.getByLabel("Base price (ETB)").fill("240");
+    await dish.locator("summary").click();
+    await editor.getByRole("button", { name: "Add dish", exact: true }).first().click();
+    await editor.getByLabel("Dish name in English", { exact: true }).filter({ visible: true }).fill("Lancha tea");
+    await editor.locator("details").filter({ hasText: "Lancha tea" }).getByLabel("Base price (ETB)").fill("90");
+    await manager.getByRole("button", { name: "Save draft" }).click();
+    await expect(manager.getByText("Draft saved.", { exact: true })).toBeVisible();
+    await manager.getByRole("button", { name: "Publish", exact: true }).click();
+    await expect(manager.getByText("Menu published.", { exact: true })).toBeVisible();
+    await page.goto(`/v/${s.venues.Bole.linkToken}/menu`);
+    await expect(page.getByRole("listitem").filter({
+      has: page.getByRole("heading", { name: "Omelette", exact: true }),
+    }).getByTestId("price")).toContainText("220");
+    await expect(page.getByRole("heading", { name: "Lancha tea" })).toHaveCount(0);
+
+    const device = await browser.newContext({ ...test.info().project.use, baseURL });
+    try {
+      const waiter = await device.newPage();
+      await waiter.goto(url);
+      await waiter.getByRole("button", { name: "EN", exact: true }).click();
+      await waiter.getByLabel("Name").fill("Sam");
+      await waiter.getByLabel("Choose a 4-digit PIN").fill("0427");
+      await waiter.getByRole("button", { name: "Join venue" }).click();
+      await expect(waiter.getByRole("heading", { name: "My tables" })).toBeVisible();
+      const { waiters } = await getShiftSetup(s.owner.actor, { venueId });
+      await startShift(s.owner.actor, { venueId, assignments: [{ tableId: s.venue.tables[0].id, waiterId: waiters[0].id }] });
+
+      await page.goto(home);
+      await page.getByRole("link", { name: "Payment details", exact: true }).click();
+      await expect(page.getByText("001234", { exact: true })).toBeVisible();
+      await page.getByRole("link", { name: "Social media", exact: true }).click();
+      await expect(page.getByRole("heading", { name: "Social media", exact: true })).toBeVisible();
+      await expect(page.getByRole("link", { name: "Official Instagram" })).toHaveAttribute("href", "https://www.instagram.com/lanchacafe/");
+      await page.getByRole("link", { name: "Reviews", exact: true }).click();
+      await expect(page.getByRole("radio", { name: "Great" })).toHaveCount(0);
+      await page.getByRole("link", { name: "Menu", exact: true }).click();
+      await page.getByRole("button", { name: "Omelette", exact: true }).click();
+      await page.getByRole("button", { name: "Add to order" }).click();
+      await page.getByRole("link", { name: "Home", exact: true }).click();
+      await page.getByRole("link", { name: "Continue your order" }).click();
+      const slip = page.getByRole("dialog");
+      await slip.getByRole("button", { name: "Send", exact: true }).click();
+      await page.getByRole("button", { name: "Table 1", exact: true }).click();
+      await waiter.getByRole("button", { name: "Accept", exact: true }).click();
+      await expect(slip.getByText("Accepted by Sam", { exact: true })).toBeVisible();
+      await waiter.getByRole("link", { name: "Table 1", exact: true }).click();
+      await waiter.getByRole("link", { name: "Quick-add" }).click();
+      await waiter.getByRole("button", { name: /Lancha tea/ }).click();
+      await waiter.getByRole("button", { name: "Add Order" }).click();
+      await waiter.getByRole("button", { name: "Prepare bill", exact: true }).click();
+      await expect(slip.getByRole("region", { name: "Bill total" })).toContainText("330 ETB");
+      await slip.getByRole("button", { name: "Close", exact: true }).click();
+      await page.getByRole("link", { name: "Home", exact: true }).click();
+      await page.getByRole("link", { name: "View your bill", exact: true }).click();
+      await expect(slip.getByRole("region", { name: "Bill total" })).toContainText("330 ETB");
+
+      await waiter.getByRole("button", { name: "Confirm payment", exact: true }).click();
+      await waiter.getByLabel("Method").selectOption({ label: "Test Bank · 001234" });
+      await waiter.getByLabel("Official Receipt amount (ETB)").fill("330");
+      await waiter.getByRole("button", { name: "Record Payment Confirmation", exact: true }).click();
+      await expect(slip.getByText("Bill paid", { exact: true })).toBeVisible();
+      await slip.getByRole("button", { name: "Close", exact: true }).click();
+      await page.getByRole("link", { name: "Reviews", exact: true }).click();
+      await expect(page.getByRole("group", { name: "Would you order Lancha tea again?" })).toBeVisible();
+      const review = page.locator("form").filter({ has: page.getByRole("group", { name: "How was your visit?" }) });
+      await review.getByRole("radio", { name: "Great", exact: true }).check();
+      await review.getByRole("button", { name: "Submit review", exact: true }).click();
+      await expect(page.getByText("Review sent. How was your visit?")).toBeVisible();
+    } finally {
+      await device.close();
+    }
+  } finally {
+    await staff.close();
+  }
+});

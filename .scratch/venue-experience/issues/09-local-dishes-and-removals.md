@@ -21,3 +21,8 @@
 - [ ] Verify historical insight/review lookup still resolves stable identities for local dishes without rewriting past labels/prices. Do not build new analytics features.
 
 **Verification:** Two-Venue/second-Brand core scenarios for local additions, inheritance, archive/restore, changed Drafts and snapshots; browser local-dish publish → Guest/Quick add Order → Bill → archive → historical record intact.
+
+## Comments
+
+- Venue additions get stable dish and choice identities; archiving changes only the local offering. Sold Out can be toggled independently. Local dishes can appear in browsing records, Guest and Waiter Orders and paid Reviews.
+- Verified the Manager's local add, photo, archive and restore in Chromium with another Venue unaffected. Core checks exercise browsing, local options in Quick add, preserved Order snapshots and local changes surviving Brand publication.

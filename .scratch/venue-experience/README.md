@@ -1,6 +1,6 @@
 # Venue experience implementation plan
 
-The user confirmed the scope after a twelve-question interview and authorized this specification and ticket set on 2026-11-17. All tickets are unimplemented. `ready-for-agent` means specified and triaged; a ticket with unfinished blockers is not yet executable.
+The user confirmed the scope after a twelve-question interview and authorized this specification and ticket set on 2026-11-17. The application work is integrated locally on `codex/venue-experience`. Automated verification passed; [ticket 10](issues/10-release-verification.md) records the remaining real-phone release check.
 
 - [Specification](spec.md): behavior, permissions, implementation defaults, tests and exclusions.
 - [Decision record](decisions.md): interview answers and deferred video requirements.
@@ -40,7 +40,7 @@ flowchart LR
 
 ## Working a ticket
 
-Start with **01**, then follow the table unless there is a reason to work an independent ticket first. Currently 01, 02, 03, 04, 05 and 07 have no blockers. Choose one ticket per implementation step; each includes the authorization, data changes, UI and checks needed to demonstrate its behavior.
+The table records the implementation order and actual blockers. Tickets 01 and 03 were tested on separate worktrees before merging into the integration branch. The full suite ran against the combined branch after all application slices landed.
 
 Use the existing public-core tests against the real local database and production-build browser tests. Keep tests focused on external behavior and build isolated scenario data. A completed feature ticket should pass its targeted checks; ticket 10 verifies the assembled release rather than supplying missing per-feature tests.
 

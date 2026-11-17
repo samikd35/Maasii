@@ -22,3 +22,8 @@
 - [ ] Add the small UI entry through existing Venue operations, compatible with ticket 02 when present. Labels, preview and validation work in both languages, with failure recovery preserving edits.
 
 **Verification:** Core permission, migration-preservation, inheritance/reset, stale-write and snapshot tests; browser Manager publish → Guest/Waiter ordering plus another Venue unchanged. Update the superseded Owner-only price tests without removing negative scope coverage.
+
+## Comments
+
+- Implemented with 08–09 in `b2a8c00`. Existing price settings continue to apply until the first Venue publish carries them into the local revision. The old immediate price edit is no longer a staff screen action.
+- Verified the Manager editor's save, preview and publish, including zero price, Brand updates, reset to inherit, stale edits and the second Venue's unchanged price. The publication core scenarios also check active Waiter pricing and historical snapshots.

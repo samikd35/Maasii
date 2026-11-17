@@ -21,3 +21,8 @@
 - [ ] Add browser coverage for Owner-only, Manager-only and mixed access, plus an unauthorized context. Keep keyboard, mobile layout and English/Amharic navigation usable.
 
 **Verification:** Existing staff sign-in, Shifts and Quick add core/browser scenarios with the new entry paths. Venue-menu publishing rights arrive in tickets 07–09; do not expose incomplete controls in this ticket.
+
+## Comments
+
+- Implemented in `0fb5829`. Owners retain their Brand overview and can open Venue operations. Managers land in operations, with links for their assigned Venues only. Existing Venue links and management screens still work.
+- Twenty targeted Chromium tests passed before integration, including staff sign-in, mixed-role access, the other-Venue denial, Shifts, and Quick add. See ticket 10 for the final combined run.

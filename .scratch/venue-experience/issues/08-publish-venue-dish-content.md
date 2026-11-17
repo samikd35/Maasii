@@ -21,3 +21,8 @@
 - [ ] Retain revision conflict detection, save/upload failure recovery, language switching, keyboard access and native dialog behavior from existing editors.
 
 **Verification:** Public-core inheritance/reset, identity, permission and effective-validation checks; browser Manager edit/photo → Preview → Publish → Guest and Quick add, with a second Venue unchanged. No video or Manager AI import work.
+
+## Comments
+
+- The Venue editor reuses the bilingual dish fields, photo validation and Option Group controls. A publication records only local changes; untouched languages continue to inherit separately. Conflicting House favourites prevent publication until resolved.
+- Verified Venue-scoped upload and guest display in Chromium. Core tests cover per-language inheritance, effective validation, stale Brand bases and choice pricing in Waiter Orders.
