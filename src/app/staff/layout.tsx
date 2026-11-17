@@ -1,3 +1,4 @@
+import "../staff.css";
 import type { Metadata } from "next";
 import { StaffAudio } from "./order-chime";
 

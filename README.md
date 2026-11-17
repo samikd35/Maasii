@@ -91,6 +91,9 @@ The builder creates everything through core commands. Extend it with new steps (
 
 **Browser tests** (`e2e`, `pnpm test:e2e`) run Playwright on an Android-sized Chromium against a production build. They may use the seeded Bilo's Pastry (`/v/bilos-lancha`) or build their own tenant with the same scenario builder. The guest menu must stay under 250 KB transferred before photos, fonts included; the Next.js and React runtime alone is about 135 KB gzipped and one static Ethiopic font weight about 73 KB, so keep guest client components small.
 
+Guest utilities are selected in `src/app/globals.css`; staff routes load `src/app/staff.css` through
+their shared header or layout. Add new shared guest UI paths to the former when needed.
+
 ## Language
 
 Interface messages live in `messages/en.json` and `messages/am.json`. The next-intl request config uses the guest's saved preference or phone language. Staff have a separate preference and default to Amharic. Pass only the namespaces a client component uses to its `NextIntlClientProvider`. The Menu supplies localized names and descriptions through the core, with the other language as fallback. Drafts retain the dish and choice IDs when the guest switches language.
@@ -110,6 +113,20 @@ In a Venue's **Waiters** section, show a QR for a new Waiter or select an existi
 Staff language choices follow their account between phones. Amharic is the default.
 
 Set `MAASII_SITE_URL` on the server to the public origin when deploying so the Venue Links, QR images and invitation links use the same address.
+
+Use an HTTPS `MAASII_SITE_URL` in deployments. Auth and Waiter unlock cookies share a Secure policy;
+HTTP cookies are permitted for local development. The proxy supplies a fresh nonce for Next.js scripts,
+blocks framing and plugin content, and starts HSTS at five minutes. Increase HSTS at the hosting edge
+after verifying HTTPS; do not preload unverified subdomains. Set `MAASII_CSP_REPORT_URL` to your HTTPS
+Reporting API collector to receive CSP violations. Strip page URLs, query strings and script samples
+before retaining reports, since they may contain invitation tokens or personal data. Inline Brand
+styles, Menu photos and Supabase connections remain supported. Trusted Types enforcement needs a
+separate framework compatibility check before enabling it.
+
+`pnpm exec playwright install webkit` installs the second browser used by the focused web reliability
+checks. `pnpm exec playwright test e2e/web-reliability.spec.ts` checks Chromium and WebKit. Scroll
+containment on non-scrollable dialog backdrops is progressive enhancement; Safari versions that
+ignore it still get native modal focus containment and the tested light-dismiss fallback.
 
 ## Staff notifications
 

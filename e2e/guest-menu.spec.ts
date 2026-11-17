@@ -1,12 +1,19 @@
+import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
-import { publishMenu } from "@/core";
-import { LANCHA_LINK_TOKEN } from "../scripts/seed/bilos";
+import { publishMenu, updateBranding } from "@/core";
+import { bilosMenu, LANCHA_LINK_TOKEN } from "../scripts/seed/bilos";
 import { SABA_LINK_TOKEN } from "../scripts/seed/saba";
 import { scenario } from "../tests/support/scenario";
 
 const bilosMenuLink = `/v/${LANCHA_LINK_TOKEN}`;
 
 test("a guest opening Bilo's Venue Link sees the logo, section chips and dish rows", async ({ page }) => {
+  const s = await scenario().brand("Bilo's Pastry").publishedMenu(bilosMenu).build();
+  await updateBranding(s.owner.actor, {
+    brandId: s.brand.id, colour: "#568F69", displayFont: "noto-sans-ethiopic",
+    logo: new File([await readFile("public/brands/bilos/logo.webp")], "logo.webp", { type: "image/webp" }),
+  });
+  const bilosMenuLink = `/v/${s.venue.linkToken}`;
   await page.setExtraHTTPHeaders({ "x-maasii-test-now": "2026-10-08T12:00:00Z" });
   await page.goto(bilosMenuLink);
 

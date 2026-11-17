@@ -5,11 +5,11 @@ Maasii is the product. Guests at an independent Ethiopian café or restaurant ta
 ## Places and people
 
 **Brand**:
-The business a guest recognises, such as Bilo's. A brand owns the menu and the look, and has one or more venues.
+The business a guest recognises, such as Bilo's. A brand owns the shared Menu, the look and social media links, and has one or more venues.
 _Avoid_: Company, client, chain, tenant
 
 **Venue**:
-One café or restaurant location of a brand, with its own tables, staff, dish availability and any price differences from the brand's menu.
+One café or restaurant location of a brand, with its own Venue Menu, tables and staff.
 _Avoid_: Branch, outlet, restaurant, shop, store
 
 **Table**:
@@ -17,7 +17,7 @@ A numbered physical place in a venue where a party sits.
 _Avoid_: Seat, spot
 
 **Venue Link**:
-The single web address that opens a venue's menu. It is the same on every table, and guests reach it by NFC tap or QR scan.
+The single web address through which guests access a venue's Menu, private feedback, Payment Options and social links. It is the same on every table, and guests reach it by NFC tap or QR scan.
 _Avoid_: Table link, menu URL, tag
 
 **Table Choice**:
@@ -37,7 +37,7 @@ A person who runs a brand: its menu, look, Payment Options, staff and insights a
 _Avoid_: Admin, client
 
 **Manager**:
-A person who runs service at one venue: shifts, Table Assignments, sold-out dishes, payment confirmations and waiters.
+A person who runs service and manages the Venue Menu at an assigned venue: shifts, Table Assignments, sold-out dishes, payment confirmations and waiters. Their menu changes apply only to that venue.
 _Avoid_: Supervisor, floor lead
 
 **Usual Tables**:
@@ -57,6 +57,10 @@ _Avoid_: Section, allocation
 **Menu**:
 A brand's list of dishes, grouped into sections, in Amharic and English. Guests only ever see the published menu. Changes wait in a draft until the owner publishes them.
 _Avoid_: Catalog
+
+**Venue Menu**:
+The published dishes offered at one venue, inheriting the Brand's Menu while preserving venue-specific additions, changes and removals. Its assigned Manager or the Brand's Owner can publish changes without changing other venues' offerings.
+_Avoid_: Branch menu, outlet menu
 
 **Dish**:
 Anything a guest can order from the menu, food or drink.

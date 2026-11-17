@@ -1,3 +1,4 @@
+import "@/app/staff.css";
 import Link from "next/link";
 import { NextIntlClientProvider, useTranslations } from "next-intl";
 import { getMessages, getTranslations } from "next-intl/server";

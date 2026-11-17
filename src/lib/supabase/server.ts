@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies, headers } from "next/headers";
+import { secureCookies } from "@/lib/secure-cookies";
 
 /**
  * Supabase client bound to this request's session cookies, for signing staff in and out and reading
@@ -11,7 +12,8 @@ export async function createSessionClient({ guest = false } = {}) {
     cookieOptions: {
       ...(guest && { name: "mx_guest_session", path: "/v" }),
       httpOnly: true,
-      secure: (await headers()).get("x-forwarded-proto") === "https",
+      sameSite: "lax",
+      secure: secureCookies(await headers()),
     },
     cookies: {
       getAll: () => cookieStore.getAll(),

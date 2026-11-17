@@ -4,6 +4,9 @@ import createNextIntlPlugin from "next-intl/plugin";
 // cacheComponents stays off: every Maasii page is per-request (menus change on publish,
 // sessions and live data later), and next-intl only supports it with a [locale] segment.
 const nextConfig: NextConfig = {
+  async headers() {
+    return [{ source: "/:path*", headers: [{ key: "X-Content-Type-Options", value: "nosniff" }] }];
+  },
   // Two 4 MiB branding images plus multipart headers.
   experimental: { serverActions: { bodySizeLimit: "9mb" } },
   turbopack: {

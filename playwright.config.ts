@@ -21,7 +21,10 @@ export default defineConfig({
     locale: "en-US",
     timezoneId: "Africa/Addis_Ababa",
   },
-  projects: [{ name: "android-chrome", use: { ...devices["Pixel 7"] } }],
+  projects: [
+    { name: "android-chrome", use: { ...devices["Pixel 7"] } },
+    { name: "webkit", testMatch: "web-reliability.spec.ts", use: { ...devices["iPhone 13"] } },
+  ],
   webServer: {
     // A production build: the page-weight budget only means something with compression and no dev overlay.
     command: `pnpm build && node --import ./e2e/support/server-clock.mjs node_modules/next/dist/bin/next start -p ${port}`,

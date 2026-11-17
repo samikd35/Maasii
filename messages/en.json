@@ -27,6 +27,11 @@
     "body": "The link may be mistyped, or the venue may have a new one. Try tapping or scanning the card on your table again, or ask a member of staff."
   },
   "Ordering": {
+    "retryService": "Try again",
+    "serviceUnsaved": "Ordering could not load. Keep this page open to keep your Draft. Try again or ask your waiter.",
+    "serviceLoading": "Loading ordering…",
+    "serviceFailed": "Ordering could not load. Your Draft is still on this phone. Reconnect, then reload to try again.",
+    "reloadService": "Reload to retry",
     "close": "Close",
     "fasting": "Fasting",
     "chooseOne": "Choose one",
@@ -237,6 +242,7 @@
     "exampleDescription": "Espresso with a dash of milk"
   },
   "StaffForms": {
+    "copyFailed": "Could not copy. Select the link and copy it manually.",
     "fastingPeriodSaved": "Calendar period saved.",
     "usualTablesSaved": "Usual Tables saved.",
     "assignmentSaved": "Table Assignment saved.",
@@ -335,6 +341,7 @@
     "translationCount": "{count, plural, one {# dish is missing a translation.} other {# dishes are missing a translation.}}"
   },
   "StaffErrors": {
+    "menuRequestFailed": "Could not confirm the change. Your edits are still here. Check your connection and try again.",
     "serviceHours": "Choose different opening and closing times.",
     "servicePeriods": "Name every Service Period uniquely and make sure times do not overlap.",
     "menuAiFailed": "Menu assistance is unavailable. Your draft is unchanged. Try again.",

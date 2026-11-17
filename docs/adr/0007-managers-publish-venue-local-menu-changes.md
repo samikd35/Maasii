@@ -1,0 +1,3 @@
+# Managers publish venue-local menu changes
+
+Extending [ADR 0005](0005-brand-owns-the-menu-venue-owns-service.md), the Brand retains its shared Menu while each assigned Manager may draft, preview and publish their Venue's dish additions, edits, prices and removals without Owner approval. Unchanged information inherits Brand Menu updates, but local changes take precedence and survive those updates; a removal changes the Venue's offering without erasing historical Orders. This gives Managers operational independence without changing other Venues or duplicating the entire shared Menu, while Owners retain access to both scopes and exclusive control of Payment Options.

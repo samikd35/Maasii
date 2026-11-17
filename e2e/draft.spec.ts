@@ -1,9 +1,14 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test as base, type Page } from "@playwright/test";
 import { getPublishedMenu, publicActor, publishMenu, type MenuInput } from "@/core";
-import { LANCHA_LINK_TOKEN } from "../scripts/seed/bilos";
+import { bilosMenu } from "../scripts/seed/bilos";
 import { scenario } from "../tests/support/scenario";
 
-const bilosMenuLink = `/v/${LANCHA_LINK_TOKEN}`;
+const test = base.extend<{ bilosMenuLink: string }>({
+  bilosMenuLink: async ({}, provide) => {
+    const s = await scenario().publishedMenu(bilosMenu).build();
+    await provide(`/v/${s.venue.linkToken}`);
+  },
+});
 
 const tunaAndJuice: MenuInput = {
   sections: [
@@ -32,7 +37,7 @@ async function openDish(page: Page, name: string) {
   await expect(dishSheet(page).getByRole("heading", { name, level: 2 })).toBeVisible();
 }
 
-test("a guest adds a dish with extras, a note and a quantity, and the Draft survives a reload", async ({ page }) => {
+test("a guest adds a dish with extras, a note and a quantity, and the Draft survives a reload", async ({ page, bilosMenuLink }) => {
   await page.goto(bilosMenuLink);
 
   await openDish(page, "Omelette");
@@ -63,7 +68,7 @@ test("a guest adds a dish with extras, a note and a quantity, and the Draft surv
   await expect(line.getByTestId("quantity")).toHaveText("2");
 });
 
-test("Add to order waits until every required choose-one group has a choice, and says what is missing", async ({ page }) => {
+test("Add to order waits until every required choose-one group has a choice, and says what is missing", async ({ page, bilosMenuLink }) => {
   await page.goto(bilosMenuLink);
 
   await openDish(page, "Tuna Sandwich");
@@ -79,7 +84,7 @@ test("Add to order waits until every required choose-one group has a choice, and
   await expect(sheet.getByTestId("price")).toHaveText("400 ETB");
 });
 
-test("the dish sheet shows the photo and the fasting label when a dish has them", async ({ page }) => {
+test("the dish sheet shows the photo and the fasting label when a dish has them", async ({ page, bilosMenuLink }) => {
   await page.goto(bilosMenuLink);
 
   await openDish(page, "Almond Cake");
@@ -91,7 +96,7 @@ test("the dish sheet shows the photo and the fasting label when a dish has them"
   await expect(dishSheet(page).locator("img")).toHaveCount(0);
 });
 
-test("a guest changes quantities, edits choices and notes, and removes dishes in the Draft", async ({ page }) => {
+test("a guest changes quantities, edits choices and notes, and removes dishes in the Draft", async ({ page, bilosMenuLink }) => {
   await page.goto(bilosMenuLink);
   await openDish(page, "Macchiato");
   await dishSheet(page).getByRole("button", { name: "Add to order" }).click();
@@ -128,7 +133,7 @@ test("a guest changes quantities, edits choices and notes, and removes dishes in
   await expect(slip).toHaveCount(0);
 });
 
-test("the Draft keeps working without signal and is still there when it returns", async ({ page, context }) => {
+test("the Draft keeps working without signal and is still there when it returns", async ({ page, context, bilosMenuLink }) => {
   await page.goto(bilosMenuLink);
 
   await context.setOffline(true);
@@ -209,7 +214,7 @@ test("a Draft line whose dish or choice left the published Menu tells the guest 
   await expect(page.getByRole("dialog")).toContainText("1 dish needs attention");
 });
 
-test("switching languages translates the Draft and keeps the guest's choices, quantity and note", async ({ page }) => {
+test("switching languages translates the Draft and keeps the guest's choices, quantity and note", async ({ page, bilosMenuLink }) => {
   await page.goto(bilosMenuLink);
   await openDish(page, "Tuna Sandwich");
 

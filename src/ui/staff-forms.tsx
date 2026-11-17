@@ -64,7 +64,7 @@ export function SubmitButton({ children, variant = "primary" }: { children: Reac
 /** A read-only link with a Copy button, to send by WhatsApp, SMS or email. */
 export function CopyField({ label, value }: { label: string; value: string }) {
   const t = useTranslations("StaffForms");
-  const [copied, setCopied] = useState(false);
+  const [copyStatus, setCopyStatus] = useState("");
   return (
     <div className="mt-3 basis-full">
       <label className="block text-sm font-medium">
@@ -79,13 +79,20 @@ export function CopyField({ label, value }: { label: string; value: string }) {
       <button
         type="button"
         onClick={async () => {
-          await navigator.clipboard.writeText(value);
-          setCopied(true);
+          let message;
+          try {
+            await navigator.clipboard.writeText(value);
+            message = t("copied");
+          } catch {
+            message = t("copyFailed");
+          }
+          setCopyStatus((previous) => previous === message ? `${message}\u00a0` : message);
         }}
         className="mt-2 min-h-11 min-w-11 rounded-md border border-ink/30 px-4 font-medium"
       >
-        {t(copied ? "copied" : "copyLink")}
+        {t("copyLink")}
       </button>
+      <p role="status" className="mt-1 text-sm">{copyStatus}</p>
     </div>
   );
 }

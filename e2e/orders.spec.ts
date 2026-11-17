@@ -85,7 +85,15 @@ test("a guest chooses a Table, the assigned Waiter sees the Order live and the g
     const amount = queue.getByLabel("Official Receipt amount (ETB)");
     await expect(amount).toHaveValue("");
     await queue.getByLabel("Method").selectOption({ label: "Test Bank · 001234" });
+    await amount.fill("1.234");
+    await expect(amount).not.toHaveAttribute("aria-invalid", "true");
+    await amount.blur();
+    await expect(amount).toHaveAttribute("aria-invalid", "true");
+    await expect(amount).toHaveAccessibleDescription(/Enter/);
+    await queue.getByRole("button", { name: "Record Payment Confirmation" }).click();
+    await expect(amount).toBeFocused();
     await amount.fill("219.75");
+    await expect(amount).not.toHaveAttribute("aria-invalid", "true");
     await expect(queue.getByText("Receipt Difference: −0.25 ETB")).toBeVisible();
     await queue.getByRole("button", { name: "Record Payment Confirmation" }).click();
     await expect(sheet.getByText("Bill paid", { exact: true })).toBeVisible({ timeout: 6000 });

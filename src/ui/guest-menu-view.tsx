@@ -26,7 +26,7 @@ export function GuestMenuView({
       ]
     : sections;
   return (
-    <div className={`mx-auto max-w-xl font-sans ${preview ? "pb-8" : "pb-28"} ${displayFontClasses[brand.displayFont]}`} style={brandThemeStyle(theme)}>
+    <div className={`mx-auto max-w-xl wrap-anywhere font-sans ${preview ? "pb-8" : "pb-28"} ${displayFontClasses[brand.displayFont]}`} style={brandThemeStyle(theme)}>
       <GuestMenuHeader brand={brand}>{languageSwitch}</GuestMenuHeader>
 
       <Content>
@@ -39,7 +39,7 @@ export function GuestMenuView({
         {houseFavourite?.photoUrl && (
           <article aria-labelledby="house-favourite-label" className="relative mx-5 mt-4 flex items-center gap-4 overflow-hidden rounded-lg border border-rule bg-paper-deep">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={houseFavourite.photoUrl} alt="" loading="lazy" decoding="async" className="size-28 shrink-0 object-cover" />
+            <img src={houseFavourite.photoUrl} alt="" decoding="async" className="size-28 shrink-0 object-cover" />
             <div className="py-3 pr-3">
               <p id="house-favourite-label" className="text-xs font-semibold tracking-wide text-brand-readable uppercase">{t("houseFavourite")}</p>
               <h2 id="house-favourite-name" className="mt-1 font-display text-xl leading-tight">{houseFavourite.name}</h2>

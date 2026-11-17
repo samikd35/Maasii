@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useId, useRef, useState } from "react";
 import type { getMyTableOrders, PreparedBill } from "@/core";
 import { formatBirr, parseBirr } from "@/ui/price";
 
@@ -30,6 +30,10 @@ export function BillControls({
   const [amount, setAmount] = useState("");
   const [working, setWorking] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [invalidAmount, setInvalidAmount] = useState(false);
+  const amountRef = useRef<HTMLInputElement>(null);
+  const amountId = useId();
+  const errorId = useId();
   const receiptAmountSantim = parseBirr(amount);
   const difference = bill && receiptAmountSantim !== null ? receiptAmountSantim - bill.totalSantim : 0;
 
@@ -69,6 +73,11 @@ export function BillControls({
           {confirming && (
             <form className="space-y-3 border-t border-rule pt-3" onSubmit={(event) => {
               event.preventDefault();
+              if (receiptAmountSantim === null) {
+                setInvalidAmount(true);
+                amountRef.current?.focus();
+                return;
+              }
               if (receiptAmountSantim !== null && method) {
                 void change({ action: "confirm", receiptAmountSantim, paymentOptionId: method === "cash" ? null : method });
               }
@@ -83,18 +92,23 @@ export function BillControls({
                   ))}
                 </select>
               </label>
-              <label className="block text-sm font-medium">
+              <label htmlFor={amountId} className="block text-sm font-medium">
                 {t("amount")}
-                <input className={field} inputMode="decimal" autoComplete="off" required
-                  value={amount} onChange={(event) => setAmount(event.target.value)} />
+                <input ref={amountRef} id={amountId} name="receiptAmount" className={field} inputMode="decimal" autoComplete="off" required
+                  aria-invalid={invalidAmount || undefined} aria-describedby={invalidAmount ? errorId : undefined}
+                  onBlur={() => setInvalidAmount(amount !== "" && receiptAmountSantim === null)}
+                  value={amount} onChange={(event) => {
+                    setAmount(event.target.value);
+                    if (parseBirr(event.target.value) !== null) setInvalidAmount(false);
+                  }} />
               </label>
-              {amount && receiptAmountSantim === null && <p className="text-sm" role="status">{t("invalidAmount")}</p>}
+              {invalidAmount && <p id={errorId} className="text-sm" role="alert">{t("invalidAmount")}</p>}
               {difference !== 0 && (
-                <p className="text-sm" role="status">
+                <p className="text-sm">
                   {t("difference", { amount: (difference < 0 ? "−" : "+") + formatBirr(Math.abs(difference)) })}
                 </p>
               )}
-              <button type="submit" className={primary} disabled={working || !method || receiptAmountSantim === null}>
+              <button type="submit" className={primary} disabled={working}>
                 {t("record")}
               </button>
             </form>

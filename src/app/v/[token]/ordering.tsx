@@ -4,7 +4,7 @@
 // Prices and checks come from the Maasii core's browser-safe rules; this file only renders them
 // and keeps the Draft in the phone's local storage.
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from "react";
 import {
   MAX_NOTE_LENGTH,
   MAX_QUANTITY,
@@ -144,16 +144,21 @@ export function Ordering({ venueLinkToken, sections, recordBrowsing, preview = f
   const [sheet, setSheet] = useState<SheetRequest | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [Service, setService] = useState<typeof import("./order-service").default>();
+  const [serviceFailed, setServiceFailed] = useState(false);
+  const slipButton = useRef<HTMLButtonElement>(null);
   const serviceKey = `maasii:orders:${venueLinkToken}`;
   const showSlip = !!sheet && "draft" in sheet;
+  const loadService = useCallback(() => {
+    void import("./order-service").then(({ default: service }) => setService(() => service)).catch(() => setServiceFailed(true));
+  }, []);
   useEffect(() => {
     if (preview || Service || !orderService) return;
     let remembered = false;
     try {
       remembered = !!localStorage.getItem(serviceKey);
     } catch {}
-    if (showSlip || remembered) void import("./order-service").then(({ default: service }) => setService(() => service)).catch(() => {});
-  }, [preview, Service, orderService, serviceKey, showSlip]);
+    if (showSlip || remembered) loadService();
+  }, [preview, Service, orderService, serviceKey, showSlip, loadService]);
 
   useEffect(() => {
     if (recordBrowsing && browsingPage?.venueLinkToken !== venueLinkToken) {
@@ -228,11 +233,12 @@ export function Ordering({ venueLinkToken, sections, recordBrowsing, preview = f
   }
 
   function slip(service?: SlipService) {
-    const hasSlip = lines.length > 0 || !!service?.tableLabel;
+    const hasSlip = lines.length > 0 || !!service?.tableLabel || serviceFailed;
     return hasSlip && (
       <>
         <div className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-xl bg-linear-to-t from-paper via-paper/90 to-transparent px-3 pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <button
+            ref={slipButton}
             type="button"
             aria-haspopup="dialog"
             onClick={() => setSheet({ draft: true })}
@@ -249,9 +255,21 @@ export function Ordering({ venueLinkToken, sections, recordBrowsing, preview = f
         </div>
         {showSlip && (
           <DraftSheet
+            invoker={slipButton}
             lines={lines}
             draft={draft}
             service={service}
+            serviceFallback={!preview && orderService && !Service && (
+              <div className="mt-3">
+                <p role={serviceFailed ? "alert" : undefined}>{t(serviceFailed ? storageUnavailable ? "serviceUnsaved" : "serviceFailed" : "serviceLoading")}</p>
+                {serviceFailed && (
+                  <>
+                    <button type="button" className={textButton} onClick={() => { setServiceFailed(false); loadService(); }}>{t("retryService")}</button>
+                    {!storageUnavailable && <button type="button" className={textButton} onClick={() => window.location.reload()}>{t("reloadService")}</button>}
+                  </>
+                )}
+              </div>
+            )}
             onClose={() => setSheet(null)}
             onEdit={(lineId) => setSheet({ lineId })}
             onQuantity={(lineId, quantity) => save(lines.map((l) => (l.lineId === lineId ? { ...l, quantity } : l)), "")}
@@ -291,28 +309,51 @@ export function Ordering({ venueLinkToken, sections, recordBrowsing, preview = f
 
 function Sheet({
   labelledBy,
+  invoker,
   onClose,
   footer,
   children,
 }: {
   labelledBy: string;
+  invoker?: RefObject<HTMLButtonElement | null>;
   onClose: () => void;
   footer?: ReactNode;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  useLayoutEffect(() => {
+    const dialog = ref.current!;
+    // Lazy service loading can replace the slip button. Establish the current invoker
+    // before opening so the browser can return focus to a connected element.
+    invoker?.current?.focus({ preventScroll: true });
+    if (!dialog.open) dialog.showModal();
+    // Close before React removes the node, so native focus restoration also covers Save and Edit.
+    return () => dialog.close();
+  }, [invoker]);
   useEffect(() => {
-    if (!ref.current?.open) ref.current?.showModal();
+    if ("closedBy" in HTMLDialogElement.prototype) return;
+    const dialog = ref.current!;
+    const outside = (event: PointerEvent) => {
+      const rect = dialog.getBoundingClientRect();
+      return event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom;
+    };
+    let pressedOutside = false;
+    const down = (event: PointerEvent) => { pressedOutside = outside(event); };
+    const up = (event: PointerEvent) => { if (pressedOutside && outside(event)) dialog.close(); pressedOutside = false; };
+    dialog.addEventListener("pointerdown", down);
+    dialog.addEventListener("pointerup", up);
+    return () => {
+      dialog.removeEventListener("pointerdown", down);
+      dialog.removeEventListener("pointerup", up);
+    };
   }, []);
 
   return (
     <dialog
       ref={ref}
+      closedby="any"
       aria-labelledby={labelledBy}
       onClose={onClose}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
       className="fixed inset-x-0 top-auto bottom-0 m-0 mx-auto max-h-[92dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-2xl bg-paper p-0 text-ink shadow-2xl backdrop:bg-ink/45 open:flex"
     >
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
@@ -491,17 +532,21 @@ function DishSheet({
 }
 
 function DraftSheet({
+  invoker,
   lines,
   draft,
   service,
+  serviceFallback,
   onClose,
   onEdit,
   onQuantity,
   onRemove,
 }: {
+  invoker: RefObject<HTMLButtonElement | null>;
   lines: Line[];
   draft: PricedDraft;
   service?: SlipService;
+  serviceFallback?: ReactNode;
   onClose: () => void;
   onEdit: (lineId: string) => void;
   onQuantity: (lineId: string, quantity: number) => void;
@@ -511,9 +556,10 @@ function DraftSheet({
   const headingId = useId();
   return (
     <Sheet
+      invoker={invoker}
       labelledBy={headingId}
       onClose={onClose}
-      footer={(lines.length > 0 || service?.locked || service?.canChangeTable) && (
+      footer={(lines.length > 0 || service?.locked || service?.canChangeTable || serviceFallback) && (
         <>
           {lines.length > 0 && (
             <div className="flex items-center justify-between">
@@ -522,6 +568,7 @@ function DraftSheet({
             </div>
           )}
           {service?.controls}
+          {serviceFallback}
         </>
       )}
     >

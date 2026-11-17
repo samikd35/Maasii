@@ -12,9 +12,9 @@ export function GuestMenuHeader({ brand, children }: {
       {brand.logoUrl ? (
         // A plain image keeps the guest page light.
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={brand.logoUrl} alt={brand.name} height={48} className="h-12 w-auto max-w-[65%] object-contain object-left" />
+        <img src={brand.logoUrl} alt={brand.name} height={48} className="h-12 min-w-0 w-auto max-w-[65%] object-contain object-left" />
       ) : (
-        <span className="font-display text-xl font-semibold">{brand.name}</span>
+        <span className="min-w-0 flex-1 wrap-anywhere font-display text-xl font-semibold">{brand.name}</span>
       )}
       {children}
     </header>
@@ -33,7 +33,7 @@ export function GuestMenuIntro({ label, coverUrl, heading: Heading = "h1" }: {
       <Heading className="mt-1 font-display text-4xl leading-tight text-brand-readable">{t("heading")}</Heading>
       {coverUrl && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={coverUrl} alt="" loading="lazy" decoding="async" className="mt-4 aspect-[3/1] w-full rounded-lg bg-paper-deep object-cover" />
+        <img src={coverUrl} alt="" fetchPriority="high" decoding="async" className="mt-4 aspect-[3/1] w-full rounded-lg bg-paper-deep object-cover" />
       )}
     </div>
   );
@@ -78,7 +78,7 @@ export function DraftSlipContents({ dishCount, linesNeedingAttention = 0, totalS
     <>
       <span className="flex flex-col">
         <span className="font-semibold">
-          {dishCount ? `${t("yourDraft")} · ${t("dishCount", { count: dishCount })}` : `${t("yourTable")} · ${tableLabel}`}
+          {dishCount ? `${t("yourDraft")} · ${t("dishCount", { count: dishCount })}` : tableLabel ? `${t("yourTable")} · ${tableLabel}` : t("yourTable")}
         </span>
         {linesNeedingAttention > 0 && (
           <span className="text-sm">{t("needAttention", { count: linesNeedingAttention })}</span>

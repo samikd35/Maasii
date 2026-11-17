@@ -5,6 +5,7 @@ import { adminActor, adminSupportActor, hasAuthSession, MaasiiError, staffActor,
 import { isLocale, LANGUAGE_COOKIE } from "@/i18n/config";
 import type { Messages } from "@/i18n/messages";
 import { createSessionClient } from "@/lib/supabase/server";
+import { secureCookies } from "@/lib/secure-cookies";
 
 /** The verified Supabase identity. Waiter access still requires the device's PIN unlock. */
 export const getSessionActor = cache(async (): Promise<StaffActor | null> => {
@@ -63,7 +64,7 @@ export async function setWaiterUnlockToken(token: string) {
     path: "/staff",
     httpOnly: true,
     sameSite: "lax",
-    secure: (await headers()).get("x-forwarded-proto") === "https",
+    secure: secureCookies(await headers()),
     ...(token ? {} : { maxAge: 0 }),
   });
 }

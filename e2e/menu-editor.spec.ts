@@ -266,3 +266,47 @@ test("the Owner reviews imported dishes and suggested text before publishing", a
   await expect(page.getByRole("heading", { name: "Honey bread" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Toast" })).toHaveCount(0);
 });
+
+test("failed photo, save and publish requests preserve the Owner's edits and can be retried", async ({ page }) => {
+  const s = await scenario().publishedMenu().build();
+  await signIn(page, s.owner);
+  await page.getByRole("link", { name: "Brand menu" }).click();
+  const dish = page.getByRole("region", { name: "Edit" }).locator("details").filter({ hasText: "Omelette" });
+  await dish.locator("summary").click();
+  const name = dish.getByLabel("Dish name in English");
+  await name.fill("Garden Omelette");
+  const route = `**/manage/brands/${s.brand.id}/menu`;
+  await page.route(route, (request) => request.request().method() === "POST" ? request.abort("failed") : request.continue());
+  await dish.getByLabel("Upload photo").setInputFiles("public/brands/bilos/almond-cake.webp");
+  const error = page.locator("#brand-menu-editor").getByRole("alert");
+  await expect(error).toContainText("Your edits are still here");
+  expect(await error.evaluate((element) => getComputedStyle(element).getPropertyValue("--color-red-800").trim())).not.toBe("");
+  for (const button of ["Save draft", "Publish"]) {
+    await page.getByRole("button", { name: button, exact: true }).click();
+    await expect(error).toContainText("Your edits are still here");
+    await expect(name).toHaveValue("Garden Omelette");
+  }
+  await page.unroute(route);
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect(page.getByText("Menu published.", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("region", { name: "Edit" }).getByText("Garden Omelette", { exact: true })).toBeVisible();
+});
+
+test("denied clipboard writes show a manual-copy fallback and a later copy succeeds", async ({ page }) => {
+  const s = await scenario().build();
+  await signIn(page, s.owner);
+  await page.goto(`/manage/venues/${s.venue.id}`);
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: {
+      writeText: async () => { throw new DOMException("Denied", "NotAllowedError"); },
+    } });
+  });
+  await page.getByRole("button", { name: "Copy link" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Could not copy" })).toContainText("Select the link");
+  await page.getByRole("textbox", { name: "Venue Link", exact: true }).focus();
+  expect(await page.getByRole("textbox", { name: "Venue Link", exact: true }).evaluate((input: HTMLInputElement) => input.selectionEnd! - input.selectionStart!)).toBeGreaterThan(0);
+  await page.evaluate(() => { navigator.clipboard.writeText = async () => {}; });
+  await page.getByRole("button", { name: "Copy link" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Copied" })).toBeVisible();
+});

@@ -124,9 +124,13 @@ export function MenuEditor({
     const form = new FormData();
     form.set("photo", file);
     startTransition(async () => {
-      const result = await prepareDishPhoto(saved.brand.id, form);
-      if (result.photoUrl) onUploaded(result.photoUrl);
-      else setError(result.error ?? "invalid_input");
+      try {
+        const result = await prepareDishPhoto(saved.brand.id, form);
+        if (result.photoUrl) onUploaded(result.photoUrl);
+        else setError(result.error ?? "invalid_input");
+      } catch {
+        setError("menuRequestFailed");
+      }
     });
   }
 
@@ -170,13 +174,17 @@ export function MenuEditor({
     setError(undefined);
     setStatus(undefined);
     startTransition(async () => {
-      const result = await persistMenuDraft(saved.brand.id, saved.revision, menu, publish);
-      if (result.draft) {
-        setSaved(result.draft);
-        setMenu(result.draft.menu);
-        setStatus(publish ? "published" : "saved");
-      } else {
-        setError(result.error ?? "invalid_input");
+      try {
+        const result = await persistMenuDraft(saved.brand.id, saved.revision, menu, publish);
+        if (result.draft) {
+          setSaved(result.draft);
+          setMenu(result.draft.menu);
+          setStatus(publish ? "published" : "saved");
+        } else {
+          setError(result.error ?? "invalid_input");
+        }
+      } catch {
+        setError("menuRequestFailed");
       }
     });
   }

@@ -1,23 +1,13 @@
-@import "tailwindcss";
-
-/* Paper & Ink: warm paper, dark ink, hairline rules. */
-@theme {
-  --color-paper: #fbf7f0;
-  --color-paper-deep: #f3ece0;
-  --color-ink: #1c1917;
-  --color-ink-muted: #57534e;
-  --color-rule: #e4dccd;
-  --color-brand-accent: var(--color-rule);
-  --color-brand-readable: var(--color-ink);
-
-  --font-system: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Ethiopic", Kefa, Nyala, sans-serif;
-}
-
-@theme inline {
-  /* Resolve the font at the element so a Brand can select its own Ethiopic face. */
-  --font-sans: var(--font-ethiopic), var(--font-system);
-  --font-display: var(--font-ethiopic), var(--font-display-latin, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif);
-}
+@import "tailwindcss" source(none);
+@import "./theme.css";
+/* Guests download only shared and guest utilities; staff screens add staff.css. */
+@source "../ui/guest-*.tsx";
+@source "../ui/language-*.tsx";
+@source "../ui/price.tsx";
+@source "../ui/payment-option-values.tsx";
+@source "./v";
+@source "./layout.tsx";
+@source "./page.tsx";
 
 @media (prefers-reduced-motion: no-preference) {
   html {
@@ -30,4 +20,13 @@ body {
   color: var(--color-ink);
   font-family: var(--font-ethiopic), var(--font-system);
   -webkit-text-size-adjust: 100%;
+}
+
+dialog:modal {
+  overscroll-behavior: contain;
+}
+
+dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
 }

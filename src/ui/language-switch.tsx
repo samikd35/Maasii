@@ -18,7 +18,7 @@ export function LanguageSwitch({ area, action }: { area: Area; action: (formData
       cookieName={area === "guest" ? LANGUAGE_COOKIE.guest : undefined}
       role="group"
       aria-label={t("label")}
-      className="flex font-system"
+      className="flex shrink-0 font-system"
     >
       {locales.map((language) => (
         <button

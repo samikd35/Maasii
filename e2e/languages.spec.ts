@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { LANCHA_LINK_TOKEN } from "../scripts/seed/bilos";
+import { bilosMenu, LANCHA_LINK_TOKEN } from "../scripts/seed/bilos";
 import { SABA_LINK_TOKEN } from "../scripts/seed/saba";
 import { scenario } from "../tests/support/scenario";
 
@@ -10,6 +10,8 @@ const sectionChips = (page: Page) => page.getByRole("navigation", { name: /Menu 
 const dishRow = (page: Page, name: string) => page.getByRole("listitem").filter({ has: page.getByRole("heading", { name }) });
 
 test("a guest switches the menu to Amharic and back, and the choice survives a reload", async ({ page }) => {
+  const s = await scenario().publishedMenu(bilosMenu).build();
+  const bilosMenuLink = `/v/${s.venue.linkToken}`;
   await page.setExtraHTTPHeaders({ "x-maasii-test-now": "2026-10-08T12:00:00Z" });
   await page.goto(bilosMenuLink);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Our menu");
