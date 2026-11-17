@@ -142,6 +142,14 @@ To enable delivery on a deployment:
 
 The deployed staff origin must use HTTPS. Local browser tests use a fixture at the browser push boundary. Core tests supply the delivery transport and control the escalation clock.
 
+### Check delivery on a real staff phone
+
+1. Use the target HTTPS environment and a test Venue. Confirm all three Web Push environment variables are set, the Vault URL points to that environment's notification job endpoint, and the minute job runs successfully. For each test Order, check that the wake reached the endpoint and the worker attempted delivery; a 204 from the endpoint confirms the worker ran, not that the phone received a notification.
+2. Install Maasii on a supported Android phone. If the pilot uses iPhone, test it separately by opening Maasii from the Home Screen. Enroll the phone as a Waiter, unlock it, start a Shift, assign a Table to that Waiter, then tap **Enable notifications** and grant permission. Check the phone's notification settings, Focus/Do Not Disturb and connection. **Setup completed** means Maasii saved the subscription; it does not confirm delivery.
+3. From a separate guest phone, Send to the assigned Table three times, using a fresh Order for each check: with the unlocked Waiter page open (tap it first to enable sound), with Maasii in the background, and with the phone screen locked. Expect a visible Order and chime in the first case, and a device notification in the other two. Leave each Order Sent until the alert arrives; then tap a notification to confirm the correct Table opens, through PIN unlock when needed. Accept and close out test Orders normally.
+4. With Waiters assigned on the running Shift, Send to an unassigned Table and confirm the current on-duty Waiters receive it. Leave one assigned Order unaccepted and confirm escalation on the minute job after the Order is at least two minutes old. A Shift without any Table Assignments has no push recipients; assign a Waiter before treating a missing alert as a delivery failure.
+5. Record the environment, test date, device/browser/OS, assigned Table, Send/receipt timing and result for each case. Record failed and pending cases separately. Never include VAPID keys, subscription endpoints, wake tokens, PINs or guest data. Automated browser results cannot substitute for this check.
+
 ## Menu assistance
 
 Set `OPENAI_API_KEY` and `MAASII_MENU_AI_MODEL` on the server to enable Menu photo import and translation suggestions. Choose a model that supports image input and Structured Outputs in the [Responses API](https://developers.openai.com/api/docs/guides/structured-outputs). Never use a `NEXT_PUBLIC_` prefix for these values.

@@ -465,9 +465,11 @@
     "escalatedOrder": "Escalated Order",
     "installHint": "Install Maasii from your browser menu.",
     "enableNotifications": "Enable notifications",
-    "notificationEnabled": "Notifications enabled on this device.",
+    "notificationEnabled": "Notification setup completed on this device. Ask your Manager to send a test Order to check delivery.",
+    "notificationUnconfigured": "Device notifications are not set up for Maasii. Ask your Manager for help. You can still see Orders on this page.",
     "notificationDenied": "Allow notifications for Maasii in your browser settings.",
-    "notificationUnsupported": "On iPhone, open Maasii from your Home Screen to enable notifications.",
+    "notificationUnsupported": "This browser cannot receive device notifications here. On iPhone, install Maasii and open it from your Home Screen.",
+    "notificationDismissed": "Notification permission was not granted. Select Enable notifications to try again.",
     "notificationError": "Could not enable notifications. Try again."
   },
   "Floor": {

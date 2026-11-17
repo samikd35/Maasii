@@ -26,27 +26,48 @@ async function readyWorker() {
   return registration;
 }
 
-type Status = "notificationEnabled" | "notificationUnsupported" | "notificationDenied" | "notificationError";
+type Status = "available" | "notificationEnabled" | "notificationUnconfigured" | "notificationUnsupported"
+  | "notificationDenied" | "notificationDismissed" | "notificationError";
+
+function supportsPush() {
+  return window.isSecureContext && "Notification" in window && "PushManager" in window && "serviceWorker" in navigator;
+}
 
 export function Notifications({ vapidKey, subscribed }: { vapidKey?: string; subscribed: boolean }) {
   const t = useTranslations("StaffOrders");
-  const [status, setStatus] = useState<Status | undefined>(subscribed ? "notificationEnabled" : undefined);
+  const [status, setStatus] = useState<Status | undefined>();
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!("serviceWorker" in navigator)) return;
-    void readyWorker().catch(() => {});
-  }, []);
+    let active = true;
+    async function checkDevice(): Promise<Status> {
+      if (!vapidKey) return "notificationUnconfigured";
+      if (!supportsPush()) return "notificationUnsupported";
+      const registration = await readyWorker();
+      if (Notification.permission === "denied") return "notificationDenied";
+      // A saved registration can outlive the browser subscription.
+      if (subscribed && Notification.permission === "granted" && await registration.pushManager.getSubscription()) {
+        return "notificationEnabled";
+      }
+      return "available";
+    }
+    void checkDevice().catch(() => "notificationError" as const).then((next) => {
+      if (active) setStatus(next);
+    });
+    return () => { active = false; };
+  }, [vapidKey, subscribed]);
 
   async function enable() {
-    if (!vapidKey || !("Notification" in window) || !("PushManager" in window) || !("serviceWorker" in navigator)) {
+    if (!vapidKey) return;
+    if (!supportsPush()) {
       setStatus("notificationUnsupported");
       return;
     }
     setBusy(true);
     try {
-      if (await Notification.requestPermission() !== "granted") {
-        setStatus("notificationDenied");
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        setStatus(permission === "denied" ? "notificationDenied" : "notificationDismissed");
         return;
       }
       const registration = await readyWorker();
@@ -65,15 +86,18 @@ export function Notifications({ vapidKey, subscribed }: { vapidKey?: string; sub
     }
   }
 
+  const canEnable = vapidKey && (status === "available" || status === "notificationDenied"
+    || status === "notificationDismissed" || status === "notificationError");
+
   return (
     <div className="mt-4 text-sm">
-      <p>{t("installHint")}</p>
-      {vapidKey && status !== "notificationEnabled" && (
+      {canEnable && <p>{t("installHint")}</p>}
+      {canEnable && (
         <button className="min-h-11 underline" type="button" disabled={busy} onClick={() => void enable()}>
           {t("enableNotifications")}
         </button>
       )}
-      <p role="status">{status && t(status)}</p>
+      <p role="status">{status && status !== "available" && t(status)}</p>
     </div>
   );
 }

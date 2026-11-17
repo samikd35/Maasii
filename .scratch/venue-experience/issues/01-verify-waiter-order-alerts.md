@@ -21,3 +21,10 @@
 - [ ] Distinguish automated fixture results from actual provider/device delivery. Real-phone execution is required by ticket 10; an unavailable phone/environment is pending evidence, not a passing result.
 
 **Verification:** Existing notification core and staff-notification browser scenarios plus focused regressions for reproduced failures. No unrelated Order/billing redesign.
+
+## Implementation evidence
+
+- Baseline: 7 notification core checks and the Chromium notification flow passed. A new browser assertion then reproduced the false “enabled” state after the browser lost its subscription while the server still showed a registration.
+- Setup now checks server configuration and browser support/permission/subscription separately. The same regression verifies a dismissed or denied permission, retry, then a saved registration. “Setup completed” asks for a test Order and does not claim delivery.
+- Verified after the change: all 7 notification core checks and the Chromium production-build notification flow passed. Routing, escalation, polling fallback, worker scope and PIN handling use the existing paths.
+- Follow [Check delivery on a real staff phone](../../../README.md#check-delivery-on-a-real-staff-phone) for ticket 10. Real provider/device delivery: pending target HTTPS environment and supported staff phone.

@@ -17,6 +17,11 @@ test("staff installs a scoped worker, hears and sees an incoming Order, and open
       keys: { p256dh: createECDH("prime256v1").generateKeys("base64url"), auth: randomBytes(16).toString("base64url") },
     };
     await staff.addInitScript((subscription) => {
+      // Headless mobile emulation reports a different permission across reloads.
+      // Keep permission aligned with the emulated Push subscription.
+      Object.defineProperty(Notification, "permission", {
+        get: () => sessionStorage.getItem("pushDenied") ? "denied" : "granted",
+      });
       const mockPush = {
         toJSON: () => subscription,
         unsubscribe: async () => { sessionStorage.removeItem("pushFixture"); },
@@ -50,11 +55,35 @@ test("staff installs a scoped worker, hears and sees an incoming Order, and open
     await expect.poll(() => waiter.evaluate(async () => (await navigator.serviceWorker.getRegistrations())
       .map(({ active }) => active?.scriptURL))).toContain(`${baseURL}/staff-sw.js`);
 
-    await waiter.getByRole("button", { name: "Enable notifications" }).click();
-    await expect(waiter.getByText("Notifications enabled on this device.")).toBeVisible();
+    const enable = waiter.getByRole("button", { name: "Enable notifications" });
+    // A permission prompt can be dismissed without blocking future requests.
+    await waiter.evaluate(() => {
+      const request = Notification.requestPermission;
+      Notification.requestPermission = async () => {
+        Notification.requestPermission = request;
+        return "default";
+      };
+    });
+    await enable.click();
+    await expect(waiter.getByRole("status").filter({ hasText: "Notification permission was not granted." })).toBeVisible();
+    await enable.click();
+    await expect(waiter.getByText("Notification setup completed on this device.")).toBeVisible();
     await waiter.reload();
     await expect.poll(() => waiter.evaluate(() => navigator.serviceWorker.controller?.scriptURL)).toBe(`${baseURL}/staff-sw.js`);
-    await expect(waiter.getByText("Notifications enabled on this device.")).toBeVisible();
+    await expect(waiter.getByText("Notification setup completed on this device.")).toBeVisible();
+
+    await waiter.evaluate(() => sessionStorage.setItem("pushDenied", "1"));
+    await waiter.reload();
+    await expect(waiter.getByRole("status").filter({ hasText: "Allow notifications for Maasii in your browser settings." })).toBeVisible();
+
+    // The server still has a registration, but the browser no longer does.
+    await waiter.evaluate(() => {
+      sessionStorage.removeItem("pushDenied");
+      sessionStorage.removeItem("pushFixture");
+    });
+    await waiter.reload();
+    await waiter.getByRole("button", { name: "Enable notifications" }).click({ timeout: 4000 });
+    await expect(waiter.getByText("Notification setup completed on this device.")).toBeVisible();
 
     await page.goto(`/v/${s.venue.linkToken}`);
     await expect(page.locator('link[rel="manifest"]')).toHaveCount(0);
