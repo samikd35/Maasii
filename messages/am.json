@@ -22,15 +22,24 @@
     "houseFavourite": "የቤታችን ተወዳጅ",
     "comingSoon": "ምናሌው በቅርቡ ይዘጋጃል። እባክዎ ሰራተኞቻችንን ይጠይቁ።"
   },
+  "GuestNavigation": {
+    "pages": "የቦታው ገጾች",
+    "home": "መነሻ",
+    "menu": "ምናሌ",
+    "feedback": "አስተያየቶች",
+    "payment": "የክፍያ መረጃ",
+    "social": "ማኅበራዊ ሚዲያ",
+    "choose": "ምን ማድረግ ይፈልጋሉ?",
+    "continueOrder": "ትዕዛዝዎን ይቀጥሉ",
+    "viewBill": "ሂሳብዎን ይመልከቱ"
+  },
   "GuestPayment": {
     "heading": "የክፍያ መረጃ",
-    "backToMenu": "ወደ ምናሌው ይመለሱ",
     "instructions": "በራስዎ የክፍያ መተግበሪያ ይክፈሉ፤ ጥሬ ገንዘብ ከተዘረዘረ ለአስተናጋጅዎ ይክፈሉ።",
     "empty": "የክፍያ መረጃ አልተዘረዘረም። እባክዎ አስተናጋጅዎን ይጠይቁ።"
   },
   "GuestSocial": {
     "heading": "ማኅበራዊ ሚዲያ",
-    "backToMenu": "ወደ ምናሌው ይመለሱ",
     "empty": "ይህ ብራንድ እስካሁን የማኅበራዊ ሚዲያ አገናኞችን አላከለም።"
   },
   "VenueLinkNotFound": {

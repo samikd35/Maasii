@@ -6,13 +6,13 @@ import type { TestUser } from "../tests/support/users";
 const artwork = (name: string) => resolve("public/brands/bilos", name);
 const loadedImage = (img: Element) => (img as HTMLImageElement).naturalWidth;
 
-async function signIn(page: Page, user: TestUser) {
+async function signIn(page: Page, user: TestUser, path = "/manage") {
   await page.goto("/sign-in");
   await page.getByRole("button", { name: "EN", exact: true }).click();
   await page.getByLabel("Email or phone").fill(user.email);
   await page.getByLabel("Password").fill(user.password);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/manage$/);
+  await expect(page).toHaveURL((url) => url.pathname === path);
 }
 
 test("an Owner previews and saves artwork and readable colours for every Venue", async ({ page, browser }) => {
@@ -46,7 +46,7 @@ test("an Owner previews and saves artwork and readable colours for every Venue",
   await expect.poll(() => preview.getByRole("img", { name: "Bole Coffee" }).evaluate(loadedImage)).toBeGreaterThan(0);
   await expect.poll(() => preview.locator('img[alt=""]').evaluate(loadedImage)).toBeGreaterThan(0);
 
-  await guest.goto(`/v/${s.venue.linkToken}`);
+  await guest.goto(`/v/${s.venue.linkToken}/menu`);
   await expect(guestHeader).not.toHaveCSS("border-top-color", "rgb(236, 103, 40)");
   await expect(guestHeader.getByRole("img")).toHaveCount(0);
 
@@ -54,7 +54,7 @@ test("an Owner previews and saves artwork and readable colours for every Venue",
   await expect(page.getByRole("status")).toHaveText("Branding saved at every venue.");
 
   for (const venue of Object.values(s.venues)) {
-    await guest.goto(`/v/${venue.linkToken}`);
+    await guest.goto(`/v/${venue.linkToken}/menu`);
     await expect(guestHeader).toHaveCSS("border-top-color", "rgb(236, 103, 40)");
     await expect(guestHeading).toHaveCSS("color", readable);
     await expect(guestHeading).toHaveCSS("font-family", await previewHeading.evaluate((el) => getComputedStyle(el).fontFamily));
@@ -62,7 +62,7 @@ test("an Owner previews and saves artwork and readable colours for every Venue",
     await expect.poll(() => guest.locator('main img[alt=""]').evaluate(loadedImage)).toBeGreaterThan(0);
   }
 
-  await signIn(guest, s.managers.Hana);
+  await signIn(guest, s.managers.Hana, "/manage/operations");
   await expect(guest.getByRole("link", { name: "Branding", exact: true })).toHaveCount(0);
   await guest.goto(page.url());
   await expect(guest.getByRole("heading", { name: "We couldn't find what you were looking for." })).toBeVisible();

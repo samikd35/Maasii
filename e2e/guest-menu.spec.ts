@@ -5,15 +5,15 @@ import { bilosMenu, LANCHA_LINK_TOKEN } from "../scripts/seed/bilos";
 import { SABA_LINK_TOKEN } from "../scripts/seed/saba";
 import { scenario } from "../tests/support/scenario";
 
-const bilosMenuLink = `/v/${LANCHA_LINK_TOKEN}`;
+const bilosMenuLink = `/v/${LANCHA_LINK_TOKEN}/menu`;
 
-test("a guest opening Bilo's Venue Link sees the logo, section chips and dish rows", async ({ page }) => {
+test("a guest opening Bilo's Menu sees the logo, section chips and dish rows", async ({ page }) => {
   const s = await scenario().brand("Bilo's Pastry").publishedMenu(bilosMenu).build();
   await updateBranding(s.owner.actor, {
     brandId: s.brand.id, colour: "#568F69", displayFont: "noto-sans-ethiopic",
     logo: new File([await readFile("public/brands/bilos/logo.webp")], "logo.webp", { type: "image/webp" }),
   });
-  const bilosMenuLink = `/v/${s.venue.linkToken}`;
+  const bilosMenuLink = `/v/${s.venue.linkToken}/menu`;
   await page.setExtraHTTPHeaders({ "x-maasii-test-now": "2026-10-08T12:00:00Z" });
   await page.goto(bilosMenuLink);
 
@@ -65,7 +65,7 @@ test("one House favourite appears above the first section and opens its dish", a
       }],
     }],
   }).build();
-  await page.goto(`/v/${s.venue.linkToken}`);
+  await page.goto(`/v/${s.venue.linkToken}/menu`);
 
   const card = page.getByRole("article", { name: "House favourite" });
   await expect(card).toHaveCount(1);
@@ -99,7 +99,7 @@ test("each seeded Brand shows its own artwork, display font and readable colours
   await page.getByRole("button", { name: "Add to order" }).click();
   await expect(page.getByRole("button", { name: /Your Draft/ })).toHaveCSS("background-color", bilosColour);
 
-  await page.goto(`/v/${SABA_LINK_TOKEN}`);
+  await page.goto(`/v/${SABA_LINK_TOKEN}/menu`);
   await expect(brand.getByText("Saba House")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Buna" })).toBeVisible();
   await expect(brand).toHaveCSS("border-top-color", "rgb(86, 143, 105)");
@@ -168,7 +168,7 @@ test("the menu is printed in ink on warm paper with touch targets of at least 44
 
 test("publishing a new Menu version changes what guests see", async ({ page }) => {
   const s = await scenario().brand("Bilo's Pastry").venue("Sarbet").publishedMenu().build();
-  await page.goto(`/v/${s.venue.linkToken}`);
+  await page.goto(`/v/${s.venue.linkToken}/menu`);
   await expect(page.getByRole("heading", { name: "Chechebsa" })).toBeVisible();
 
   await publishMenu(s.owner.actor, {

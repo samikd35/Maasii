@@ -3,15 +3,15 @@ import { bilosMenu, LANCHA_LINK_TOKEN } from "../scripts/seed/bilos";
 import { SABA_LINK_TOKEN } from "../scripts/seed/saba";
 import { scenario } from "../tests/support/scenario";
 
-const bilosMenuLink = `/v/${LANCHA_LINK_TOKEN}`;
-const sabaMenuLink = `/v/${SABA_LINK_TOKEN}`;
+const bilosMenuLink = `/v/${LANCHA_LINK_TOKEN}/menu`;
+const sabaMenuLink = `/v/${SABA_LINK_TOKEN}/menu`;
 
 const sectionChips = (page: Page) => page.getByRole("navigation", { name: /Menu sections|የምናሌ ክፍሎች/ }).getByRole("link");
 const dishRow = (page: Page, name: string) => page.getByRole("listitem").filter({ has: page.getByRole("heading", { name }) });
 
 test("a guest switches the menu to Amharic and back, and the choice survives a reload", async ({ page }) => {
   const s = await scenario().publishedMenu(bilosMenu).build();
-  const bilosMenuLink = `/v/${s.venue.linkToken}`;
+  const bilosMenuLink = `/v/${s.venue.linkToken}/menu`;
   await page.setExtraHTTPHeaders({ "x-maasii-test-now": "2026-10-08T12:00:00Z" });
   await page.goto(bilosMenuLink);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Our menu");
@@ -56,7 +56,7 @@ test("the language choice applies on the next visit to any venue", async ({ page
   await page.getByRole("button", { name: "አማ" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("ምናሌያችን");
 
-  await page.goto(`/v/${s.venue.linkToken}`);
+  await page.goto(`/v/${s.venue.linkToken}/menu`);
 
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("ምናሌያችን");
   await expect(page.getByRole("heading", { name: "ኦምሌት" })).toBeVisible();
@@ -125,6 +125,13 @@ test.describe("on a phone set to Amharic", () => {
     expect(bytes.total).toBeLessThan(250 * 1024);
   });
 
+  test("the Amharic Venue homepage stays within the guest budget", async ({ page }) => {
+    const bytes = await weighMenu(page, `/v/${LANCHA_LINK_TOKEN}`);
+    console.log(`Amharic Venue homepage before photos: ${(bytes.total / 1024).toFixed(1)} KB`);
+    expect(bytes.ethiopicFonts).toBe(1);
+    expect(bytes.total).toBeLessThan(250 * 1024);
+  });
+
   test("Saba House's Amharic menu weighs under 250 KB and downloads one Ethiopic font", async ({ page }) => {
     const bytes = await weighMenu(page, sabaMenuLink);
     console.log(`Saba House Amharic menu weight before photos: ${(bytes.total / 1024).toFixed(1)} KB`);
@@ -150,6 +157,13 @@ test("the English guest menu weighs under 250 KB before photos and downloads no 
   expect(bytes.total).toBeLessThan(250 * 1024);
 });
 
+test("the English Venue homepage stays within the guest budget", async ({ page }) => {
+  const bytes = await weighMenu(page, `/v/${LANCHA_LINK_TOKEN}`);
+  console.log(`English Venue homepage before photos: ${(bytes.total / 1024).toFixed(1)} KB`);
+  expect(bytes.fonts).toBe(0);
+  expect(bytes.total).toBeLessThan(250 * 1024);
+});
+
 test("Saba House's English menu weighs under 250 KB and only downloads its Latin font", async ({ page }) => {
   const bytes = await weighMenu(page, sabaMenuLink);
   console.log(`Saba House English menu weight before photos: ${(bytes.total / 1024).toFixed(1)} KB`);
@@ -161,6 +175,11 @@ test("Saba House's English menu weighs under 250 KB and only downloads its Latin
 async function weighMenu(page: Page, link = bilosMenuLink) {
   await page.setExtraHTTPHeaders({ "x-maasii-test-now": "2026-10-06T21:00:00Z" });
   const pending: Promise<{ font: boolean; size: number }>[] = [];
+  const prefetches: string[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.pathname.startsWith("/v/") && url.searchParams.has("_rsc")) prefetches.push(url.pathname);
+  });
   page.on("requestfinished", (request) => {
     if (request.resourceType() === "image") return;
     const font = request.resourceType() === "font";
@@ -168,6 +187,7 @@ async function weighMenu(page: Page, link = bilosMenuLink) {
   });
   await page.goto(link, { waitUntil: "networkidle" });
   const sizes = await Promise.all(pending);
+  expect(prefetches).toEqual([]);
   return {
     total: sizes.reduce((total, { size }) => total + size, 0),
     fonts: sizes.filter(({ font }) => font).reduce((total, { size }) => total + size, 0),

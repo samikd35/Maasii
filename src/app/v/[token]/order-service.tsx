@@ -1,5 +1,6 @@
 "use client";
 
+import "@/app/guest-extras.css";
 import { createTranslator, useLocale } from "next-intl";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { GuestReviews } from "./guest-reviews";
@@ -33,7 +34,11 @@ export type SlipService = {
 
 const sendButton = "min-h-11 w-full rounded-lg bg-brand-readable px-4 text-sm font-semibold text-paper disabled:opacity-50";
 
+const unsavedDevices = new Map<string, Device>();
+
 function readDevice(key: string): Device {
+  const unsaved = unsavedDevices.get(key);
+  if (unsaved) return unsaved;
   try {
     const saved: Device | null = JSON.parse(localStorage.getItem(key) ?? "null");
     return saved && typeof saved === "object" ? saved : {};
@@ -43,12 +48,13 @@ function readDevice(key: string): Device {
 }
 
 export default function OrderService({
-  venueLinkToken, storageKey, lines, invalidDraft, onSent, render,
+  venueLinkToken, storageKey, lines, invalidDraft, target, onSent, render,
 }: {
   venueLinkToken: string;
   storageKey: string;
   lines: Line[];
   invalidDraft: boolean;
+  target?: "order" | "bill";
   onSent: (sent: Line[]) => void;
   render: (service: SlipService) => ReactNode;
 }) {
@@ -71,8 +77,10 @@ export default function OrderService({
     try {
       if (next.table || next.pending) localStorage.setItem(storageKey, JSON.stringify(next));
       else localStorage.removeItem(storageKey);
+      unsavedDevices.delete(storageKey);
     } catch {
-      // The service remains available when the browser does not allow local storage.
+      // Preserve the pending request ID across navigation when storage is denied.
+      unsavedDevices.set(storageKey, next);
     }
   }, [storageKey]);
 
@@ -268,7 +276,7 @@ export default function OrderService({
       </section>
       {!!visit?.discountSantim && <p className="text-sm">{t("billDiscount", { amount: formatBirr(visit.discountSantim) })}</p>}
       {visit?.bill ? (
-        <GuestBill bill={visit.bill} paid={!!visit.closedAt} options={visit.paymentOptions} />
+        <GuestBill bill={visit.bill} paid={!!visit.closedAt} options={visit.paymentOptions} target={target} />
       ) : visit && !visit.closedAt && <BillTotal totalSantim={visit.totalSantim} label={t("billTotal")} />}
       {feed?.review && feed.review.visitId === visit?.id && (
         <GuestReviews
@@ -293,17 +301,21 @@ function BillTotal({ totalSantim, label }: { totalSantim: number; label: string 
 
 type GuestPaymentOption = GuestVisit["paymentOptions"][number];
 
-function GuestBill({ bill, options, paid }: { bill: LiveBill; options: GuestPaymentOption[]; paid: boolean }) {
+function GuestBill({ bill, options, paid, target }: {
+  bill: LiveBill; options: GuestPaymentOption[]; paid: boolean; target?: "order" | "bill";
+}) {
   const locale = useLocale();
   const t = createTranslator({ locale, messages: locale === "am" ? am : en });
-  const section = useRef<HTMLElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
-    section.current?.scrollIntoView({ block: "nearest" });
-  }, []);
+    if (target === "order") return;
+    if (target === "bill") heading.current?.focus({ preventScroll: true });
+    heading.current?.scrollIntoView({ block: "nearest" });
+  }, [target]);
   return (
     <>
-      <section ref={section} aria-label={t("bill")} className="pb-1">
-        <h3 className="border-b border-ink/70 pb-1.5 text-sm font-semibold uppercase">{t("bill")}</h3>
+      <section aria-label={t("bill")} className="pb-1">
+        <h3 ref={heading} tabIndex={target === "bill" ? -1 : undefined} className="border-b border-ink/70 pb-1.5 text-sm font-semibold uppercase">{t("bill")}</h3>
         <p className="my-2 text-sm text-ink-muted">{t("notTaxReceipt")}</p>
         {paid && <p role="status" className="mb-2 text-sm font-semibold">{t("billPaid")}</p>}
         <ul className="space-y-2 pb-3">

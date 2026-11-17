@@ -16,7 +16,7 @@ test("the private Reviews page reuses the paid Visit and keeps feedback on failu
   await expect(page.getByText("No paid visit is linked to this phone.", { exact: false })).toBeVisible();
   expect((await page.context().cookies()).some(({ name }) => name.startsWith("mx_guest_session"))).toBe(false);
 
-  await page.getByRole("link", { name: "Back to menu" }).click();
+  await page.getByRole("link", { name: "Menu", exact: true }).click();
   await page.getByRole("button", { name: "Omelette", exact: true }).click();
   await page.getByRole("button", { name: "Add to order" }).click();
   await page.getByRole("button", { name: /Your Draft/ }).click();
@@ -43,7 +43,7 @@ test("the private Reviews page reuses the paid Visit and keeps feedback on failu
     await outsider.close();
   }
 
-  await page.getByRole("link", { name: "Back to menu" }).click();
+  await page.getByRole("link", { name: "Menu", exact: true }).click();
   await page.getByRole("button", { name: /Your table.*Table 1/ }).click();
   const sheet = page.getByRole("dialog");
   await sheet.getByRole("link", { name: "Open Reviews page" }).click();
@@ -63,7 +63,7 @@ test("the private Reviews page reuses the paid Visit and keeps feedback on failu
   await page.reload();
   await expect(page.getByText(saved)).toBeVisible();
   await expect(review).toHaveCount(0);
-  await page.getByRole("link", { name: "Back to menu" }).click();
+  await page.getByRole("link", { name: "Menu", exact: true }).click();
   await page.getByRole("button", { name: /Your table.*Table 1/ }).click();
   await expect(sheet.getByText(saved)).toBeVisible();
 });

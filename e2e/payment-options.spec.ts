@@ -107,7 +107,7 @@ test("a guest can find and copy current payment details before ordering, without
   await expect(page.getByRole("heading", { name: "Payment details" })).toBeVisible();
   await expect(page.getByText("Public Test Bank")).toBeVisible();
   await expect(page.getByText("Test Recipient")).toBeVisible();
-  expect((await context.cookies()).filter(({ name }) => name.startsWith("sb-"))).toEqual([]);
+  expect((await context.cookies()).filter(({ name }) => name.startsWith("mx_guest_session"))).toEqual([]);
 
   const qr = page.getByRole("img", { name: "Payment QR image" });
   await expect.poll(() => qr.evaluate((img) => (img as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
@@ -130,15 +130,15 @@ test("a guest can find and copy current payment details before ordering, without
   await expect(page.getByRole("status")).toHaveText("Copied");
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("0012345");
 
-  await page.getByRole("link", { name: "Back to menu" }).click();
-  await expect(page).toHaveURL((url) => url.pathname === venuePath);
+  await page.getByRole("link", { name: "Menu", exact: true }).click();
+  await expect(page).toHaveURL((url) => url.pathname === `${venuePath}/menu`);
   await page.getByRole("button", { name: "Omelette", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Add to order" }).click();
   const draft = page.getByRole("button", { name: /Your Draft/ });
   await expect(draft).toBeVisible();
   await page.getByRole("link", { name: "Payment details" }).click();
   await expect(page.getByText("Public Test Bank")).toBeVisible();
-  await page.getByRole("link", { name: "Back to menu" }).click();
+  await page.getByRole("link", { name: "Menu", exact: true }).click();
   await expect(draft).toBeVisible();
 
   // Keep newly picked items even if the browser rejects Draft writes.
@@ -153,7 +153,7 @@ test("a guest can find and copy current payment details before ordering, without
   await page.getByRole("dialog").getByRole("button", { name: "Add to order" }).click();
   await expect(draft).toContainText("2 dishes");
   await page.getByRole("link", { name: "Payment details" }).click();
-  await page.getByRole("link", { name: "Back to menu" }).click();
+  await page.getByRole("link", { name: "Menu", exact: true }).click();
   await expect(draft).toContainText("2 dishes");
 
   await updatePaymentOption(s.owner.actor, {
@@ -165,7 +165,7 @@ test("a guest can find and copy current payment details before ordering, without
 
   await page.getByRole("button", { name: "አማ", exact: true }).click();
   await expect(page.getByRole("heading", { name: "የክፍያ መረጃ" })).toBeVisible();
-  await page.getByRole("link", { name: "ወደ ምናሌው ይመለሱ" }).click();
+  await page.getByRole("link", { name: "ምናሌ", exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "am");
 });
 

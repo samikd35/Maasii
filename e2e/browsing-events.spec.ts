@@ -11,6 +11,9 @@ test("browsing uses one anonymous identifier through a locale refresh and a new 
   });
 
   await page.goto(link);
+  await expect(page.getByRole("navigation", { name: "Venue pages" })).toBeVisible();
+  expect(requests).toHaveLength(0);
+  await page.getByRole("link", { name: "Menu", exact: true }).click();
   await expect.poll(() => requests.length).toBe(1);
   const { pageLoadId } = requests[0].postDataJSON();
   expect(pageLoadId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);

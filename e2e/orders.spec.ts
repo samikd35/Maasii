@@ -20,7 +20,7 @@ async function service(browser: Browser, baseURL: string, use: object, menu?: Me
   const assignment = { tableId: s.venue.tables[0].id, waiterId: setup.waiters[0].id };
   const shift = await startShift(s.owner.actor, { venueId: s.venue.id, assignments: [assignment] });
   await expect(waiter.getByRole("heading", { name: "My tables" })).toBeVisible();
-  return { waiter, context, url: `/v/${s.venue.linkToken}`, s, shift, assignment };
+  return { waiter, context, url: `/v/${s.venue.linkToken}/menu`, s, shift, assignment };
 }
 
 async function openDraft(page: Page, url: string, dish = "Omelette") {
@@ -80,6 +80,13 @@ test("a guest chooses a Table, the assigned Waiter sees the Order live and the g
     await page.getByRole("button", { name: /Your Draft/ }).click();
     await expect(sheet.getByText("Ask your waiter to reopen the Bill to add an Order.")).toBeVisible();
     await expect(sheet.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
+    await sheet.getByRole("button", { name: "Close", exact: true }).click();
+    await page.getByRole("link", { name: "Home", exact: true }).click();
+    await expect(page.getByRole("link", { name: "Continue your order", exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "View your bill", exact: true }).click();
+    await expect(sheet.getByRole("heading", { name: "Bill", exact: true })).toBeFocused();
+    await expect(bill.getByText("1 × Omelette")).toBeVisible();
+
 
     await queue.getByRole("button", { name: "Confirm payment" }).click();
     const amount = queue.getByLabel("Official Receipt amount (ETB)");

@@ -4,7 +4,7 @@
 // Prices and checks come from the Maasii core's browser-safe rules; this file only renders them
 // and keeps the Draft in the phone's local storage.
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import {
   MAX_NOTE_LENGTH,
   MAX_QUANTITY,
@@ -14,85 +14,16 @@ import {
   type DraftLineProblem,
   type DraftMenu,
   type GuestMenuDish,
-  type GuestMenuSection,
   type GuestOptionGroup,
   type PricedDraft,
   type PricedDraftLine,
 } from "@/core/browser";
 import { DraftSlipContents, draftSlipClass } from "@/ui/guest-menu-parts";
 import { formatBirr, Price } from "@/ui/price";
+import { draftKey, hasUnsavedDraft, readDraft, useDraft, writeDraft, type Line } from "./draft-store";
 import type { SlipService } from "./order-service";
 
-type Line = DraftLine & { lineId: string };
-type SheetRequest = { dishId: string } | { lineId: string } | { draft: true };
-
-// ---- The Draft in local storage ----------------------------------------------------------------
-
-const noLines: Line[] = [];
-const readNoLines = () => noLines;
-const ignoreStorage = () => () => {};
-const listeners = new Set<() => void>();
-let cached: { raw: string | null; lines: Line[] } = { raw: null, lines: noLines };
-let storageUnavailable = false;
-
-const draftKey = (venueLinkToken: string) => `maasii:draft:${venueLinkToken}`;
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  window.addEventListener("storage", listener);
-  return () => {
-    listeners.delete(listener);
-    window.removeEventListener("storage", listener);
-  };
-}
-
-function readDraft(key: string): Line[] {
-  if (storageUnavailable) return cached.lines;
-  let raw: string | null;
-  try {
-    raw = localStorage.getItem(key);
-  } catch {
-    return cached.lines;
-  }
-  if (raw !== cached.raw) cached = { raw, lines: parseDraft(raw) };
-  return cached.lines;
-}
-
-function writeDraft(key: string, lines: Line[]) {
-  const raw = JSON.stringify(lines);
-  cached = { raw, lines };
-  try {
-    localStorage.setItem(key, raw);
-  } catch {
-    storageUnavailable = true;
-  }
-  listeners.forEach((listener) => listener());
-}
-
-function parseDraft(raw: string | null): Line[] {
-  if (!raw) return noLines;
-  try {
-    const value: unknown = JSON.parse(raw);
-    return Array.isArray(value) ? value.filter(isLine) : noLines;
-  } catch {
-    return noLines;
-  }
-}
-
-function isLine(value: unknown): value is Line {
-  const line = value as Partial<Record<keyof Line, unknown>> | null;
-  return (
-    typeof line?.lineId === "string" &&
-    typeof line.dishId === "string" &&
-    typeof line.dishName === "string" &&
-    typeof line.quantity === "number" &&
-    typeof line.note === "string" &&
-    Array.isArray(line.choices) &&
-    line.choices.every((choice: { choiceId?: unknown; name?: unknown } | null) =>
-      typeof choice?.choiceId === "string" && typeof choice.name === "string",
-    )
-  );
-}
+type SheetRequest = { dishId: string } | { lineId: string } | { draft: true; target?: "order" | "bill" };
 
 const newLineId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
@@ -131,17 +62,19 @@ function sendBrowsingEvent(venueLinkToken: string, pageLoadId: string, dishId?: 
   }).catch(() => {});
 }
 
-export function Ordering({ venueLinkToken, sections, recordBrowsing, preview = false, orderService }: {
+export function Ordering({ venueLinkToken, sections, recordBrowsing, preview = false, orderService, initialView }: {
   venueLinkToken: string;
-  sections: GuestMenuSection[];
+  sections: DraftMenu["sections"];
   recordBrowsing: boolean;
   preview?: boolean;
   orderService?: boolean;
+  initialView?: "order" | "bill";
 }) {
   const t = useTranslations("Ordering");
   const key = draftKey(venueLinkToken);
-  const lines = useSyncExternalStore(preview ? ignoreStorage : subscribe, preview ? readNoLines : () => readDraft(key), readNoLines);
-  const [sheet, setSheet] = useState<SheetRequest | null>(null);
+  const lines = useDraft(preview ? undefined : key);
+  const [sheet, setSheet] = useState<SheetRequest | null>(() => initialView ? { draft: true, target: initialView } : null);
+  const storageUnavailable = hasUnsavedDraft(key);
   const [announcement, setAnnouncement] = useState("");
   const [Service, setService] = useState<typeof import("./order-service").default>();
   const [serviceFailed, setServiceFailed] = useState(false);
@@ -233,7 +166,7 @@ export function Ordering({ venueLinkToken, sections, recordBrowsing, preview = f
   }
 
   function slip(service?: SlipService) {
-    const hasSlip = lines.length > 0 || !!service?.tableLabel || serviceFailed;
+    const hasSlip = lines.length > 0 || !!service?.tableLabel || serviceFailed || showSlip;
     return hasSlip && (
       <>
         <div className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-xl bg-linear-to-t from-paper via-paper/90 to-transparent px-3 pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
@@ -293,6 +226,7 @@ export function Ordering({ venueLinkToken, sections, recordBrowsing, preview = f
           venueLinkToken={venueLinkToken}
           lines={lines}
           invalidDraft={draft.linesNeedingAttention > 0}
+          target={showSlip ? sheet.target : undefined}
           onSent={clearSentLines}
           render={slip}
         />

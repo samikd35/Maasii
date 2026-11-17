@@ -18,7 +18,7 @@ async function signIn(page: Page, user: TestUser) {
 
 test("an Owner edits a Menu on mobile and previews it without guest writes", async ({ page }) => {
   const s = await scenario().brand("Buna House").publishedMenu().build();
-  const venue = `/v/${s.venue.linkToken}`;
+  const venue = `/v/${s.venue.linkToken}/menu`;
   await page.goto(venue);
   await page.getByRole("button", { name: "Omelette" }).click();
   await page.getByRole("button", { name: "Add to order" }).click();
@@ -120,7 +120,7 @@ test("desktop Owners arrange sections and dishes beside the live guest Menu", as
   await expect(preview.getByRole("heading", { name: "Drinks" })).toHaveCount(0);
   await page.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(page.getByText("Menu published.", { exact: true })).toBeVisible();
-  await page.goto(`/v/${s.venue.linkToken}`);
+  await page.goto(`/v/${s.venue.linkToken}/menu`);
   await expect(page.getByRole("heading", { name: "Jam Tart" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Drinks" })).toHaveCount(0);
 });
@@ -128,7 +128,7 @@ test("desktop Owners arrange sections and dishes beside the live guest Menu", as
 test("an Owner edits Dish photos and Option Groups, then archives and restores the Dish", async ({ page, context }) => {
   const s = await scenario().publishedMenu().build();
   const guest = await context.newPage();
-  const venue = `/v/${s.venue.linkToken}`;
+  const venue = `/v/${s.venue.linkToken}/menu`;
   await signIn(page, s.owner);
   await page.getByRole("link", { name: "Brand menu" }).click();
 
@@ -262,7 +262,7 @@ test("the Owner reviews imported dishes and suggested text before publishing", a
   await expect(publish).toBeEnabled();
   await publish.click();
   await expect(page.getByText("Menu published.")).toBeVisible();
-  await page.goto(`/v/${s.venue.linkToken}`);
+  await page.goto(`/v/${s.venue.linkToken}/menu`);
   await expect(page.getByRole("heading", { name: "Honey bread" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Toast" })).toHaveCount(0);
 });

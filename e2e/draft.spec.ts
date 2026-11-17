@@ -6,7 +6,7 @@ import { scenario } from "../tests/support/scenario";
 const test = base.extend<{ bilosMenuLink: string }>({
   bilosMenuLink: async ({}, provide) => {
     const s = await scenario().publishedMenu(bilosMenu).build();
-    await provide(`/v/${s.venue.linkToken}`);
+    await provide(`/v/${s.venue.linkToken}/menu`);
   },
 });
 
@@ -158,7 +158,7 @@ test("a Draft line whose dish or choice left the published Menu tells the guest 
   const tuna = published.sections[0].dishes[0];
   const [bagel] = tuna.optionGroups;
 
-  await page.goto(`/v/${s.venue.linkToken}`);
+  await page.goto(`/v/${s.venue.linkToken}/menu`);
   await openDish(page, "Tuna Sandwich");
   await dishSheet(page).getByRole("radio", { name: "Rye" }).check();
   await dishSheet(page).getByRole("button", { name: "Add to order" }).click();

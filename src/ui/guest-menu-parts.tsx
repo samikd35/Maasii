@@ -39,22 +39,23 @@ export function GuestMenuIntro({ label, coverUrl, heading: Heading = "h1" }: {
   );
 }
 
-export function GuestDishRow({ dish, children }: {
+export function GuestDishRow({ dish, labelId = `dish-${dish.id}`, children }: {
   dish: Pick<GuestMenuDish, "id" | "name" | "description" | "fasting" | "priceSantim">;
+  labelId?: string;
   children?: ReactNode;
 }) {
   const t = useTranslations("Ordering");
   return (
     <li className="relative flex items-start justify-between gap-4 border-b border-rule py-3.5">
       <div className="min-w-0">
-        <h3 id={`dish-${dish.id}-name`} className="mr-2 inline text-[1.0625rem] leading-snug font-semibold">{dish.name}</h3>
+        <h3 id={`${labelId}-name`} className="mr-2 inline text-[1.0625rem] leading-snug font-semibold">{dish.name}</h3>
         {dish.fasting && (
-          <span id={`dish-${dish.id}-fasting`} className="inline-block rounded-full border border-brand-readable px-2 text-xs font-medium text-brand-readable">
+          <span id={`${labelId}-fasting`} className="inline-block rounded-full border border-brand-readable px-2 text-xs font-medium text-brand-readable">
             {t("fasting")}
           </span>
         )}
         {dish.description && (
-          <p id={`dish-${dish.id}-description`} className="mt-0.5 text-sm leading-snug text-ink-muted">{dish.description}</p>
+          <p id={`${labelId}-description`} className="mt-0.5 text-sm leading-snug text-ink-muted">{dish.description}</p>
         )}
       </div>
       <Price santim={dish.priceSantim} />

@@ -30,14 +30,13 @@ export function GuestMenuView({
     <div className={`mx-auto max-w-xl wrap-anywhere font-sans ${preview ? "pb-8" : "pb-28"} ${displayFontClasses[brand.displayFont]}`} style={brandThemeStyle(theme)}>
       <GuestMenuHeader brand={brand}>{languageSwitch}</GuestMenuHeader>
 
+      {navigation}
       <Content>
         <GuestMenuIntro
           label={venueName ? `${brand.name} · ${venueName}` : brand.name}
           heading={preview ? "h3" : "h1"}
           coverUrl={brand.coverUrl !== houseFavourite?.photoUrl ? brand.coverUrl : null}
         />
-
-        {navigation && <div className="px-5">{navigation}</div>}
 
         {houseFavourite?.photoUrl && (
           <article aria-labelledby="house-favourite-label" className="relative mx-5 mt-4 flex items-center gap-4 overflow-hidden rounded-lg border border-rule bg-paper-deep">
@@ -57,8 +56,8 @@ export function GuestMenuView({
         ) : (
           <>
             <SectionChips sections={shownSections} />
-            {shownSections.map((section) => (
-              <MenuSection key={section.id} section={section} />
+            {shownSections.map((section, index) => (
+              <MenuSection key={section.id} section={section} index={index} />
             ))}
           </>
         )}
@@ -91,7 +90,7 @@ function SectionChips({ sections }: { sections: GuestMenuSection[] }) {
   );
 }
 
-function MenuSection({ section }: { section: GuestMenuSection }) {
+function MenuSection({ section, index }: { section: GuestMenuSection; index: number }) {
   const t = useTranslations("Price");
   const headingId = `section-${section.id}-heading`;
   return (
@@ -105,18 +104,22 @@ function MenuSection({ section }: { section: GuestMenuSection }) {
         </span>
       </div>
       <ul>
-        {section.dishes.map((dish) => (
-          <GuestDishRow key={dish.id} dish={dish}>
-            <OpenDishButton
-              dishId={dish.id}
-              labelledBy={`dish-${dish.id}-name`}
-              describedBy={[
-                dish.fasting && `dish-${dish.id}-fasting`,
-                dish.description && `dish-${dish.id}-description`,
-              ].filter(Boolean).join(" ") || undefined}
-            />
-          </GuestDishRow>
-        ))}
+        {section.dishes.map((dish, row) => {
+          // DOM label IDs only need to be unique in this rendered Menu. Keep persistence on dish.id.
+          const labelId = `dish-${index}-${row}`;
+          return (
+            <GuestDishRow key={dish.id} dish={dish} labelId={labelId}>
+              <OpenDishButton
+                dishId={dish.id}
+                labelledBy={`${labelId}-name`}
+                describedBy={[
+                  dish.fasting && `${labelId}-fasting`,
+                  dish.description && `${labelId}-description`,
+                ].filter(Boolean).join(" ") || undefined}
+              />
+            </GuestDishRow>
+          );
+        })}
       </ul>
     </section>
   );

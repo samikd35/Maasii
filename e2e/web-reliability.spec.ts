@@ -7,7 +7,7 @@ for (const fallback of [false, true]) {
   test(`native sheets restore keyboard focus and dismiss safely${fallback ? " without closedby support" : ""}`, async ({ page }) => {
     const s = await scenario().publishedMenu().build();
     if (fallback) await page.addInitScript(() => { delete (HTMLDialogElement.prototype as { closedBy?: string }).closedBy; });
-    await page.goto(`/v/${s.venue.linkToken}`);
+    await page.goto(`/v/${s.venue.linkToken}/menu`);
     const open = page.getByRole("button", { name: "Omelette", exact: true });
     const sheet = page.getByRole("dialog");
     await open.focus();
@@ -49,7 +49,7 @@ for (const fallback of [false, true]) {
 
 test("a failed ordering download offers recovery without losing the Draft", async ({ page }) => {
   const s = await scenario().publishedMenu().build();
-  await page.goto(`/v/${s.venue.linkToken}`);
+  await page.goto(`/v/${s.venue.linkToken}/menu`);
   await page.getByRole("button", { name: "Omelette", exact: true }).click();
   await page.getByRole("button", { name: "Add to order" }).click();
   await page.route("**/_next/static/chunks/*.js", (route) => route.abort("failed"));
@@ -65,7 +65,7 @@ test("a failed ordering download offers recovery without losing the Draft", asyn
 test("the menu reflows at 320px and enlarged text, prioritizes its cover and enforces script security", async ({ page, request }) => {
   const s = await scenario().publishedMenu().build();
   await updateBranding(s.owner.actor, { brandId: s.brand.id, colour: "#568F69", displayFont: "noto-serif-ethiopic" });
-  const url = `/v/${s.venue.linkToken}`;
+  const url = `/v/${s.venue.linkToken}/menu`;
   const violations: string[] = [];
   page.on("console", (message) => { if (/violates.*Content Security Policy|Refused to.*script/i.test(message.text())) violations.push(message.text()); });
   const response = (await page.goto(url))!;
@@ -95,7 +95,7 @@ test("the menu reflows at 320px and enlarged text, prioritizes its cover and enf
 });
 
 test("the cover is eager and background scroll is contained on Chromium", async ({ page, browserName }) => {
-  await page.goto("/v/bilos-lancha");
+  await page.goto("/v/bilos-lancha/menu");
   const cover = page.locator('img[fetchpriority="high"]');
   await expect(cover).toHaveCount(1);
   await expect(cover).not.toHaveAttribute("loading", "lazy");
@@ -137,7 +137,7 @@ test("ordering recovery never reloads an unsaved Draft when storage is denied", 
   await page.addInitScript(() => {
     Storage.prototype.setItem = () => { throw new DOMException("Denied", "SecurityError"); };
   });
-  await page.goto(`/v/${s.venue.linkToken}`);
+  await page.goto(`/v/${s.venue.linkToken}/menu`);
   await page.getByRole("button", { name: "Omelette", exact: true }).click();
   await page.getByRole("button", { name: "Add to order" }).click();
   await page.route("**/_next/static/chunks/*.js", (route) => route.abort("failed"));

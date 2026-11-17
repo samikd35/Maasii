@@ -1,11 +1,13 @@
 @import "tailwindcss" source(none);
 @import "./theme.css";
 /* Guests download only shared and guest utilities; staff screens add staff.css. */
-@source "../ui/guest-*.tsx";
+@source "../ui/guest-menu-*.tsx";
+@source "../ui/guest-venue-page.tsx";
 @source "../ui/language-*.tsx";
 @source "../ui/price.tsx";
-@source "../ui/payment-option-values.tsx";
-@source "./v";
+@source "./v/[token]/menu";
+@source "./v/[token]/ordering.tsx";
+@source "./v/[token]/not-found.tsx";
 @source "./layout.tsx";
 @source "./page.tsx";
 

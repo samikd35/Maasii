@@ -22,15 +22,24 @@
     "houseFavourite": "House favourite",
     "comingSoon": "The menu is on its way. Please ask a member of staff."
   },
+  "GuestNavigation": {
+    "pages": "Venue pages",
+    "home": "Home",
+    "menu": "Menu",
+    "feedback": "Reviews",
+    "payment": "Payment details",
+    "social": "Social media",
+    "choose": "What would you like to do?",
+    "continueOrder": "Continue your order",
+    "viewBill": "View your bill"
+  },
   "GuestPayment": {
     "heading": "Payment details",
-    "backToMenu": "Back to menu",
     "instructions": "Use your own payment app or pay your waiter in cash if listed.",
     "empty": "No payment details are listed. Please ask your waiter."
   },
   "GuestSocial": {
     "heading": "Social media",
-    "backToMenu": "Back to menu",
     "empty": "This brand has not added any social media links yet."
   },
   "VenueLinkNotFound": {

@@ -71,7 +71,7 @@ test("a platform admin adds, edits and removes calendar dates and a guest sees e
   const endsOn = "2041-09-03";
   try {
     await guest.setExtraHTTPHeaders({ "x-maasii-test-now": `${startsOn}T12:00:00Z` });
-    await guest.goto(`/v/${LANCHA_LINK_TOKEN}`);
+    await guest.goto(`/v/${LANCHA_LINK_TOKEN}/menu`);
     const firstSection = guest.getByRole("navigation", { name: "Menu sections" }).getByRole("link").first();
     await expect(firstSection).toHaveText("Breakfast");
 

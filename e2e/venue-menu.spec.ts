@@ -29,7 +29,7 @@ test("a Manager previews and publishes local dish changes without changing anoth
     .getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Omelette", exact: true }) });
   await expect(previewDish.getByTestId("price")).toContainText("249.75");
 
-  const url = `/v/${s.venue.linkToken}`;
+  const url = `/v/${s.venue.linkToken}/menu`;
   const guestDish = guest.getByRole("listitem").filter({ has: guest.getByRole("heading", { name: "Omelette", exact: true }) });
   await guest.goto(url);
   await expect(guestDish.getByTestId("price")).toContainText("220");
@@ -37,7 +37,7 @@ test("a Manager previews and publishes local dish changes without changing anoth
   await expect(page.getByText("Menu published.")).toBeVisible();
   await guest.reload();
   await expect(guestDish.getByTestId("price")).toContainText("249.75");
-  await guest.goto(`/v/${s.venues.Bole.linkToken}`);
+  await guest.goto(`/v/${s.venues.Bole.linkToken}/menu`);
   await expect(guestDish.getByTestId("price")).toContainText("220");
   expect((await page.goto(`/manage/venues/${s.venues.Bole.id}/menu/edit`))?.status()).toBe(404);
 
@@ -78,18 +78,18 @@ test("a Manager publishes a photographed local dish and archives and restores it
     await expect(page.getByText("Menu published.", { exact: true })).toBeVisible();
   };
   await publish();
-  await guest.goto(`/v/${s.venue.linkToken}`);
+  await guest.goto(`/v/${s.venue.linkToken}/menu`);
   await guest.getByRole("button", { name: "Lancha cake", exact: true }).click();
   const detail = guest.getByRole("dialog");
   await expect(detail.getByText("Baked at this Venue.")).toBeVisible();
   await expect(detail.locator("img")).toHaveAttribute("src", /\/venues\/[^/]+\/dish-.*\.webp$/);
-  await guest.goto(`/v/${s.venues.Bole.linkToken}`);
+  await guest.goto(`/v/${s.venues.Bole.linkToken}/menu`);
   await expect(guest.getByRole("heading", { name: "Lancha cake" })).toHaveCount(0);
 
   if (!await dish.getByLabel("Base price (ETB)").isVisible()) await dish.locator("summary").click();
   await dish.getByRole("button", { name: "Archive dish" }).click();
   await publish();
-  await guest.goto(`/v/${s.venue.linkToken}`);
+  await guest.goto(`/v/${s.venue.linkToken}/menu`);
   await expect(guest.getByRole("heading", { name: "Lancha cake" })).toHaveCount(0);
   await edit.getByRole("button", { name: "Restore Lancha cake", exact: true }).click();
   await publish();

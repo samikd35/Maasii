@@ -27,14 +27,15 @@ export function LanguageForm({ cookieName, ...props }: ComponentProps<"form"> & 
 }
 
 /** Internal guest links keep the in-memory Draft without pulling in Next's prefetch code. */
-export function GuestLink({ href, className, children }: {
+export function GuestLink({ href, className, current, children }: {
   href: `/v/${string}`;
   className: string;
   children: ReactNode;
+  current?: boolean;
 }) {
   const router = useRouter();
   return (
-    <a href={href} className={className} onClick={(event) => {
+    <a href={href} className={className} aria-current={current ? "page" : undefined} onClick={(event) => {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       event.preventDefault();
       router.push(href);

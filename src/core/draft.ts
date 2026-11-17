@@ -1,10 +1,10 @@
 // The guest's Draft: dishes picked on this phone but not yet sent. These rules are pure, so they
 // run on the guest's phone (through "@/core/browser") and on the server alike. Never import the
 // database here.
-import type { GuestMenu, GuestMenuDish } from "./menu";
+import type { GuestMenuDish } from "./menu";
 
 /** The published Menu content a Draft is priced against. */
-export type DraftMenu = Pick<GuestMenu, "sections">;
+export type DraftMenu = { sections: Array<{ dishes: GuestMenuDish[]; id?: string; name?: string }> };
 
 /**
  * One dish in a Draft. Names are kept as the guest saw them, so a line can still be described

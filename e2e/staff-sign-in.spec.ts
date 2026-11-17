@@ -42,6 +42,7 @@ test("staff screens default to Amharic and remember their own language choice", 
   await expect(page.getByRole("heading", { name: "Sign in to Maasii" })).toBeVisible();
 
   await page.goto(venueLink);
+  await page.getByRole("link", { name: "Menu", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Our menu" })).toBeVisible();
   await page.getByRole("button", { name: "አማ", exact: true }).click();
   await expect(page.getByRole("heading", { name: "ምናሌያችን" })).toBeVisible();
