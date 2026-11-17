@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireBrandOwner, requirePlatformAdmin, requireSystem, requireVenueManager } from "./access";
 import type { Actor } from "./actor";
 import { brandArtworkBucket, prepareBrandArtwork, uploadBrandArtwork } from "./brand-artwork";
-import { brandColourError, brandColourPattern, defaultBrandColour, displayFonts, type DisplayFont } from "./brand-theme";
+import { brandColourError, brandColourPattern, defaultBrandColour, deriveBrandTheme, displayFonts, type DisplayFont } from "./brand-theme";
 import { inTransaction, lockVenueShifts, type Tx } from "./db";
 import { MaasiiError } from "./errors";
 import { qrPng } from "./qr";
@@ -45,6 +45,28 @@ export async function createBrand(
     );
     return rows[0];
   });
+}
+
+// Guest destinations need the Venue identity and Brand look without reading a published Menu.
+export async function readGuestVenue(tx: Tx, venueLinkToken: string) {
+  const { rows: [row] } = await tx.query<{
+    id: string; name: string; linkToken: string;
+    brand: Pick<Brand, "id" | "name" | "logoUrl" | "colour" | "displayFont">;
+  }>(
+    `select v.id, v.name, v.link_token as "linkToken",
+            jsonb_build_object('id', b.id, 'name', b.name, 'logoUrl', b.logo_url,
+                               'colour', b.colour, 'displayFont', b.display_font) as brand
+     from app.venues v join app.brands b on b.id = v.brand_id where v.link_token = $1`,
+    [venueLinkToken],
+  );
+  if (!row) return null;
+  const { brand, ...venue } = row;
+  return { venue, brand, theme: deriveBrandTheme(brand.colour) };
+}
+
+export async function getGuestVenue(actor: Actor, { venueLinkToken }: { venueLinkToken: string }) {
+  const token = z.string().min(1).max(200).safeParse(venueLinkToken);
+  return token.success ? inTransaction(actor, (tx) => readGuestVenue(tx, token.data)) : null;
 }
 
 export async function getBranding(actor: Actor, input: { brandId: string }): Promise<Brand> {

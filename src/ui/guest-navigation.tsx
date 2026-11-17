@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { startTransition, type ComponentProps } from "react";
+import { startTransition, type ComponentProps, type ReactNode } from "react";
 import { LANGUAGE_COOKIE_MAX_AGE } from "@/i18n/config";
 
 /**
@@ -23,5 +23,23 @@ export function LanguageForm({ cookieName, ...props }: ComponentProps<"form"> & 
         startTransition(() => router.refresh());
       }}
     />
+  );
+}
+
+/** Internal guest links keep the in-memory Draft without pulling in Next's prefetch code. */
+export function GuestLink({ href, className, children }: {
+  href: `/v/${string}`;
+  className: string;
+  children: ReactNode;
+}) {
+  const router = useRouter();
+  return (
+    <a href={href} className={className} onClick={(event) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      router.push(href);
+    }}>
+      {children}
+    </a>
   );
 }
