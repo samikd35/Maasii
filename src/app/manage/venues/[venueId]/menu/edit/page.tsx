@@ -1,0 +1,35 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { NextIntlClientProvider } from "next-intl";
+import { getMessages, getTranslations } from "next-intl/server";
+import { brandArtworkMimeTypes, deriveBrandTheme, getVenueMenuDraft, MaasiiError, MAX_BRAND_ARTWORK_BYTES } from "@/core";
+import { messages } from "@/i18n/messages";
+import { requireStaff } from "@/lib/session";
+import { MenuEditor } from "../../../../brands/[brandId]/menu/menu-editor";
+import { persistVenueMenu, prepareVenueDishPhoto } from "./actions";
+
+function guestMessages({ GuestMenu, LanguageSwitch, Ordering, Price }: typeof messages.en) {
+  return { GuestMenu, LanguageSwitch, Ordering, Price };
+}
+
+export default async function EditVenueMenu({ params }: PageProps<"/manage/venues/[venueId]/menu/edit">) {
+  const { venueId } = await params;
+  const actor = await requireStaff();
+  const { draft, inherited, missing } = await getVenueMenuDraft(actor, { venueId }).catch((error: unknown) => {
+    if (error instanceof MaasiiError) notFound();
+    throw error;
+  });
+  const { MenuEditor: editorMessages, StaffErrors } = await getMessages();
+  const t = await getTranslations("VenueMenu");
+  return (
+    <>
+      <Link href={`/manage/venues/${venueId}/menu`} className="mb-4 inline-flex min-h-11 items-center underline">{t("title")}</Link>
+      <NextIntlClientProvider messages={{ MenuEditor: editorMessages, StaffErrors }}>
+        <MenuEditor initialDraft={draft} theme={deriveBrandTheme(draft.brand.colour)}
+          guestMessages={{ am: guestMessages(messages.am), en: guestMessages(messages.en) }}
+          maxImportPhotos={0} artwork={{ accept: brandArtworkMimeTypes.join(","), maxFileBytes: MAX_BRAND_ARTWORK_BYTES }}
+          venue={{ inherited, missing, persist: persistVenueMenu.bind(null, venueId), upload: prepareVenueDishPhoto.bind(null, venueId) }} />
+      </NextIntlClientProvider>
+    </>
+  );
+}

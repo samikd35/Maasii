@@ -12,47 +12,47 @@ async function signIn(page: Page, user: TestUser) {
   await expect(page).toHaveURL(/\/manage(?:\/operations)?$/);
 }
 
-test("Venue staff change the price and Sold Out status guests see without publishing", async ({ page, browser }) => {
-  const s = await scenario().venue("Lancha").manager("Hana").publishedMenu().build();
+test("a Manager previews and publishes local dish changes without changing another Venue", async ({ page, browser }) => {
+  const s = await scenario().venue("Lancha").venue("Bole").manager("Hana").publishedMenu().build();
   const guest = await browser.newPage({ ...test.info().project.use });
-  const manager = await browser.newPage({ ...test.info().project.use });
-
-  await signIn(page, s.owner);
-  await page.getByRole("link", { name: "Lancha" }).click();
+  await signIn(page, s.managers.Hana);
   await page.getByRole("link", { name: "Venue menu" }).click();
-  const ownerDish = page.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Omelette", exact: true }) });
-  await expect(ownerDish.getByText("ኦምሌት", { exact: true })).toBeVisible();
-  const ownerPrice = ownerDish.getByLabel("Venue price (ETB)");
-  await ownerPrice.fill("249.75");
-  await ownerDish.getByRole("button", { name: "Save price" }).click();
-  await expect(ownerDish.getByRole("status")).toHaveText("Venue price saved.");
+  await page.getByRole("link", { name: "Edit Venue Menu" }).click();
 
-  await guest.goto(`/v/${s.venue.linkToken}`);
+  const dish = page.locator("details").filter({ has: page.getByText("Omelette", { exact: true }) }).first();
+  await dish.locator("summary").click();
+  await dish.getByLabel("Base price (ETB)").fill("249.75");
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByText("Draft saved.")).toBeVisible();
+  await page.getByRole("tab", { name: "Preview", exact: true }).click();
+  const previewDish = page.getByRole("tabpanel", { name: "Preview", exact: true })
+    .getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Omelette", exact: true }) });
+  await expect(previewDish.getByTestId("price")).toContainText("249.75");
+
+  const url = `/v/${s.venue.linkToken}`;
   const guestDish = guest.getByRole("listitem").filter({ has: guest.getByRole("heading", { name: "Omelette", exact: true }) });
+  await guest.goto(url);
+  await expect(guestDish.getByTestId("price")).toContainText("220");
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect(page.getByText("Menu published.")).toBeVisible();
+  await guest.reload();
   await expect(guestDish.getByTestId("price")).toContainText("249.75");
+  await guest.goto(`/v/${s.venues.Bole.linkToken}`);
+  await expect(guestDish.getByTestId("price")).toContainText("220");
+  expect((await page.goto(`/manage/venues/${s.venues.Bole.id}/menu/edit`))?.status()).toBe(404);
 
-  await signIn(manager, s.managers.Hana);
-  await manager.goto(page.url());
-  await expect(manager.getByLabel("Venue price (ETB)")).toHaveCount(0);
-  const soldOut = manager.getByRole("switch", { name: "Omelette Sold Out" });
-  await expect(soldOut).not.toBeChecked();
+  await page.goto(`/manage/venues/${s.venue.id}/menu`);
+  const soldOut = page.getByRole("switch", { name: "Omelette Sold Out" });
   await soldOut.click();
   await expect(soldOut).toBeChecked();
-  await guest.reload();
+  await guest.goto(url);
   await expect(guestDish).toHaveCount(0);
-
-  await manager.getByRole("button", { name: "አማ", exact: true }).click();
-  const translatedSwitch = manager.getByRole("switch", { name: "ኦምሌት አልቋል" });
+  await page.getByRole("button", { name: "አማ", exact: true }).click();
+  const translatedSwitch = page.getByRole("switch", { name: "ኦምሌት አልቋል" });
   await expect(translatedSwitch).toBeChecked();
-  await expect(manager.getByText("Omelette", { exact: true })).toBeVisible();
   await translatedSwitch.click();
   await expect(translatedSwitch).not.toBeChecked();
   await guest.reload();
   await expect(guestDish.getByTestId("price")).toContainText("249.75");
-
-  await ownerPrice.fill("");
-  await ownerDish.getByRole("button", { name: "Save price" }).click();
-  await expect(ownerDish.getByRole("status")).toHaveText("Brand price restored.");
-  await guest.reload();
-  await expect(guestDish.getByTestId("price")).toContainText("220");
+  await guest.close();
 });

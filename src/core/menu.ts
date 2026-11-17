@@ -10,6 +10,7 @@ import { MaasiiError } from "./errors";
 import { extractedMenu, missingMenuTranslation, runMenuDraftModel, translatedFields } from "./menu-ai";
 import { localizeMenuSections } from "./menu-display";
 import { parseInput } from "./validation";
+import { mergeVenueMenu, type VenueMenuChanges } from "./venue-menu-changes";
 import { languages, type Bilingual, type Language } from "./language";
 
 // ---- Publishing --------------------------------------------------------------------------------
@@ -78,7 +79,7 @@ const sectionInput = z.object({
   dishes: z.array(dishInput),
 });
 
-const menuInput = z.object({ sections: z.array(sectionInput) }).refine(
+export const menuInput = z.object({ sections: z.array(sectionInput) }).refine(
   (menu) => menu.sections.flatMap((section) => section.dishes).filter((dish) => dish.houseFavourite).length <= 1,
   { message: "The Menu can have only one House favourite." },
 );
@@ -90,7 +91,7 @@ const draftSectionInput = sectionInput.extend({
   suggestedName: z.enum(languages).optional(),
 });
 
-const draftMenuInput = z.object({
+export const draftMenuInput = z.object({
   sections: z.array(draftSectionInput),
   archivedDishes: z.array(z.object({ sectionId: z.uuid(), sectionName: bilingualInput, dish: draftDishInput })).optional(),
 });
@@ -147,6 +148,7 @@ export async function publishMenu(
 
 async function lockBrand(tx: Tx, actor: Actor, brandId: string) {
   await requireBrandOwner(tx, actor, brandId);
+  await tx.query("select pg_advisory_xact_lock(hashtextextended($1::uuid::text, 2))", [brandId]);
   const locked = await tx.query("select id from app.brands where id = $1 for update", [brandId]);
   if (locked.rowCount === 0) throw new MaasiiError("not_found", "Brand not found.");
 }
@@ -166,7 +168,7 @@ function assignDishIdentities({ imported, suggestedName, suggestedDescription, .
   };
 }
 
-function assignIdentities(menu: z.output<typeof draftMenuInput>): MenuDraftContent {
+export function assignIdentities(menu: z.output<typeof draftMenuInput>): MenuDraftContent {
   return {
     sections: menu.sections.map(({ imported, suggestedName, ...section }) => ({
       ...section,
@@ -340,7 +342,7 @@ async function ensureIdentities(
     );
   }
   const { rowCount } = await tx.query(
-    `select 1 from app.${table} where brand_id = $1 and id = any($2::uuid[])`,
+    `select 1 from app.${table} where brand_id = $1 and id = any($2::uuid[])${table === "dishes" ? " and venue_id is null" : ""}`,
     [brandId, ids],
   );
   if (rowCount !== ids.length) {
@@ -433,7 +435,7 @@ export async function getMenuDraft(
 
 const draftEditInput = z.object({ brandId: z.uuid(), revision: z.uuid().nullable(), menu: draftMenuInput.optional() });
 
-function menuDraftChanged() {
+export function menuDraftChanged() {
   return new MaasiiError("invalid_input", "The Menu changed since it was opened. Reload it to see the latest changes.", "menuDraftChanged");
 }
 
@@ -647,11 +649,11 @@ const menuContentColumns = `
   ) s) as sections,
   (select coalesce(jsonb_agg(d order by position), '[]') from (
     select d.dish_id as id, d.section_id, d.name_en, d.name_am, d.description_en, d.description_am,
-           coalesce(settings.price_santim, d.price_santim) as price_santim,
+           coalesce(case when scope.local_changes is null then settings.price_santim end, d.price_santim) as price_santim,
            d.fasting, d.photo_url, d.house_favourite, d.position
     from app.menu_version_dishes d
     left join app.venue_dish_settings settings on settings.venue_id = scope.venue_id and settings.dish_id = d.dish_id
-    where d.menu_version_id = scope.menu_version_id and settings.sold_out is not true
+    where d.menu_version_id = scope.menu_version_id
   ) d) as dishes,
   (select coalesce(jsonb_agg(g order by position), '[]') from (
     select option_group_id as id, dish_id, name_en, name_am, kind, required, position
@@ -667,6 +669,7 @@ export async function readPublishedMenu(
   tx: Tx,
   input: { venueLinkToken: string; language?: Language },
   now: Date,
+  { includeSoldOut = false }: { includeSoldOut?: boolean } = {},
 ) {
   const language = z.enum(languages).default("en").safeParse(input.language);
   if (!language.success) throw new MaasiiError("invalid_input", "The Menu is only available in Amharic and English.");
@@ -682,27 +685,38 @@ export async function readPublishedMenu(
     colour: string;
     cover_url: string | null;
     display_font: Brand["displayFont"];
+    local_changes: VenueMenuChanges | null;
+    sold_out: string[];
   } & MenuRows & (
     | { version_id: string; version_number: number; published_at: Date }
     | { version_id: null; version_number: null; published_at: null }
   )>(
     `select v.id as venue_id, v.name as venue_name, v.link_token,
             b.id as brand_id, b.name as brand_name, b.logo_url, b.colour, b.cover_url, b.display_font,
-            mv.id as version_id, mv.number as version_number, mv.published_at,
+            mv.id as version_id, mv.number as version_number, mv.published_at, scope.local_changes,
+            array(select dish_id from app.venue_dish_settings where venue_id = v.id and sold_out) as sold_out,
             ${menuContentColumns}
      from app.venues v
      join app.brands b on b.id = v.brand_id
      left join app.menu_versions mv on mv.id = b.published_menu_version_id
-     cross join lateral (select mv.id as menu_version_id, v.id as venue_id) scope
+     cross join lateral (
+       select mv.id as menu_version_id, v.id as venue_id,
+              (select changes from app.venue_menu_revisions where venue_id = v.id order by id desc limit 1) as local_changes
+     ) scope
      where v.link_token = $1`,
     [input.venueLinkToken],
   );
   if (!row) return null;
 
-  const menuSections = menuSectionsFromRows(row);
+  const effective = mergeVenueMenu(menuSectionsFromRows(row), row.local_changes);
+  const soldOut = new Set(row.sold_out);
+  const menuSections = includeSoldOut ? effective.sections : effective.sections.map((section) => ({
+    ...section, dishes: section.dishes.filter((dish) => !soldOut.has(dish.dishId)),
+  }));
   const sections = localizeMenuSections(menuSections, language.data);
   const guestDishes = sections.flatMap((section) => section.dishes);
-  const favouriteId = row.dishes.find((dish) => dish.house_favourite)?.id;
+  const favourites = menuSections.flatMap((section) => section.dishes.filter((dish) => dish.houseFavourite));
+  const favouriteId = favourites.length === 1 ? favourites[0].dishId : undefined;
   const fastingDishes = guestDishes.filter((dish) => dish.fasting);
   const menu: GuestMenu = {
     brand: {
@@ -722,14 +736,14 @@ export async function readPublishedMenu(
     houseFavourite: guestDishes.find((dish) => dish.id === favouriteId) ?? null,
     fastingDishes: fastingDishes.length > 0 && await isFastingDay(tx, now) ? fastingDishes : [],
   };
-  return { menu, menuSections, dishes: row.dishes, choices: row.choices };
+  return { menu, menuSections, soldOut };
 }
 
 /** A null Venue reads the Brand's base prices and full Menu. */
 export async function readMenuSections(tx: Tx, versionId: string, venueId: string | null): Promise<MenuDraftContent["sections"]> {
   const { rows: [row] } = await tx.query<MenuRows>(
     `select ${menuContentColumns}
-     from (values ($1::uuid, $2::uuid)) as scope(menu_version_id, venue_id)`,
+     from (values ($1::uuid, $2::uuid, null::jsonb)) as scope(menu_version_id, venue_id, local_changes)`,
     [versionId, venueId],
   );
   return menuSectionsFromRows(row);
@@ -763,7 +777,7 @@ function menuSectionsFromRows({ sections, dishes, groups, choices }: MenuRows): 
   }));
 }
 
-async function isFastingDay(tx: Tx, now: Date): Promise<boolean> {
+export async function isFastingDay(tx: Tx, now: Date): Promise<boolean> {
   // A non-fasting exception wins if dated periods overlap.
   const { rows } = await tx.query<{ fasting: boolean }>(
     `select coalesce(

@@ -5,6 +5,7 @@ import { findVenue } from "./brands";
 import { inTransaction } from "./db";
 import { MaasiiError } from "./errors";
 import { inLanguage, languages, type Bilingual, type Language } from "./language";
+import { readMenuSections, readPublishedMenu } from "./menu";
 import { parseInput } from "./validation";
 
 export type VenueMenuDish = {
@@ -22,39 +23,23 @@ export async function getVenueMenuSettings(actor: Actor, input: { venueId: strin
     await requireVenueManager(tx, actor, venueId);
     const venue = await findVenue(tx, venueId);
     const owner = await tx.query<{ ok: boolean }>("select app.is_brand_owner($1) as ok", [venue.brandId]);
-    const { rows } = await tx.query<{
-      section_id: string; section_en: string; section_am: string;
-      dish_id: string; name_en: string; name_am: string; sold_out: boolean;
-      brand_price_santim: number; venue_price_santim: number | null;
-    }>(
-      `select s.section_id, s.name_en as section_en, s.name_am as section_am,
-              d.dish_id, d.name_en, d.name_am, coalesce(settings.sold_out, false) as sold_out,
-              d.price_santim as brand_price_santim, settings.price_santim as venue_price_santim
-       from app.brands b
-       join app.menu_version_sections s on s.menu_version_id = b.published_menu_version_id
-       join app.menu_version_dishes d on d.menu_version_id = s.menu_version_id and d.section_id = s.section_id
-       left join app.venue_dish_settings settings on settings.venue_id = $2 and settings.dish_id = d.dish_id
-       where b.id = $1 order by s.position, d.position`,
-      [venue.brandId, venueId],
-    );
-    const sections = new Map<string, VenueMenuSection>();
-    for (const row of rows) {
-      let section = sections.get(row.section_id);
-      if (!section) {
-        section = {
-          id: row.section_id, name: inLanguage({ en: row.section_en, am: row.section_am }, language), dishes: [],
+    const published = await readPublishedMenu(tx, { venueLinkToken: venue.linkToken, language }, new Date(), { includeSoldOut: true });
+    const version = published?.menu.menuVersion;
+    const base = version ? await readMenuSections(tx, version.id, null) : [];
+    const prices = new Map(base.flatMap((s) => s.dishes.map((dish) => [dish.dishId, dish.priceSantim])));
+    const soldOut = published?.soldOut;
+    const sections: VenueMenuSection[] = (published?.menuSections ?? []).map((section) => ({
+      id: section.sectionId, name: inLanguage(section.name, language),
+      dishes: section.dishes.map((dish) => {
+        const basePrice = prices.get(dish.dishId);
+        return {
+          id: dish.dishId, name: dish.name, soldOut: soldOut?.has(dish.dishId) ?? false,
+          brandPriceSantim: basePrice ?? dish.priceSantim,
+          venuePriceSantim: dish.priceSantim === basePrice ? null : dish.priceSantim,
         };
-        sections.set(row.section_id, section);
-      }
-      section.dishes.push({
-        id: row.dish_id,
-        name: { en: row.name_en, am: row.name_am },
-        soldOut: row.sold_out,
-        brandPriceSantim: row.brand_price_santim,
-        venuePriceSantim: row.venue_price_santim,
-      });
-    }
-    return { venue, isOwner: actor.kind === "system" || owner.rows[0].ok, sections: [...sections.values()] };
+      }),
+    }));
+    return { venue, isOwner: actor.kind === "system" || owner.rows[0].ok, sections };
   });
 }
 
@@ -92,14 +77,22 @@ async function changeVenueDish(
       const venue = await findVenue(tx, venueId);
       await requireBrandOwner(tx, actor, venue.brandId);
     }
+    if (soldOut !== null) {
+      const venue = await findVenue(tx, venueId);
+      const published = await readPublishedMenu(tx, { venueLinkToken: venue.linkToken }, now, { includeSoldOut: true });
+      if (!published?.menuSections.some((section) => section.dishes.some((dish) => dish.dishId === dishId))) {
+        throw new MaasiiError("not_found", "That dish is not on this Venue's published Menu.");
+      }
+    }
     await tx.query("select set_config('app.venue_dish_changed_at', $1, true)", [now.toISOString()]);
     const { rowCount } = await tx.query(
       `insert into app.venue_dish_settings as settings (venue_id, dish_id, sold_out, price_santim)
-       select v.id, d.dish_id, coalesce($3::boolean, false), $4
-       from app.venues v
-       join app.brands b on b.id = v.brand_id
-       join app.menu_version_dishes d on d.menu_version_id = b.published_menu_version_id
-       where v.id = $1 and d.dish_id = $2
+       select $1, $2, coalesce($3::boolean, false), $4
+       where $3::boolean is not null or exists (
+         select 1 from app.venues v join app.brands b on b.id = v.brand_id
+         join app.menu_version_dishes d on d.menu_version_id = b.published_menu_version_id
+         where v.id = $1 and d.dish_id = $2
+       )
        on conflict (venue_id, dish_id) do update
        set sold_out = coalesce($3, settings.sold_out),
            price_santim = case when $3 is null then excluded.price_santim else settings.price_santim end`,

@@ -111,13 +111,13 @@ export function snapshotOrderLines(
     if (priced.problems.length || priced.unitPriceSantim === null) {
       throw new MaasiiError("invalid_input", "The Draft needs attention.", "orderDraftChanged");
     }
-    const dish = published.dishes.find((dish) => dish.id === line.dishId)!;
+    const dish = published.menuSections.flatMap((section) => section.dishes).find((dish) => dish.dishId === line.dishId)!;
     return {
-      dishId: line.dishId, name: { en: dish.name_en, am: dish.name_am },
+      dishId: line.dishId, name: dish.name,
       unitPriceSantim: priced.unitPriceSantim, quantity: line.quantity, note: line.note,
       choices: choices.map(({ choiceId }) => {
-        const choice = published.choices.find(({ id }) => id === choiceId)!;
-        return { id: choiceId, name: { en: choice.name_en, am: choice.name_am }, priceChangeSantim: choice.price_change_santim };
+        const choice = dish.optionGroups.flatMap((group) => group.choices).find((choice) => choice.choiceId === choiceId)!;
+        return { id: choiceId, name: choice.name, priceChangeSantim: choice.priceChangeSantim };
       }),
     };
   });

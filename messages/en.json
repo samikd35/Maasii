@@ -216,6 +216,7 @@
     "system": "System"
   },
   "VenueMenu": {
+    "editMenu": "Edit Venue Menu",
     "title": "Venue menu",
     "empty": "There are no published dishes yet.",
     "brandPrice": "Brand price {amount} {currency}",
@@ -266,6 +267,9 @@
     "waiterJoinReady": "Scan this QR on the waiter's phone. It works once within {minutes} minutes."
   },
   "MenuEditor": {
+    "venueHeading": "{venue} Venue Menu",
+    "inheritDish": "Use Brand dish details",
+    "missingBrandDishes": "{count, plural, one {# dish is no longer on the Brand Menu. Its local edits are kept if it returns.} other {# dishes are no longer on the Brand Menu. Their local edits are kept if they return.}}",
     "menuPhotos": "Paper Menu photos",
     "importPhotos": "Import photos",
     "importHelp": "Select up to {count} photos, 4 MB each. Crop to dishes and prices and remove any personal information before sending photos to the AI service.",

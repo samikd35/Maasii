@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { Actor } from "./actor";
 import { inTransaction } from "./db";
 import { MaasiiError } from "./errors";
+import { readPublishedMenu } from "./menu";
 import { parseInput } from "./validation";
 
 const pageLoadId = z.uuidv4();
@@ -24,15 +25,13 @@ export async function recordBrowsingEvent(
 
   await inTransaction(actor, async (tx) => {
     const { rows: [venue] } = await tx.query<{ id: string }>(
-      `select v.id from app.venues v
-       join app.brands b on b.id = v.brand_id
-       where v.link_token = $1 and ($2::uuid is null or exists (
-         select 1 from app.menu_version_dishes d
-         where d.menu_version_id = b.published_menu_version_id and d.dish_id = $2
-       ))`,
-      [venueLinkToken, dishId],
+      "select id from app.venues where link_token = $1", [venueLinkToken],
     );
     if (!venue) throw new MaasiiError("not_found", "No such Venue or published Dish.");
+    if (dishId && !(await readPublishedMenu(tx, { venueLinkToken }, now))?.menuSections
+      .some((section) => section.dishes.some((dish) => dish.dishId === dishId))) {
+      throw new MaasiiError("not_found", "No such Venue or published Dish.");
+    }
     await tx.query(
       `insert into app.browsing_events (venue_id, kind, dish_id, occurred_at, page_load_id)
        values ($1, $2, $3, $4, $5) on conflict do nothing`,

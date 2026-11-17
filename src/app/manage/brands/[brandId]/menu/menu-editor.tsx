@@ -52,12 +52,20 @@ export function MenuEditor({
   guestMessages,
   artwork,
   maxImportPhotos,
+  venue,
 }: {
   initialDraft: MenuDraft;
   theme: GuestMenu["theme"];
   guestMessages: Record<Language, GuestMessages>;
   artwork: Artwork;
   maxImportPhotos: number;
+  venue?: {
+    inherited: Section[];
+    missing: number;
+    persist: (revision: string | null, menu: MenuDraftContent, publish: boolean, inherit: string[]) =>
+      Promise<{ draft?: MenuDraft; error?: keyof Messages["StaffErrors"] }>;
+    upload: (form: FormData) => ReturnType<typeof prepareDishPhoto>;
+  };
 }) {
   const t = useTranslations("MenuEditor");
   const errors = useTranslations("StaffErrors");
@@ -74,7 +82,11 @@ export function MenuEditor({
   const [saving, startTransition] = useTransition();
   const [aiPending, startAiTransition] = useTransition();
   const pending = saving || aiPending;
-  const dirty = menu !== saved.menu && JSON.stringify(menu) !== JSON.stringify(saved.menu);
+  const [inherit, setInherit] = useState<string[]>([]);
+  const [priceReset, setPriceReset] = useState(0);
+  const dirty = inherit.length > 0 || (menu !== saved.menu && JSON.stringify(menu) !== JSON.stringify(saved.menu));
+  const inherited = new Map(venue?.inherited.flatMap((section) => section.dishes.map((dish) => [dish.dishId, dish] as const)));
+  const inheritedSections = new Set(venue?.inherited.map((s) => s.sectionId));
   const needsReview = menu.sections.some((section) => section.imported || section.suggestedName || section.dishes.some(
     (dish) => dish.imported || dish.suggestedName || dish.suggestedDescription,
   ));
@@ -125,7 +137,7 @@ export function MenuEditor({
     form.set("photo", file);
     startTransition(async () => {
       try {
-        const result = await prepareDishPhoto(saved.brand.id, form);
+        const result = await (venue ? venue.upload(form) : prepareDishPhoto(saved.brand.id, form));
         if (result.photoUrl) onUploaded(result.photoUrl);
         else setError(result.error ?? "invalid_input");
       } catch {
@@ -175,10 +187,13 @@ export function MenuEditor({
     setStatus(undefined);
     startTransition(async () => {
       try {
-        const result = await persistMenuDraft(saved.brand.id, saved.revision, menu, publish);
+        const result = await (venue
+          ? venue.persist(saved.revision, menu, publish, inherit)
+          : persistMenuDraft(saved.brand.id, saved.revision, menu, publish));
         if (result.draft) {
           setSaved(result.draft);
           setMenu(result.draft.menu);
+          setInherit([]);
           setStatus(publish ? "published" : "saved");
         } else {
           setError(result.error ?? "invalid_input");
@@ -212,7 +227,7 @@ export function MenuEditor({
     <div id="brand-menu-editor">
       <header className="flex flex-wrap items-start justify-between gap-4 border-b border-rule pb-4">
         <div>
-          <h1 className="font-display text-3xl">{t("heading", { brand: saved.brand.name })}</h1>
+          <h1 className="font-display text-3xl">{venue ? t("venueHeading", { venue: saved.venueName ?? "" }) : t("heading", { brand: saved.brand.name })}</h1>
           <p className="mt-1 text-sm text-ink-muted">{lastPublish ? t("lastPublish", { date: lastPublish }) : t("neverPublished")}</p>
           <p className="text-sm font-semibold">{t(dirty || saved.hasUnpublishedChanges ? "unpublished" : "upToDate")}</p>
         </div>
@@ -220,12 +235,13 @@ export function MenuEditor({
           <button type="submit" form="menu-editor-fields" value="save" disabled={!dirty || pending} className={editorButton}>
             {t("save")}
           </button>
-          <button type="submit" form="menu-editor-fields" value="publish" disabled={pending || needsReview || (!dirty && !saved.hasUnpublishedChanges)} className="min-h-11 rounded-md bg-ink px-4 text-sm font-semibold text-paper disabled:opacity-45">
+          <button type="submit" form="menu-editor-fields" value="publish" disabled={pending || needsReview || (venue ? dirty || !saved.hasUnpublishedChanges : !dirty && !saved.hasUnpublishedChanges)} className="min-h-11 rounded-md bg-ink px-4 text-sm font-semibold text-paper disabled:opacity-45">
             {t("publish")}
           </button>
         </div>
         {needsReview && <p className="w-full text-sm font-medium text-amber-900">{t("reviewBeforePublish")}</p>}
         {needsTranslation > 0 && <p className="w-full text-sm font-medium text-amber-900">{t("translationCount", { count: needsTranslation })}</p>}
+        {!!venue?.missing && <p className="w-full text-sm text-ink-muted">{t("missingBrandDishes", { count: venue.missing })}</p>}
         <div className="w-full empty:hidden" aria-live="polite">
           {aiPending && <p className="text-sm text-ink-muted">{t("requestingAssistance")}</p>}
           {status && <p className="text-sm text-ink-muted">{t(status)}</p>}
@@ -267,14 +283,14 @@ export function MenuEditor({
               if (details) details.open = true;
             }}>
               <fieldset disabled={pending} className="space-y-5">
-                <div className="space-y-2 rounded-xl border border-rule bg-white/35 p-4">
+                {!venue && <div className="space-y-2 rounded-xl border border-rule bg-white/35 p-4">
                   <p id="menu-import-help" className="text-sm text-ink-muted">{t("importHelp", { count: maxImportPhotos })}</p>
                   <Field ref={importInput} label={t("menuPhotos")} type="file" accept={artwork.accept} multiple
                     aria-describedby="menu-import-help" onChange={(event) => setImportCount(event.currentTarget.files?.length ?? 0)} />
                   <button type="button" className={editorButton} disabled={importCount === 0} onClick={importPhotos}>
                     {t("importPhotos")}
                   </button>
-                </div>
+                </div>}
                 <button type="button" className={editorButton} onClick={() => changeSections([
                   ...menu.sections,
                   { sectionId: crypto.randomUUID(), name: emptyText, dishes: [] },
@@ -289,7 +305,7 @@ export function MenuEditor({
                         const label = t(language === "am" ? "sectionAm" : "sectionEn");
                         return (
                           <div key={language}>
-                            <Field label={label} lang={language} value={section.name[language]}
+                            <Field label={label} lang={language} value={section.name[language]} readOnly={inheritedSections.has(section.sectionId)}
                               onChange={(event) => updateSection(sectionIndex, {
                                 name: { ...section.name, [language]: event.target.value },
                                 suggestedName: section.suggestedName === language ? undefined : section.suggestedName,
@@ -304,10 +320,10 @@ export function MenuEditor({
                       onKeep={() => updateSection(sectionIndex, { imported: undefined })}
                       onDiscard={() => changeSections(menu.sections.filter((_, i) => i !== sectionIndex))} />}
                     <div className="mt-3 flex flex-wrap gap-2">
-                      {canSuggest(section.name) && <button type="button" className={editorButton}
+                      {!venue && canSuggest(section.name) && <button type="button" className={editorButton}
                         onClick={() => requestAi({ sectionId: section.sectionId })}>{t("suggestTranslation")}</button>}
-                      <MoveButtons index={sectionIndex} count={menu.sections.length} onMove={(step) => changeSections(move(menu.sections, sectionIndex, step))} />
-                      {!section.imported && <button type="button" className={editorButton}
+                      {!venue && <MoveButtons index={sectionIndex} count={menu.sections.length} onMove={(step) => changeSections(move(menu.sections, sectionIndex, step))} />}
+                      {!section.imported && !inheritedSections.has(section.sectionId) && (!venue || !section.dishes.length) && <button type="button" className={editorButton}
                         onClick={() => changeSections(menu.sections.filter((_, i) => i !== sectionIndex))}>
                         {t("removeSection")}
                       </button>}
@@ -315,7 +331,7 @@ export function MenuEditor({
                     <div className="mt-4 divide-y divide-rule border-t border-rule">
                       {section.dishes.map((dish, dishIndex) => (
                         <DishFields
-                          key={dish.dishId}
+                          key={`${dish.dishId}:${priceReset}`}
                           dish={dish}
                           open={openedDish === dish.dishId || undefined}
                           index={dishIndex}
@@ -324,13 +340,20 @@ export function MenuEditor({
                           onChange={(patch) => updateSection(sectionIndex, {
                             dishes: section.dishes.map((candidate, i) => i === dishIndex ? { ...candidate, ...patch } : candidate),
                           })}
-                          onMove={(step) => updateSection(sectionIndex, { dishes: move(section.dishes, dishIndex, step) })}
+                          onMove={venue ? undefined : (step) => updateSection(sectionIndex, { dishes: move(section.dishes, dishIndex, step) })}
                           onFavourite={(checked) => setFavourite(dish.dishId, checked)}
                           onArchive={() => archiveDish(section, dish)}
                           onDiscardImport={() => updateSection(sectionIndex, {
                             dishes: section.dishes.filter((candidate) => candidate.dishId !== dish.dishId),
                           })}
-                          onSuggest={() => requestAi({ sectionId: section.sectionId, dishId: dish.dishId })}
+                          onSuggest={venue ? undefined : () => requestAi({ sectionId: section.sectionId, dishId: dish.dishId })}
+                          onInherit={inherited.has(dish.dishId) ? () => {
+                            updateSection(sectionIndex, { dishes: section.dishes.map((current) =>
+                              current.dishId === dish.dishId ? inherited.get(dish.dishId)! : current) });
+                            setInherit((ids) => [...new Set([...ids, dish.dishId])]);
+                            setOpenedDish(dish.dishId);
+                            setPriceReset((count) => count + 1);
+                          } : undefined}
                           onPhoto={(file) => uploadPhoto(file, (photoUrl) => updateSection(sectionIndex, {
                             dishes: section.dishes.map((candidate) => candidate.dishId === dish.dishId ? { ...candidate, photoUrl } : candidate),
                           }))}
@@ -436,18 +459,19 @@ function ImportReview({ kind, missingPrice, onKeep, onDiscard }: {
   );
 }
 
-function DishFields({ dish, open, index, count, acceptArtwork, onChange, onMove, onFavourite, onArchive, onDiscardImport, onSuggest, onPhoto }: {
+function DishFields({ dish, open, index, count, acceptArtwork, onChange, onMove, onFavourite, onArchive, onDiscardImport, onSuggest, onInherit, onPhoto }: {
   dish: Dish;
   open?: boolean;
   index: number;
   count: number;
   acceptArtwork: string;
   onChange: (patch: Partial<Dish>) => void;
-  onMove: (step: number) => void;
+  onMove?: (step: number) => void;
   onFavourite: (checked: boolean) => void;
   onArchive: () => void;
   onDiscardImport: () => void;
-  onSuggest: () => void;
+  onSuggest?: () => void;
+  onInherit?: () => void;
   onPhoto: (file: File) => void;
 }) {
   const t = useTranslations("MenuEditor");
@@ -489,7 +513,7 @@ function DishFields({ dish, open, index, count, acceptArtwork, onChange, onMove,
           </div>
         ))}
       </div>
-      {(canSuggest(dish.name) || canSuggest(dish.description)) && <button type="button"
+      {onSuggest && (canSuggest(dish.name) || canSuggest(dish.description)) && <button type="button"
         className={`${editorButton} mt-3`} onClick={onSuggest}>{t("suggestTranslation")}</button>}
       <div className="mt-3 flex flex-wrap items-end gap-x-4">
         <Field label={t("price")} type="number" min="0" max="21474836.47" step="0.01" inputMode="decimal"
@@ -550,7 +574,8 @@ function DishFields({ dish, open, index, count, acceptArtwork, onChange, onMove,
         </button>
       </fieldset>
       <div className="mt-3 flex flex-wrap gap-2 pb-3">
-        <MoveButtons index={index} count={count} onMove={onMove} />
+        {onMove && <MoveButtons index={index} count={count} onMove={onMove} />}
+        {onInherit && <button type="button" className={editorButton} onClick={onInherit}>{t("inheritDish")}</button>}
         {!dish.imported && <button type="button" className={editorButton} onClick={onArchive}>{t("archiveDish")}</button>}
       </div>
       {dish.imported && <ImportReview kind="dish" missingPrice={dish.imported === "missing_price"}

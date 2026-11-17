@@ -216,6 +216,7 @@
     "system": "ሲስተም"
   },
   "VenueMenu": {
+    "editMenu": "የቦታውን ምናሌ ያስተካክሉ",
     "title": "የቦታው ምናሌ",
     "empty": "ገና የታተመ ምግብ የለም።",
     "brandPrice": "የብራንዱ ዋጋ {amount} {currency}",
@@ -266,6 +267,9 @@
     "waiterJoinReady": "ይህን QR በአስተናጋጁ ስልክ ያንብቡ። በ{minutes} ደቂቃ ውስጥ አንድ ጊዜ ብቻ ይሰራል።"
   },
   "MenuEditor": {
+    "venueHeading": "የ{venue} ምናሌ",
+    "inheritDish": "የብራንዱን ምግብ ዝርዝር ይጠቀሙ",
+    "missingBrandDishes": "{count} ምግቦች ከብራንዱ ምናሌ ወጥተዋል። ሲመለሱ የቦታው ለውጦች ይጠበቃሉ።",
     "menuPhotos": "የወረቀት ምናሌ ፎቶዎች",
     "importPhotos": "ፎቶዎችን አስገባ",
     "importHelp": "እያንዳንዳቸው እስከ 4 ሜባ የሆኑ እስከ {count} ፎቶዎችን ይምረጡ። ለAI አገልግሎቱ ከመላክዎ በፊት ምግቦችንና ዋጋዎችን ብቻ የሚያሳይ ክፍል ይቁረጡ፣ የግል መረጃም ያስወግዱ።",

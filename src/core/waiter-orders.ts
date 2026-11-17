@@ -65,7 +65,7 @@ export async function addWaiterOrder(actor: Actor, input: z.input<typeof quickOr
     );
     if (open?.prepared) throw new MaasiiError("invalid_input", "Reopen the Bill before adding an Order.", "billPrepared");
     const published = await readPublishedMenu(tx, table, now);
-    if (!published?.menu.menuVersion) throw new MaasiiError("invalid_input", "This Venue has no published Menu.", "orderDraftChanged");
+    if (!published) throw new MaasiiError("invalid_input", "This Venue has no published Menu.", "orderDraftChanged");
     const snapshots = snapshotOrderLines(published, lines);
     const visitId = open?.id ?? (await tx.query<{ id: string }>(
       "insert into app.visits (venue_id, table_id, opened_at) values ($1, $2, $3) returning id", [waiter.venueId, tableId, now],
