@@ -271,7 +271,12 @@ export default function OrderService({
         <GuestBill bill={visit.bill} paid={!!visit.closedAt} options={visit.paymentOptions} />
       ) : visit && !visit.closedAt && <BillTotal totalSantim={visit.totalSantim} label={t("billTotal")} />}
       {feed?.review && feed.review.visitId === visit?.id && (
-        <GuestReviews key={feed.review.visitId} form={feed.review} url={`/v/${encodeURIComponent(venueLinkToken)}/reviews`} />
+        <GuestReviews
+          key={feed.review.visitId}
+          form={feed.review}
+          url={`/v/${encodeURIComponent(venueLinkToken)}/reviews`}
+          feedbackHref={`/v/${encodeURIComponent(venueLinkToken)}/feedback`}
+        />
       )}
     </>),
   });

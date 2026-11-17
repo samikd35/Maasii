@@ -1,5 +1,10 @@
 {
   "heading": "Reviews",
+  "backToMenu": "Back to menu",
+  "openReviews": "Open Reviews page",
+  "intro": "Your feedback is shared privately with {brand}.",
+  "awaitingPayment": "You can leave a review once your waiter records payment for this visit.",
+  "unavailable": "No paid visit is linked to this phone. Reviews are available after payment on a phone that ordered for the visit.",
   "visit": "How was your visit?",
   "dish": "Would you order {name} again?",
   "waiter": "How was the service from {name}?",

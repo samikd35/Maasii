@@ -3,6 +3,7 @@
 import { createTranslator, useLocale } from "next-intl";
 import { useId, useState } from "react";
 import type { GuestReviewForm } from "@/core";
+import { GuestLink } from "@/ui/guest-navigation";
 import am from "../../../../messages/reviews.am.json";
 import en from "../../../../messages/reviews.en.json";
 
@@ -14,13 +15,23 @@ const parts = {
 } as const;
 const button = "min-h-11 rounded-lg border border-rule px-4 text-sm font-semibold disabled:opacity-50";
 
-export function GuestReviews({ form, url }: { form: GuestReviewForm; url: string }) {
+export function GuestReviews({ form, url, titleId, feedbackHref }: {
+  form: GuestReviewForm;
+  url: string;
+  titleId?: string;
+  feedbackHref?: `/v/${string}`;
+}) {
   const locale = useLocale();
   const t = createTranslator({ locale, messages: locale === "am" ? am : en });
   const heading = useId();
   return (
-    <section aria-labelledby={heading} className="border-t border-rule pt-4">
-      <h3 id={heading} className="text-sm font-semibold uppercase">{t("heading")}</h3>
+    <section aria-labelledby={titleId ?? heading} className="border-t border-rule pt-4">
+      {!titleId && <h3 id={heading} className="text-sm font-semibold uppercase">{t("heading")}</h3>}
+      {feedbackHref && (
+        <GuestLink href={feedbackHref} className="inline-flex min-h-11 min-w-11 items-center text-sm font-semibold underline">
+          {t("openReviews")}
+        </GuestLink>
+      )}
       <ReviewPart form={form} url={url} kind="visit" prompt={t("visit")} />
       {form.dishes.map(({ id, name }) => (
         <ReviewPart key={id} form={form} url={url} kind="dish" dishId={id}
