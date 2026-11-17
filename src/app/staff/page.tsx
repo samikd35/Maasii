@@ -4,6 +4,7 @@ import { z } from "zod";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { getWaiterSession } from "@/core";
+import { orderPushConfig } from "@/lib/order-push-config";
 import { getSessionActor, waiterUnlockToken } from "@/lib/session";
 import { PinField } from "@/ui/field";
 import { ActionForm, SubmitButton } from "@/ui/staff-forms";
@@ -64,7 +65,7 @@ export default async function WaiterPage({ searchParams }: PageProps<"/staff">) 
           </form>
         </div>
         <NextIntlClientProvider messages={{ StaffOrders, StaffErrors, Bills }}>
-          <Notifications vapidKey={process.env.MAASII_VAPID_PUBLIC_KEY} subscribed={device.hasPush} />
+          <Notifications vapidKey={orderPushConfig()?.publicKey} subscribed={device.hasPush} />
           <MyTables />
         </NextIntlClientProvider>
         {device.dishes.length > 0 && (

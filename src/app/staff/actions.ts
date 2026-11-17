@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { lockWaiter, setWaiterPushSubscription, unlockWaiter } from "@/core";
+import { orderPushConfig } from "@/lib/order-push-config";
 import { forForm, getSessionActor, setWaiterUnlockToken, waiterUnlockToken, type FormState } from "@/lib/session";
 
 export async function unlock(_state: FormState, formData: FormData): Promise<FormState> {
@@ -27,7 +28,7 @@ export async function lock() {
 
 export async function allowNotifications(subscription: unknown): Promise<boolean> {
   const actor = await getSessionActor();
-  if (!actor || !process.env.MAASII_VAPID_PUBLIC_KEY) return false;
+  if (!actor || !orderPushConfig()) return false;
   const result = await forForm(async () => {
     await setWaiterPushSubscription(actor, { subscription, unlockToken: await waiterUnlockToken() });
   });

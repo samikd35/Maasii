@@ -2,14 +2,15 @@ import { createHash } from "node:crypto";
 import { getTranslations } from "next-intl/server";
 import { generateRequestDetails } from "web-push";
 import { consumeOrderNotificationWake, sendOrderNotifications, systemActor } from "@/core";
+import { orderPushConfig } from "@/lib/order-push-config";
 
 export async function POST(request: Request) {
-  const { MAASII_VAPID_PUBLIC_KEY, MAASII_VAPID_PRIVATE_KEY, MAASII_VAPID_SUBJECT } = process.env;
   const authorization = request.headers.get("authorization");
   if (!authorization?.startsWith("Bearer ") || !await consumeOrderNotificationWake(systemActor, authorization.slice(7))) {
     return new Response(null, { status: 401 });
   }
-  if (!MAASII_VAPID_PUBLIC_KEY || !MAASII_VAPID_PRIVATE_KEY || !MAASII_VAPID_SUBJECT) {
+  const vapidDetails = orderPushConfig();
+  if (!vapidDetails) {
     return new Response(null, { status: 503 });
   }
 
@@ -25,11 +26,7 @@ export async function POST(request: Request) {
       TTL: 120,
       urgency: "high",
       topic: createHash("sha256").update(tag).digest("base64url").slice(0, 32),
-      vapidDetails: {
-        publicKey: MAASII_VAPID_PUBLIC_KEY,
-        privateKey: MAASII_VAPID_PRIVATE_KEY,
-        subject: MAASII_VAPID_SUBJECT,
-      },
+      vapidDetails,
     });
     const response = await fetch(push.endpoint, {
       method: push.method,

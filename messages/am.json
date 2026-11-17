@@ -472,9 +472,11 @@
     "escalatedOrder": "ለፈረቃው የተላከ ትዕዛዝ",
     "installHint": "Maasiiን ከአሳሽዎ ምናሌ ይጫኑ።",
     "enableNotifications": "ማሳወቂያዎችን ያብሩ",
-    "notificationEnabled": "በዚህ ስልክ ላይ ማሳወቂያዎች በርተዋል።",
+    "notificationEnabled": "በዚህ መሣሪያ ላይ የማሳወቂያ ቅንብር ተጠናቋል። ማሳወቂያው የሚደርስ መሆኑን ለማረጋገጥ አስተዳዳሪዎ የሙከራ ትዕዛዝ እንዲልክ ይጠይቁ።",
+    "notificationUnconfigured": "የMaasii ማሳወቂያዎች ገና አልተዘጋጁም። ለእርዳታ አስተዳዳሪዎን ይጠይቁ። ትዕዛዞችን በዚህ ገጽ ማየት ይችላሉ።",
     "notificationDenied": "በአሳሽዎ ቅንብሮች ውስጥ ለMaasii ማሳወቂያዎችን ይፍቀዱ።",
-    "notificationUnsupported": "በiPhone ላይ ማሳወቂያዎችን ለማብራት Maasiiን ከመነሻ ገጽዎ ይክፈቱ።",
+    "notificationUnsupported": "ይህ አሳሽ ማሳወቂያዎችን መቀበል አይችልም። በiPhone ላይ Maasiiን ጭነው ከመነሻ ገጽዎ ይክፈቱ።",
+    "notificationDismissed": "ማሳወቂያ ለመላክ ፈቃድ አልተሰጠም። እንደገና ለመሞከር «ማሳወቂያዎችን ያብሩ» የሚለውን ይምረጡ።",
     "notificationError": "ማሳወቂያዎችን ማብራት አልተቻለም። እንደገና ይሞክሩ።"
   },
   "Floor": {
