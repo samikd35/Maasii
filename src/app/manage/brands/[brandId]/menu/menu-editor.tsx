@@ -9,6 +9,7 @@ import { Price } from "@/ui/price";
 import { Field } from "@/ui/field";
 import { GuestMenuView } from "@/ui/guest-menu-view";
 import { languageButtonClass } from "@/ui/language-switch";
+import { ConfirmationDialog } from "@/ui/staff-forms";
 import { Ordering } from "@/app/v/[token]/ordering";
 import { persistMenuDraft, prepareDishPhoto, prepareDishVideo, requestMenuAssistance } from "./actions";
 
@@ -80,6 +81,7 @@ export function MenuEditor({
   const recoveryLoaded = useRef(false);
   const recoveryPending = useRef(false);
   const leaveDialog = useRef<HTMLDialogElement>(null);
+  const publishDialog = useRef<HTMLDialogElement>(null);
   const leaveHref = useRef<string | undefined>(undefined);
   const leaveAfterSave = useRef(false);
   const leaveBack = useRef(false);
@@ -288,8 +290,10 @@ export function MenuEditor({
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const publish = (event.nativeEvent as SubmitEvent).submitter?.getAttribute("value") === "publish";
-    if (publish && dirty) return;
+    if (dirty && !pending) persist(false);
+  }
+
+  function persist(publish: boolean) {
     setError(undefined);
     setStatus(undefined);
     startTransition(async () => {
@@ -331,6 +335,7 @@ export function MenuEditor({
     timeStyle: "short",
     timeZone: "Africa/Addis_Ababa",
   }).format(saved.lastPublishedAt);
+  const publishTitle = venue ? t("publishVenue", { venue: saved.venueName ?? saved.brand.name }) : t("publishBrand");
 
   return (
     <div id="brand-menu-editor">
@@ -342,6 +347,12 @@ export function MenuEditor({
           <button type="button" className={editorButton} onClick={stay}>{t("stay")}</button>
         </div>
       </dialog>
+      <ConfirmationDialog dialog={publishDialog} title={publishTitle} cancel={t("cancelPublish")} onConfirm={() => {
+        publishDialog.current?.close();
+        if (!dirty && !pending && !needsReview && saved.hasUnpublishedChanges) persist(true);
+      }}>
+        {venue ? t("publishVenueHelp", { venue: saved.venueName ?? saved.brand.name }) : t("publishBrandHelp", { brand: saved.brand.name })}
+      </ConfirmationDialog>
       {recovery && <section className="maasii-card mb-4" role="status"><h2 className="font-semibold">{t("recoveryFound")}</h2>
         <p>{t(recovery.revision === saved.revision ? "recoveryHelp" : "recoveryConflict")}</p>
         <button type="button" className={editorButton} onClick={() => { setMenu(recovery.menu); setInherit(recovery.inherit); setSaved(previous => ({ ...previous, revision: recovery.revision })); recoveryPending.current = false; setRecovery(undefined); }}>{t("restoreDraft")}</button>
@@ -352,15 +363,15 @@ export function MenuEditor({
           <h1 className="font-sans text-3xl">{venue ? t("venueHeading", { venue: saved.venueName ?? "" }) : t("heading", { brand: saved.brand.name })}</h1>
           <p className="mt-1 text-sm text-ink-muted">{lastPublish ? t("lastPublish", { date: lastPublish }) : t("neverPublished")}</p>
       </div>
-      <header className="flex flex-wrap items-center justify-between">
-          <p className="text-sm font-semibold">{t(dirty ? "unsavedChanges" : saved.hasUnpublishedChanges ? "savedUnpublished" : "upToDate")}</p>
-        <div className="flex flex-wrap gap-2">
-          <button type="submit" form="menu-editor-fields" value="save" disabled={!dirty || pending} className={dirty ? "maasii-button disabled:opacity-45" : editorButton}>
-            {t("save")}
-          </button>
-          <button type="submit" form="menu-editor-fields" value="publish" disabled={pending || needsReview || (dirty || !saved.hasUnpublishedChanges)} className={dirty ? editorButton : "min-h-11 rounded-xl bg-ink px-4 text-sm font-semibold text-paper disabled:opacity-45"}>
-            {t("publish")}
-          </button>
+      <header className="editor-actions">
+        <div className="workspace-actions">
+          <p className="text-sm font-semibold">{t(dirty ? "unsavedChanges" : saved.hasUnpublishedChanges ? "draftPrivate" : "upToDate")}</p>
+          {!dirty && saved.hasUnpublishedChanges ? (
+            <button type="button" disabled={pending || needsReview} className="workspace-button workspace-primary"
+              onClick={() => publishDialog.current?.showModal()}>{t("reviewPublish")}</button>
+          ) : (
+            <button type="submit" form="menu-editor-fields" value="save" disabled={!dirty || pending} className="workspace-button workspace-primary">{t("save")}</button>
+          )}
         </div>
         {needsReview && <p className="w-full text-sm font-medium text-amber-900">{t("reviewBeforePublish")}</p>}
         {needsTranslation > 0 && <p className="w-full text-sm font-medium text-amber-900">{t("translationCount", { count: needsTranslation })}</p>}
@@ -379,7 +390,8 @@ export function MenuEditor({
             }}>{t("reloadLatest")}</button>
           </div>}
         </div>
-        <div role="tablist" aria-label={t("nav")} className="mt-1 grid w-full grid-cols-2 gap-2 lg:hidden">
+      </header>
+        <div role="tablist" aria-label={t("nav")} className="mt-3 grid w-full grid-cols-2 gap-2 lg:hidden">
           {panelTabs.map((panel) => (
             <button
               key={panel}
@@ -403,7 +415,6 @@ export function MenuEditor({
             </button>
           ))}
         </div>
-      </header>
 
       <div className="mt-5 grid items-start gap-8 lg:grid-cols-2">
         <div id="menu-edit-panel" role="tabpanel" aria-labelledby="menu-edit-tab" className={tab === "edit" ? "" : "hidden lg:block"}>

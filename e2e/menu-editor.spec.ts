@@ -1,3 +1,4 @@
+import { publishDraft } from "./support/menu-editor";
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 import { getMenuDraft, importMenuPhotos, suggestMenuTranslations, updateBranding, updateStaffLanguage } from "@/core";
@@ -32,7 +33,7 @@ test("an Owner edits a Menu on mobile and previews it without guest writes", asy
       guestWrites.push(request.url());
     }
   });
-  await page.getByRole("link", { name: "Brand menu" }).click();
+  await page.getByRole("link", { name: "Brand menu", exact: true }).click();
   await expect(page.getByRole("tab", { name: "Edit" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByText(/Last published/)).toBeVisible();
   await page.getByRole("region", { name: "Edit" }).getByText("Omelette", { exact: true }).click();
@@ -62,11 +63,7 @@ test("an Owner edits a Menu on mobile and previews it without guest writes", asy
   expect(guestWrites).toEqual([]);
 
   await expect(page.getByText("1 dish is missing a translation.")).toBeVisible();
-  if (await page.getByRole("button", { name: "Save draft", exact: true }).isEnabled()) {
-    await page.getByRole("button", { name: "Save draft", exact: true }).click();
-    await expect(page.getByText("Draft saved.", { exact: true })).toBeVisible();
-  }
-  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await publishDraft(page);
   await expect(page.getByText("Menu published.", { exact: true })).toBeVisible();
   await expect(page.getByText("No unpublished changes")).toBeVisible();
   await page.goto(venue);
@@ -81,7 +78,7 @@ test("desktop Owners arrange sections and dishes beside the live guest Menu", as
   const s = await scenario().publishedMenu(menu).build();
   await updateBranding(s.owner.actor, { brandId: s.brand.id, colour: "#568F69", displayFont: "noto-serif-ethiopic" });
   await signIn(page, s.owner);
-  await page.getByRole("link", { name: "Brand menu" }).click();
+  await page.getByRole("link", { name: "Brand menu", exact: true }).click();
 
   const edit = page.getByRole("region", { name: "Edit" });
   const preview = page.getByRole("region", { name: "Guest preview" });
@@ -132,7 +129,7 @@ test("desktop Owners arrange sections and dishes beside the live guest Menu", as
     await page.getByRole("button", { name: "Save draft", exact: true }).click();
     await expect(page.getByText("Draft saved.", { exact: true })).toBeVisible();
   }
-  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await publishDraft(page);
   await expect(page.getByText("Menu published.", { exact: true })).toBeVisible();
   await page.goto(`/v/${s.venue.linkToken}/menu`);
   await expect(page.getByRole("heading", { name: "Jam Tart" })).toBeVisible();
@@ -144,7 +141,7 @@ test("an Owner edits Dish photos and Option Groups, then archives and restores t
   const guest = await context.newPage();
   const venue = `/v/${s.venue.linkToken}/menu`;
   await signIn(page, s.owner);
-  await page.getByRole("link", { name: "Brand menu" }).click();
+  await page.getByRole("link", { name: "Brand menu", exact: true }).click();
 
   const edit = page.getByRole("region", { name: "Edit" });
   const dish = edit.locator("details.editor-dish").filter({ hasText: "Omelette" });
@@ -198,11 +195,7 @@ test("an Owner edits Dish photos and Option Groups, then archives and restores t
   const guestDish = guest.getByRole("dialog");
   await expect(guestDish.locator("img")).toHaveCount(0);
   await expect(guestDish.getByText("Rye")).toHaveCount(0);
-  if (await page.getByRole("button", { name: "Save draft", exact: true }).isEnabled()) {
-    await page.getByRole("button", { name: "Save draft", exact: true }).click();
-    await expect(page.getByText("Draft saved.", { exact: true })).toBeVisible();
-  }
-  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await publishDraft(page);
   await expect(page.getByText("Menu published.", { exact: true })).toBeVisible();
   await guest.reload();
   await guest.getByRole("button", { name: "Choose Omelette", exact: true }).click();
@@ -221,7 +214,7 @@ test("an Owner edits Dish photos and Option Groups, then archives and restores t
     await page.getByRole("button", { name: "Save draft", exact: true }).click();
     await expect(page.getByText("Draft saved.", { exact: true })).toBeVisible();
   }
-  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await publishDraft(page);
   await expect(page.getByText("Menu published.", { exact: true })).toBeVisible();
   await guest.reload();
   await expect(guest.getByRole("button", { name: "Choose Omelette", exact: true })).toHaveCount(0);
@@ -232,7 +225,7 @@ test("an Owner edits Dish photos and Option Groups, then archives and restores t
     await page.getByRole("button", { name: "Save draft", exact: true }).click();
     await expect(page.getByText("Draft saved.", { exact: true })).toBeVisible();
   }
-  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await publishDraft(page);
   await expect(page.getByText("Menu published.", { exact: true })).toBeVisible();
   await guest.reload();
   await guest.getByRole("button", { name: "Choose Omelette", exact: true }).click();
@@ -262,8 +255,8 @@ test("the Owner reviews imported dishes and suggested text before publishing", a
   }, { model: async () => ({ name: "የማር ዳቦ", description: "ጣፋጭ ዳቦ" }) });
 
   await signIn(page, s.owner);
-  await page.getByRole("link", { name: "Brand menu" }).click();
-  const publish = page.getByRole("button", { name: "Publish", exact: true });
+  await page.getByRole("link", { name: "Brand menu", exact: true }).click();
+  const publish = page.getByRole("button", { name: "Review and publish", exact: true });
   await expect(publish).toBeDisabled();
   await expect(page.getByText("Review imported entries and suggested translations before publishing.")).toBeVisible();
 
@@ -293,10 +286,10 @@ test("the Owner reviews imported dishes and suggested text before publishing", a
   await toast.getByRole("button", { name: "Discard dish" }).click();
   await expect(toast).toHaveCount(0);
 
-  await expect(publish).toBeDisabled();
+  await expect(publish).toHaveCount(0);
   await page.getByRole("button", { name: "Save draft", exact: true }).click();
   await expect(publish).toBeEnabled();
-  await publish.click();
+  await publishDraft(page);
   await expect(page.getByText("Menu published.")).toBeVisible();
   await page.goto(`/v/${s.venue.linkToken}/menu`);
   await expect(page.getByRole("heading", { name: "Honey bread" })).toBeVisible();
@@ -306,7 +299,7 @@ test("the Owner reviews imported dishes and suggested text before publishing", a
 test("failed photo, save and publish requests preserve the Owner's edits and can be retried", async ({ page }) => {
   const s = await scenario().publishedMenu().build();
   await signIn(page, s.owner);
-  await page.getByRole("link", { name: "Brand menu" }).click();
+  await page.getByRole("link", { name: "Brand menu", exact: true }).click();
   const dish = page.getByRole("region", { name: "Edit" }).locator("details.editor-dish").filter({ hasText: "Omelette" });
   await dish.locator(":scope > summary").click();
   const name = dish.getByLabel("Dish name in English");
@@ -328,7 +321,7 @@ test("failed photo, save and publish requests preserve the Owner's edits and can
     await page.getByRole("button", { name: "Save draft", exact: true }).click();
     await expect(page.getByText("Draft saved.", { exact: true })).toBeVisible();
   }
-  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await publishDraft(page);
   await expect(page.getByText("Menu published.", { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByRole("region", { name: "Edit" }).getByText("Garden Omelette", { exact: true })).toBeVisible();

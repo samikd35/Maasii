@@ -1,3 +1,4 @@
+import { publishDraft } from "./support/menu-editor";
 import { expect, test } from "@playwright/test";
 import {
   addPaymentOption, createWaiterJoinCode, getShiftSetup, startShift, updateBrandSocialLinks,
@@ -39,7 +40,7 @@ test("a local Venue Menu flows through the homepage, Guest and Waiter Orders, pa
     await editor.locator("details").filter({ hasText: "Lancha tea" }).getByLabel("Base price (ETB)").fill("90");
     await manager.getByRole("button", { name: "Save draft" }).click();
     await expect(manager.getByText("Draft saved.", { exact: true })).toBeVisible();
-    await manager.getByRole("button", { name: "Publish", exact: true }).click();
+    await publishDraft(manager);
     await expect(manager.getByText("Menu published.", { exact: true })).toBeVisible();
     await page.goto(`/v/${s.venues.Bole.linkToken}/menu`);
     await expect(page.getByRole("listitem").filter({
@@ -55,7 +56,7 @@ test("a local Venue Menu flows through the homepage, Guest and Waiter Orders, pa
       await waiter.getByLabel("Name").fill("Sam");
       await waiter.getByLabel("Choose a 4-digit PIN").fill("0427");
       await waiter.getByRole("button", { name: "Join venue" }).click();
-      await expect(waiter.getByRole("heading", { name: "My tables" })).toBeVisible();
+      await expect(waiter.getByRole("heading", { name: "Order queue" })).toBeVisible();
       const { waiters } = await getShiftSetup(s.owner.actor, { venueId });
       await startShift(s.owner.actor, { venueId, assignments: [{ tableId: s.venue.tables[0].id, waiterId: waiters[0].id }] });
 
@@ -79,12 +80,12 @@ test("a local Venue Menu flows through the homepage, Guest and Waiter Orders, pa
       await slip.getByRole("button", { name: "Choose your table", exact: true }).click();
       await page.getByRole("button", { name: "Table 1", exact: true }).click();
       await page.getByRole("button", { name: "Send to Table 1", exact: true }).click();
-      await waiter.getByRole("button", { name: "Accept", exact: true }).click();
+      await waiter.getByRole("button", { name: /^Accept / }).click();
       await expect(slip.getByText("Accepted by Sam", { exact: true })).toBeVisible();
       await waiter.getByRole("link", { name: "Table 1", exact: true }).click();
-      await waiter.getByRole("link", { name: "Quick-add" }).click();
+      await waiter.getByRole("link", { name: "Add a Dish" }).click();
       await waiter.getByRole("button", { name: /Lancha tea/ }).click();
-      await waiter.getByRole("button", { name: "Add Order" }).click();
+      await waiter.getByRole("button", { name: "Add to Table 1" }).click();
       await waiter.getByRole("button", { name: "Prepare bill", exact: true }).click();
       await expect(slip.getByRole("region", { name: "Bill total" })).toContainText("330 ETB");
       await slip.getByRole("button", { name: "Close", exact: true }).click();
@@ -92,7 +93,7 @@ test("a local Venue Menu flows through the homepage, Guest and Waiter Orders, pa
       await page.getByRole("link", { name: "View your bill", exact: true }).click();
       await expect(slip.getByRole("region", { name: "Bill total" })).toContainText("330 ETB");
 
-      await waiter.getByRole("button", { name: "Confirm payment", exact: true }).click();
+      await waiter.getByRole("button", { name: "Enter receipt", exact: true }).click();
       await waiter.getByLabel("Method").selectOption({ label: "Test Bank · 001234" });
       await waiter.getByLabel("Official Receipt amount (ETB)").fill("330");
       await waiter.getByRole("button", { name: "Record Payment Confirmation", exact: true }).click();

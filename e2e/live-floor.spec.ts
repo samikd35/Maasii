@@ -32,11 +32,11 @@ test("the Manager's floor refreshes live and switches from a phone list to a roo
     }, { now: new Date(now - 180_000) });
   }
   expect((await getLiveFloor(manager.actor, { venueId })).tables).toHaveLength(2);
-  const tiles = page.getByRole("region", { name: "Open Tables" }).getByRole("listitem");
+  const tiles = page.locator(".floor-tables > li");
   await expect(tiles).toHaveCount(2, { timeout: 12_000 });
-  await expect(tiles.nth(0).getByText("Order waiting", { exact: true })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Exceptions" }).getByText(/Order waiting for acceptance/)).toHaveCount(2);
-  const list = page.getByRole("region", { name: "Open Tables" }).getByRole("list");
+  await expect(tiles.nth(0).getByText(/^Order waiting ·/)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Needs attention" }).getByText(/1 Order waiting/)).toHaveCount(2);
+  const list = page.locator(".floor-tables");
   await expect(list).toHaveCSS("display", "flex");
   await expect(list).toHaveCSS("flex-direction", "column");
   await page.setViewportSize({ width: 1280, height: 900 });

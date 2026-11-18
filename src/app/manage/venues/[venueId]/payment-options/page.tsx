@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { NextIntlClientProvider, useFormatter, useTranslations } from "next-intl";
 import { getMessages, getTranslations } from "next-intl/server";
@@ -33,7 +32,7 @@ async function load(venueId: string) {
       listPaymentOptions(actor, { venueId }),
       setup.isOwner ? listPaymentOptionChanges(actor, { venueId }) : [],
     ]);
-    return { setup, options, changes };
+    return { setup, options: setup.isOwner ? options : options.filter(option => option.active), changes };
   } catch (error) {
     if (error instanceof MaasiiError) notFound();
     throw error;
@@ -49,36 +48,34 @@ export default async function PaymentOptionsPage({ params }: PageProps<"/manage/
 
   return (
     <NextIntlClientProvider messages={{ PaymentOptions, StaffForms, StaffErrors }}>
-      <Link href={`/manage/venues/${venueId}`} className="inline-flex min-h-11 items-center text-sm font-medium underline">
-        {venue.name}
-      </Link>
       <h1 className="font-sans text-3xl">{t("title")}</h1>
+      {!isOwner && <p className="mt-2 text-sm text-ink-muted">{t("managedByOwner")}</p>}
+      {isOwner && <section aria-labelledby="add-payment-option" className="workspace-panel workspace-section">
+        <details open={options.length === 0}>
+          <summary id="add-payment-option" className="workspace-summary">{t("addHeading")}</summary>
+          <OptionForm venueId={venueId} defaultOrder={nextOrder} key={options.length} />
+        </details>
+      </section>}
 
       {options.length === 0 && <p className="mt-4 text-ink-muted">{t("empty")}</p>}
       {options.map((option) => (
-        <OptionRow key={option.id} option={option} isOwner={isOwner} />
+        <OptionRow key={option.id} option={option} isOwner={isOwner} venueName={venue.name} />
       ))}
 
-      {isOwner && (
-        <>
-          <section aria-labelledby="add-payment-option" className="mt-8 border-t border-rule pt-4">
-            <h2 id="add-payment-option" className="mb-4 text-lg font-semibold">{t("addHeading")}</h2>
-            <OptionForm venueId={venueId} defaultOrder={nextOrder} key={options.length} />
-          </section>
-          <ChangeLog changes={changes} />
-        </>
-      )}
+      {isOwner && <ChangeLog changes={changes} />}
     </NextIntlClientProvider>
   );
 }
 
-function OptionRow({ option, isOwner }: { option: PaymentOption; isOwner: boolean }) {
+function OptionRow({ option, isOwner, venueName }: { option: PaymentOption; isOwner: boolean; venueName: string }) {
   const t = useTranslations("PaymentOptions");
   const manage = useTranslations("StaffManage");
   const target = { venueId: option.venueId, paymentOptionId: option.id, revision: option.revision };
+  const name = option.provider ?? t(option.kind);
+  const activeLabel = manage(option.active ? "deactivate" : "reactivate");
   return (
-    <article aria-labelledby={`payment-${option.id}`} className="mt-4 rounded-xl border border-rule p-4">
-      <h2 id={`payment-${option.id}`} className="text-lg font-semibold break-words">{option.provider ?? t(option.kind)}</h2>
+    <article aria-labelledby={`payment-${option.id}`} className="mt-4 workspace-panel">
+      <h2 id={`payment-${option.id}`} className="text-lg font-semibold break-words">{name}</h2>
       <PaymentOptionValues option={option} />
       {isOwner && (
         <>
@@ -86,14 +83,18 @@ function OptionRow({ option, isOwner }: { option: PaymentOption; isOwner: boolea
             <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium underline">{t("edit")}</summary>
             <OptionForm venueId={option.venueId} option={option} defaultOrder={option.displayOrder} />
           </details>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <ActionForm action={changeActive.bind(null, target, !option.active)}>
-              <SubmitButton variant="quiet">{manage(option.active ? "deactivate" : "reactivate")}</SubmitButton>
-            </ActionForm>
-            <ActionForm action={remove.bind(null, target)}>
-              <SubmitButton variant="quiet">{t("remove")}</SubmitButton>
-            </ActionForm>
-          </div>
+          <details>
+            <summary className="workspace-summary">{t("actions")}</summary>
+            <div className="workspace-actions">
+              <ActionForm action={changeActive.bind(null, target, !option.active)} confirmLabel={activeLabel}
+                confirmMessage={option.active ? t("deactivateHelp", { name, venue: venueName }) : undefined}>
+                <SubmitButton variant="secondary">{activeLabel}</SubmitButton>
+              </ActionForm>
+              <ActionForm action={remove.bind(null, target)} confirmLabel={t("remove")} confirmMessage={t("removeHelp", { name, venue: venueName })}>
+                <SubmitButton variant="destructive">{t("remove")}</SubmitButton>
+              </ActionForm>
+            </div>
+          </details>
         </>
       )}
     </article>

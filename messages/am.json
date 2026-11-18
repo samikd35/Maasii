@@ -108,7 +108,9 @@
     "owner": "ባለቤት",
     "manager": "አስተዳዳሪ",
     "waiting": "ምላሽ ያልተሰጠባቸው ግብዣዎች",
-    "goToSignIn": "ወደ መግቢያ ይሂዱ"
+    "goToSignIn": "ወደ መግቢያ ይሂዱ",
+    "skip": "ወደ መስሪያ ገጹ ይሂዱ",
+    "account": "መለያ"
   },
   "StaffSignIn": {
     "heading": "ወደ Maasii ይግቡ",
@@ -206,7 +208,28 @@
     "assignTablesAction": "ያልተመደቡ ጠረጴዛዎችን ይመድቡ",
     "reviewOrdersAction": "የሚጠብቁ ትዕዛዞችን ይመልከቱ",
     "reviewReceiptsAction": "የደረሰኝ ልዩነቶችን ይመልከቱ",
-    "viewFloorAction": "የአገልግሎት ሁኔታን ይክፈቱ"
+    "viewFloorAction": "የአገልግሎት ሁኔታን ይክፈቱ",
+    "closingNav": "መዝጊያ",
+    "switchVenue": "ቦታ ይቀይሩ",
+    "selectVenue": "ቦታ",
+    "overviewNav": "አጠቃላይ እይታ",
+    "brandMenuNav": "የብራንድ ምናሌ",
+    "insightsNav": "ግንዛቤዎች",
+    "brandSettings": "የብራንድ ቅንብሮች",
+    "selectBrand": "ብራንድ",
+    "switchBrand": "ብራንድ ይቀይሩ",
+    "liveVenueCount": "ከ{total} ቦታዎች {count} በአገልግሎት ላይ",
+    "scheduledOpen": "በመርሐ ግብሩ ክፍት",
+    "scheduledClosed": "ከመርሐ ግብሩ ሰዓት ውጭ",
+    "pendingVenueTables": "{count} ጠረጴዛዎች ትዕዛዝ ይጠብቃሉ",
+    "openOperations": "አስተዳደሩን ይክፈቱ",
+    "openVenueOperations": "አስተዳደሩን ይክፈቱ · {venue}",
+    "reviewBrandDraft": "የብራንድ ረቂቅን ይገምግሙ",
+    "openBrandMenu": "የብራንድ ምናሌን ይክፈቱ",
+    "createBrandMenu": "የብራንድ ምናሌ ይፍጠሩ",
+    "setUpVenue": "{venue}ን ያዘጋጁ",
+    "connectWaiterAction": "አስተናጋጅ ያገናኙ",
+    "openGuestMenu": "የእንግዳውን ገጽ ይክፈቱ"
   },
   "Shifts": {
     "title": "ፈረቃዎች",
@@ -221,7 +244,14 @@
     "started": "የተጀመረው {time} (አዲስ አበባ)",
     "end": "ፈረቃ ጨርስ",
     "saveUsual": "መደበኛ ጠረጴዛዎችን አስቀምጥ",
-    "saveAssignment": "ምደባውን አስቀምጥ"
+    "saveAssignment": "ምደባውን አስቀምጥ",
+    "suggestedCoverage": "ከ{total} ጠረጴዛዎች {count} የምደባ ጥቆማ አላቸው",
+    "currentCoverage": "ከ{total} ጠረጴዛዎች {count} ተመድበዋል",
+    "reviewAssignments": "ምደባዎችን ይገምግሙ",
+    "connectWaiters": "አስተናጋጅ ያገናኙ",
+    "startUncovered": "ጠረጴዛ ሳይመደብ በ{venue} አገልግሎት ይጀመር? የትዕዛዝ ማሳወቂያ የሚደርሰው አስተናጋጅ አይኖርም። ምደባዎችን ለማየት ይቅርን ይምረጡ።",
+    "shiftActions": "የፈረቃ አማራጮች",
+    "endConsequence": "በ{venue} አገልግሎት ይቋረጥ? አዲስ ፈረቃ እስኪጀምር አዲስ ትዕዛዞች ይቆማሉ። {count} ክፍት ጉብኝቶች ወደሚቀጥለው ፈረቃ ይተላለፋሉ።"
   },
   "PaymentOptions": {
     "title": "የክፍያ አማራጮች",
@@ -258,7 +288,11 @@
     "removed": "ተወግዷል",
     "before": "ከለውጡ በፊት",
     "after": "ከለውጡ በኋላ",
-    "system": "ሲስተም"
+    "system": "ሲስተም",
+    "managedByOwner": "የክፍያ አማራጮችን የሚያስተዳድረው የብራንዱ ባለቤት ነው።",
+    "actions": "የክፍያ ዘዴ አማራጮች",
+    "deactivateHelp": "{name} በ{venue} የክፍያ አማራጭ ሆኖ መታየቱ ይቁም?",
+    "removeHelp": "{name} በ{venue} ካሉ የክፍያ አማራጮች ይወገድ?"
   },
   "VenueMenu": {
     "editMenu": "የቦታውን ምናሌ ያስተካክሉ",
@@ -271,7 +305,15 @@
     "savePrice": "ዋጋውን ያስቀምጡ",
     "soldOutSwitch": "{name} አልቋል",
     "soldOut": "አልቋል",
-    "available": "ይገኛል"
+    "available": "ይገኛል",
+    "liveOnly": "የመገኘት ለውጦች በ{venue} ወዲያውኑ ይተገበራሉ።",
+    "findDish": "ምግብ ይፈልጉ",
+    "availability": "የመገኘት ሁኔታ",
+    "allDishes": "ሁሉም ምግቦች",
+    "noMatches": "ከማጣሪያዎቹ ጋር የሚዛመድ ምግብ የለም።",
+    "filter": "ምግቦችን አሳይ",
+    "markSoldOut": "አልቋል ብለው ይመዝግቡ",
+    "restoreAvailability": "በምናሌው መልሰው ያሳዩ"
   },
   "StaffBranding": {
     "heading": "የብራንድ ገጽታ",
@@ -285,10 +327,11 @@
     "original": "የመረጡት ቀለም {colour}",
     "adjusted": "ለንባብ የተስተካከለ ቀለም {colour}",
     "contrast": "ጽሑፍና አዝራሮች በቀላሉ እንዲነበቡ Maasii ጠቆር ያለውን ቀለም ይጠቀማል። የመረጡት ቀለም ከላይ ባለው መስመር በመሳሰሉት ዝርዝሮች ይታያል።",
-    "save": "የብራንድ ገጽታ አስቀምጥ",
+    "save": "ገጽታውን ያስቀምጡ",
     "preview": "የእንግዳ ምናሌ ቅድመ እይታ",
     "exampleDish": "ማኪያቶ",
-    "exampleDescription": "ኤስፕሬሶ በትንሽ ወተት"
+    "exampleDescription": "ኤስፕሬሶ በትንሽ ወተት",
+    "appearance": "ገጽታ"
   },
   "StaffSocialLinks": {
     "heading": "የማኅበራዊ ሚዲያ አገናኞች",
@@ -324,7 +367,9 @@
     "tableAdded": "ጠረጴዛ {from} ተጨምሯል።",
     "tablesAdded": "ከ{from} እስከ {to} ያሉት ጠረጴዛዎች ተጨምረዋል።",
     "waiterJoinQr": "የአስተናጋጅ መቀላቀያ QR",
-    "waiterJoinReady": "ይህን QR በአስተናጋጁ ስልክ ያንብቡ። በ{minutes} ደቂቃ ውስጥ አንድ ጊዜ ብቻ ይሰራል።"
+    "waiterJoinReady": "ይህን QR በአስተናጋጁ ስልክ ያንብቡ። በ{minutes} ደቂቃ ውስጥ አንድ ጊዜ ብቻ ይሰራል።",
+    "continue": "ይቀጥሉ",
+    "cancel": "ይቅር"
   },
   "MenuEditor": {
     "venueHeading": "የ{venue} ምናሌ",
@@ -434,7 +479,14 @@
     "dishSettings": "የምግብ ቅንብሮች",
     "restorePreview": "የብራንድ መመለሻ ቅድመ እይታ · ለማረጋገጥ ያስቀምጡ",
     "matchesBrand": "ከብራንድ ዝርዝሮች ጋር ይዛመዳል",
-    "localOverride": "በብራንድ ምግብ ላይ የቦታ ለውጦች"
+    "localOverride": "በብራንድ ምግብ ላይ የቦታ ለውጦች",
+    "draftPrivate": "ረቂቁ ተቀምጧል · እንግዶች የታተመውን ምናሌ ያያሉ",
+    "reviewPublish": "ገምግመው ያትሙ",
+    "publishBrand": "የብራንድ ምናሌን ያትሙ",
+    "publishVenue": "ለ{venue} ያትሙ",
+    "cancelPublish": "ይቅር",
+    "publishBrandHelp": "ለ{brand} የብራንድ ምናሌ ለውጦችን ያትሙ። እነዚህን ምግቦች ከብራንዱ የሚወስዱ ቦታዎች ለውጦቹን ያገኛሉ።",
+    "publishVenueHelp": "የምናሌውን ለውጦች በ{venue} ያትሙ።"
   },
   "StaffErrors": {
     "venueMenuConflict": "ይህ ለውጥ ከታተመው የቦታ ምናሌ ጋር ይጋጫል። የብራንዱን ምናሌ ከማተምዎ በፊት የቦታውን ምናሌ ያስተካክሉ።",
@@ -518,13 +570,19 @@
     "rejoinHeading": "ስልክዎን ያገናኙ",
     "menu": "ምናሌ",
     "removeConsequence": "{name} ይወገድ? በሁሉም የተመዘገቡ ስልኮች መዳረሻው ይቋረጣል። ለመመለስ አዲስ ምዝገባ ያስፈልጋል።",
-    "queue": "የጠረጴዛ ትዕዛዞች",
+    "queue": "ትዕዛዞች",
     "searchMenu": "ምግብ ይፈልጉ",
     "noMatches": "ከፍለጋዎ ጋር የሚዛመድ ምግብ የለም።",
-    "manageAccess": "የ{name}ን መዳረሻ ያስተዳድሩ"
+    "manageAccess": "የ{name}ን መዳረሻ ያስተዳድሩ",
+    "tables": "ጠረጴዛዎች",
+    "backQueue": "ወደ ትዕዛዞች ይመለሱ",
+    "backTables": "ወደ ጠረጴዛዎች ይመለሱ",
+    "connectWaiter": "አስተናጋጅ ያገናኙ",
+    "regenerateQr": "QR እንደገና ያመንጩ"
   },
   "StaffOrders": {
-    "quickAdd": "ፈጣን መጨመሪያ",
+    "quickAdd": "ምግብ ያክሉ",
+    "backTable": "ወደ ጠረጴዛ {number} ይመለሱ",
     "changeDish": "ምግብ ይቀይሩ",
     "searchDishes": "ምግቦችን ይፈልጉ",
     "noDishes": "የሚዛመድ ምግብ የለም።",
@@ -532,7 +590,7 @@
     "noOption": "ያለ አማራጭ",
     "quantity": "ብዛት",
     "orderNote": "ማስታወሻ",
-    "addOrder": "ትዕዛዝ ይጨምሩ",
+    "addOrder": "በጠረጴዛ {number} ላይ ያክሉ",
     "guestSource": "የእንግዳ ትዕዛዝ",
     "waiterSource": "በአስተናጋጅ የተመዘገበ ትዕዛዝ",
     "correctLine": "መስመሩን ያስተካክሉ",
@@ -540,8 +598,8 @@
     "saveQuantity": "ብዛቱን ያስቀምጡ",
     "removeLine": "መስመሩን ያስወግዱ",
     "removedLine": "ከሂሳብ ተወግዷል",
-    "moveOrder": "ትዕዛዝ ወደ ጠረጴዛ ያዛውሩ…",
-    "moveVisit": "ጉብኝት ወደ ጠረጴዛ ያዛውሩ…",
+    "moveOrder": "ይህን ትዕዛዝ ያዛውሩ…",
+    "moveVisit": "የዚህን ጉብኝት ትዕዛዞች ያዛውሩ…",
     "chooseTable": "ጠረጴዛ ይምረጡ",
     "move": "ያዛውሩ",
     "carriedFrom": "ከ{name} ተላልፏል",
@@ -551,7 +609,7 @@
     "heading": "ጠረጴዛዎቼ",
     "empty": "በጠረጴዛዎችዎ ላይ ትዕዛዝ የለም።",
     "table": "ጠረጴዛ {number}",
-    "accept": "ይቀበሉ",
+    "accept": "ትዕዛዙን ይቀበሉ",
     "accepting": "በመቀበል ላይ…",
     "decisionError": "ትዕዛዙን ማዘመን አልተቻለም። እንደገና ይሞክሩ።",
     "decisions": "የትዕዛዝ አማራጮች",
@@ -577,12 +635,34 @@
     "notificationError": "ማሳወቂያዎችን ማብራት አልተቻለም። እንደገና ይሞክሩ።",
     "noShift": "አገልግሎት አልጀመረም። ኃላፊዎን ፈረቃ እንዲከፍቱ ይጠይቁ።",
     "noAssignments": "የተመደበልዎት ጠረጴዛ የለም። ኃላፊዎን ይጠይቁ።",
-    "quietTables": "ትዕዛዝ የሌላቸው ጠረጴዛዎች"
+    "quietTables": "ትዕዛዝ የሌላቸው ጠረጴዛዎች",
+    "queueHeading": "የትዕዛዝ ዝርዝር",
+    "waitingCount": "የሚጠብቁ ትዕዛዞች {count}",
+    "dishQuantity": "{count} ምግብ",
+    "acceptCount": "{count} ምግብ ይቀበሉ",
+    "acceptSummary": "{count} ምግብ ለመቀበል · {dropped} አልቋል",
+    "decisionUncertain": "ለውጡን ማረጋገጥ አልተቻለም። እንደገና ከመሞከርዎ በፊት ዝርዝሩን ያድሱ።",
+    "deviceAlerts": "የስልክ ማሳወቂያዎች",
+    "refresh": "ያድሱ",
+    "live": "ወቅታዊ",
+    "updated": "የታደሰው {time}",
+    "loading": "ትዕዛዞች እየተጫኑ ነው…",
+    "findTable": "የጠረጴዛ ቁጥር",
+    "find": "ጠረጴዛ ይፈልጉ",
+    "noTableMatch": "በዚህ ቁጥር የተመደበ ጠረጴዛ የለም።",
+    "tableWaiting": "ትዕዛዝ እየጠበቀ ነው",
+    "tableBill": "የተዘጋጀ ሂሳብ",
+    "tableInUse": "በአገልግሎት ላይ",
+    "noVisit": "ክፍት ጉብኝት የለም",
+    "unassignedTable": "ያልተመደበ ጠረጴዛ",
+    "visitActions": "ሂሳቦች እና ክፍት ጉብኝቶች",
+    "visitForTable": "የጠረጴዛ {number} ጉብኝት",
+    "acceptedOrders": "የተቀበሉ ትዕዛዞች"
   },
   "Floor": {
     "title": "የጠረጴዛዎች ወቅታዊ ሁኔታ",
     "back": "ቅርንጫፍ",
-    "exceptions": "ትኩረት የሚፈልጉ",
+    "exceptions": "ትኩረት የሚፈልጉ ጉዳዮች",
     "none": "ትኩረት የሚፈልግ የለም።",
     "sent": "ያልተቀበሉት ትዕዛዝ",
     "prepared": "ያልተረጋገጠ የተዘጋጀ ሂሳብ",
@@ -599,7 +679,26 @@
     "preparedStatus": "ሂሳብ ተዘጋጅቷል",
     "inServiceStatus": "በአገልግሎት ላይ",
     "noPending": "የሚጠብቅ ትዕዛዝ የለም",
-    "oldest": "ረጅም ጊዜ የጠበቀ ትዕዛዝ {minutes} ደቂቃ"
+    "oldest": "ረጅም ጊዜ የጠበቀ ትዕዛዝ {minutes} ደቂቃ",
+    "shiftUncovered": "ፈረቃ ክፍት ነው · የተመደበ አስተናጋጅ የለም",
+    "shiftRunning": "ፈረቃው ተጀምሯል",
+    "shiftStopped": "የተጀመረ ፈረቃ የለም",
+    "coverage": "ከ{total} ጠረጴዛዎች {assigned} ተመድበዋል · {waiters} አስተናጋጆች",
+    "tableCount": "{count} ንቁ ጠረጴዛዎች",
+    "stale": "የጠረጴዛዎችን ሁኔታ ማደስ አልተቻለም",
+    "lastUpdated": "መጨረሻ የታደሰው {time}",
+    "refresh": "ያድሱ",
+    "refreshing": "እየታደሰ ነው…",
+    "filter_all": "ሁሉም",
+    "filter_sent": "ትዕዛዞች",
+    "filter_prepared": "ሂሳቦች",
+    "filter_unassigned": "ምደባ",
+    "filter_difference": "ደረሰኞች",
+    "pendingCount": "{count} ትዕዛዝ እየጠበቀ ነው",
+    "viewPending": "ጠረጴዛ {number} ይክፈቱ",
+    "pendingOrder": "ትዕዛዝ ተቀባይነት ይጠብቃል",
+    "partyPending": "አዲስ እንግዶች · የቀድሞው ሂሳብ ገና ነው",
+    "quietTables": "{count} ጠረጴዛዎች ክፍት ጉብኝት የላቸውም"
   },
   "WeeklyFinding": {
     "title": "ሳምንታዊ ግኝት",
@@ -615,7 +714,8 @@
     "startService": "አገልግሎት አዘጋጅ",
     "liveVenues": "{count} ቦታዎች በአገልግሎት ላይ",
     "collectingEvidence": "አገልግሎት በሂደት ላይ ነው። አስተማማኝ ሳምንታዊ ግኝት ለማግኘት ጉብኝቶችን ያጠናቅቁና የእንግዶችን አስተያየት ይሰብስቡ።",
-    "viewOperations": "አገልግሎትን ይመልከቱ"
+    "viewOperations": "አገልግሎትን ይመልከቱ",
+    "collectingForVenue": "ለ{venue} የእንግዳ አስተያየት እየተሰበሰበ ነው።"
   },
   "Insights": {
     "evidence": "የሳምንታዊ ግኝት ማስረጃ",
@@ -685,7 +785,12 @@
     "showDate": "ቀኑን አሳይ",
     "nonePaid": "በዚህ ቀን የክፍያ ማረጋገጫ የለም።",
     "dayTotal": "የዕለቱ ድምር",
-    "amounts": "ደረሰኞች {receipt} ብር · ሂሳቦች {bill} ብር · ልዩነት {difference} ብር"
+    "amounts": "ደረሰኞች {receipt} ብር · ሂሳቦች {bill} ብር · ልዩነት {difference} ብር",
+    "visitActions": "የጉብኝት አማራጮች",
+    "unpaidConsequence": "የጠረጴዛ {table} ጉብኝት የክፍያ ማረጋገጫ ሳይኖር ይዘጋ?",
+    "billAmount": "ሂሳብ",
+    "receiptAmount": "ኦፊሴላዊ ደረሰኝ",
+    "differenceAmount": "የደረሰኝ ልዩነት"
   },
   "Reviews": {
     "waiterRatings": "የአስተናጋጅ ግምገማዎች",
@@ -710,6 +815,12 @@
     "total": "ጠቅላላ ሂሳብ፦ {amount} ብር",
     "difference": "የደረሰኝ ልዩነት፦ {amount} ብር",
     "record": "የክፍያ ማረጋገጫውን ይመዝግቡ",
-    "error": "ሂሳቡን ማዘመን አልተቻለም። እንደገና ይሞክሩ።"
+    "error": "ሂሳቡን ማዘመን አልተቻለም። እንደገና ይሞክሩ።",
+    "runningTotal": "የተቀበሉ ትዕዛዞች ድምር፦ {amount} ብር",
+    "enterReceipt": "ደረሰኝ ያስገቡ",
+    "actions": "የሂሳብ አማራጮች",
+    "cancel": "ይቅር",
+    "recording": "ክፍያው እየተመዘገበ ነው…",
+    "receiptAt": "ለጠረጴዛ {number} ደረሰኝ ያስገቡ"
   }
 }

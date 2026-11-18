@@ -17,7 +17,7 @@ async function signIn(page: Page, user: TestUser) {
 test("an Owner reviews an account change, and a stale comparison cannot overwrite another edit", async ({ page, browser }) => {
   const s = await scenario().venue("Lancha").manager("Hana").build();
   await signIn(page, s.owner);
-  await page.getByRole("link", { name: "Lancha" }).click();
+  await page.getByRole("link", { name: "Lancha", exact: true }).click();
   await page.getByRole("link", { name: "Payment Options" }).click();
 
   const add = page.getByRole("region", { name: "Add a Payment Option" });
@@ -81,9 +81,12 @@ test("an Owner reviews an account change, and a stale comparison cannot overwrit
   await expect(manager.getByRole("region", { name: "Payment Option changes" })).toHaveCount(0);
   await manager.close();
 
+  await row.getByText("Payment option actions", { exact: true }).click();
   await row.getByRole("button", { name: "Deactivate", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Deactivate", exact: true }).click();
   await expect(row.getByText("Inactive", { exact: true })).toBeVisible();
   await row.getByRole("button", { name: "Remove Payment Option" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Remove Payment Option" }).click();
   await expect(row).toHaveCount(0);
   await expect(history.getByText("Removed", { exact: true })).toBeVisible();
 });

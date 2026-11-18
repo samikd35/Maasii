@@ -1,4 +1,4 @@
-import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations } from "next-intl/server";
@@ -12,6 +12,11 @@ function guestMessages({ GuestMenu, LanguageSwitch, Ordering, Price }: typeof me
   return { GuestMenu, LanguageSwitch, Ordering, Price };
 }
 
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("VenueMenu");
+  return { title: `${t("editMenu")} · Maasii` };
+}
+
 export default async function EditVenueMenu({ params }: PageProps<"/manage/venues/[venueId]/menu/edit">) {
   const { venueId } = await params;
   const actor = await requireStaff();
@@ -21,10 +26,8 @@ export default async function EditVenueMenu({ params }: PageProps<"/manage/venue
     throw error;
   });
   const { MenuEditor: editorMessages, StaffErrors, Price } = await getMessages();
-  const t = await getTranslations("VenueMenu");
   return (
     <>
-      <Link href={`/manage/venues/${venueId}/menu`} className="mb-4 inline-flex min-h-11 items-center underline">{t("title")}</Link>
       <NextIntlClientProvider messages={{ MenuEditor: editorMessages, StaffErrors, Price }}>
         <MenuEditor initialDraft={draft} recoveryKey={`maasii:editor:${actor.userId}:${venueId}`} theme={deriveBrandTheme(draft.brand.colour)}
           guestMessages={{ am: guestMessages(messages.am), en: guestMessages(messages.en) }}

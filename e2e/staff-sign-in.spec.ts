@@ -81,11 +81,11 @@ test("an Owner creates a Venue, sets up its Tables, downloads its Venue Link and
   const managerPhone = uniquePhone();
 
   await signIn(page, s.owner.email, s.owner.password);
-  await expect(page.getByRole("link", { name: /Lancha/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Lancha", exact: true })).toBeVisible();
   await page.locator("summary").filter({ hasText: /^Add venue$/ }).click();
   await page.getByLabel("Venue name").fill("Bole");
   await page.getByRole("button", { name: "Add venue" }).click();
-  await page.getByRole("link", { name: /Bole/ }).click();
+  await page.getByRole("link", { name: "Bole", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Bole", level: 1 })).toBeVisible();
 
   await page.locator("summary").filter({ hasText: "Tables" }).click();
@@ -161,6 +161,7 @@ test("a Manager signs in with a local phone number and a password, and signs out
 
   await signIn(page, localPhone, TEST_PASSWORD);
   await expect(page.getByRole("link", { name: /Lancha/ })).toBeVisible();
+  await page.getByText("Account", { exact: true }).click();
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page).toHaveURL(/\/sign-in$/);
   await page.goto("/manage");
@@ -196,10 +197,13 @@ test("an Owner who manages another Brand's Venue can switch between both roles",
   await page.getByRole("link", { name: "Venue operations", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Venue operations" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Bole", exact: true })).toBeVisible();
+  await page.getByRole("combobox", { name: "Venue", exact: true }).selectOption({ label: "Lancha · Owned Brand" });
+  await page.getByRole("button", { name: "Switch Venue", exact: true }).click();
   await page.getByRole("link", { name: "Lancha", exact: true }).click();
   await expect(page.getByRole("region", { name: "Waiters" })).toBeVisible();
   await page.goto("/manage/operations");
-  await page.getByRole("link", { name: "Owner overview" }).click();
+  await expect(page.getByRole("link", { name: "Lancha", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Overview", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Owned Brand" })).toBeVisible();
 });
 
@@ -218,6 +222,7 @@ test("every management screen fits a phone, with touch targets of at least 44 by
     if (who.email) {
       await signIn(page, who.email, who.password);
       await expect(page).toHaveURL(/\/manage$/);
+      await page.getByText("Account", { exact: true }).click();
       await page.getByRole("button", { name: "አማ", exact: true }).click();
       await expect(page.locator("html")).toHaveAttribute("lang", "am");
     }
@@ -242,6 +247,8 @@ test("every management screen fits a phone, with touch targets of at least 44 by
       }
     }
     if (who.email) {
+      const account = page.getByText("መለያ", { exact: true });
+      if (await account.isVisible()) await account.click();
       await page.getByRole("button", { name: "ይውጡ", exact: true }).click();
       await expect(page).toHaveURL(/\/sign-in$/);
     }
@@ -258,6 +265,7 @@ test("a Manager enrolls a Waiter by QR and removes their access on two phones", 
   const showQr = waiters.getByRole("button", { name: "Show join QR" });
   await showQr.click();
   await expect(qr).toBeVisible();
+  await expect(waiters.getByRole("button", { name: "Regenerate QR" })).toBeVisible();
   const firstImage = (await qr.getAttribute("src"))!;
 
   const firstPhone = await browser.newContext({ ...test.info().project.use });
@@ -269,7 +277,7 @@ test("a Manager enrolls a Waiter by QR and removes their access on two phones", 
   await first.getByLabel("Name").fill("Sam");
   await first.getByLabel("Choose a 4-digit PIN").fill("0427");
   await first.getByRole("button", { name: "Join venue" }).click();
-  await expect(first.getByRole("heading", { level: 1 })).toHaveText("Lancha");
+  await expect(first.getByRole("heading", { level: 1 })).toHaveText("Order queue");
   await first.getByRole("link", { name: "Menu", exact: true }).click();
   await first.getByRole("searchbox").fill("Omelette");
   for (const name of ["Omelette", "ኦምሌት"]) {
@@ -292,7 +300,7 @@ test("a Manager enrolls a Waiter by QR and removes their access on two phones", 
   await expect(reopened.getByRole("main").getByRole("alert")).toHaveText("That PIN is not right.");
   await reopened.getByLabel("PIN", { exact: true }).fill("0427");
   await reopened.getByRole("button", { name: "Unlock" }).click();
-  await expect(reopened.getByRole("heading", { level: 1 })).toHaveText("Lancha");
+  await expect(reopened.getByRole("heading", { level: 1 })).toHaveText("Order queue");
 
   const secondPhone = await browser.newContext({ ...test.info().project.use });
   const second = await secondPhone.newPage();
@@ -311,12 +319,12 @@ test("a Manager enrolls a Waiter by QR and removes their access on two phones", 
   await second.getByLabel("ባለ 4 አሃዝ PIN ይምረጡ").fill("1111");
   await second.getByRole("button", { name: "ቦታውን ይቀላቀሉ" }).click();
   // Sam's English preference follows their account, even though this phone used Amharic.
-  await expect(second.getByRole("heading", { level: 1 })).toHaveText("Lancha");
+  await expect(second.getByRole("heading", { level: 1 })).toHaveText("Order queue");
   await expect(second.locator("html")).toHaveAttribute("lang", "en");
 
-  page.once("dialog", dialog => dialog.accept());
   await waiters.getByText("Manage Sam’s access", { exact: true }).click();
   await waiters.getByRole("button", { name: "Remove Sam" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Remove Sam" }).click();
   await expect(waiters.getByRole("button", { name: "Remove Sam" })).toHaveCount(0);
   for (const phone of [reopened, second]) {
     await phone.reload();

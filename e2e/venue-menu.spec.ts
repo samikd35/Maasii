@@ -1,3 +1,4 @@
+import { publishDraft } from "./support/menu-editor";
 import { expect, test, type Page } from "@playwright/test";
 import { scenario } from "../tests/support/scenario";
 import type { TestUser } from "../tests/support/users";
@@ -33,7 +34,7 @@ test("a Manager previews and publishes local dish changes without changing anoth
   const guestDish = guest.getByRole("listitem").filter({ has: guest.getByRole("heading", { name: "Omelette", exact: true }) });
   await guest.goto(url);
   await expect(guestDish.getByTestId("price")).toContainText("220");
-  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await publishDraft(page);
   await expect(page.getByText("Menu published.")).toBeVisible();
   await guest.reload();
   await expect(guestDish.getByTestId("price")).toContainText("249.75");
@@ -42,16 +43,14 @@ test("a Manager previews and publishes local dish changes without changing anoth
   expect((await page.goto(`/manage/venues/${s.venues.Bole.id}/menu/edit`))?.status()).toBe(404);
 
   await page.goto(`/manage/venues/${s.venue.id}/menu`);
-  const soldOut = page.getByRole("switch", { name: "Omelette Sold Out" });
-  await soldOut.click();
-  await expect(soldOut).toBeChecked();
+  await page.getByRole("button", { name: "Mark sold out · Omelette" }).click();
+  await expect(page.getByRole("button", { name: "Restore availability · Omelette" })).toBeVisible();
   await guest.goto(url);
   await expect(guestDish).toHaveCount(0);
+  await page.getByText("Account", { exact: true }).click();
   await page.getByRole("button", { name: "አማ", exact: true }).click();
-  const translatedSwitch = page.getByRole("switch", { name: "ኦምሌት አልቋል" });
-  await expect(translatedSwitch).toBeChecked();
-  await translatedSwitch.click();
-  await expect(translatedSwitch).not.toBeChecked();
+  await page.getByRole("button", { name: "በምናሌው መልሰው ያሳዩ · ኦምሌት" }).click();
+  await expect(page.getByRole("button", { name: "አልቋል ብለው ይመዝግቡ · ኦምሌት" })).toBeVisible();
   await guest.reload();
   await expect(guestDish.getByTestId("price")).toContainText("249.75");
   await guest.close();
@@ -75,7 +74,7 @@ test("a Manager publishes a photographed local dish and archives and restores it
   const publish = async () => {
     await page.getByRole("button", { name: "Save draft" }).click();
     await expect(page.getByText("Draft saved.", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Publish", exact: true }).click();
+    await publishDraft(page);
     await expect(page.getByText("Menu published.", { exact: true })).toBeVisible();
   };
   await publish();

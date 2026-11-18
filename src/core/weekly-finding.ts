@@ -66,16 +66,20 @@ export async function getWeeklyFinding(
   return { venueId: report.venueId, week: report.week, previousWeek: report.previousWeek, finding: selectWeeklyFinding(report, thresholds) };
 }
 
-export async function getOwnerVenuesInService(actor: Actor, { now = new Date() } = {}) {
+export async function getOwnerVenueSchedule(actor: Actor, { now = new Date() } = {}) {
   return inTransaction(actor, async (tx) => {
-    const { rows } = await tx.query<{ id: string }>(
-      `select v.id from app.venues v join app.venue_service_settings s on s.venue_id = v.id
-       cross join lateral (select ($1::timestamptz at time zone 'Africa/Addis_Ababa')::time as local_time) clock
-       where app.is_brand_owner(v.brand_id) and case when s.opens_at < s.closes_at then
+    const { rows } = await tx.query<{ id: string; open: boolean }>(
+      `select v.id, (case when s.opens_at < s.closes_at then
           local_time >= s.opens_at and local_time < s.closes_at
-        else local_time >= s.opens_at or local_time < s.closes_at end
-       order by v.id`, [now],
+        else local_time >= s.opens_at or local_time < s.closes_at end) as open
+       from app.venues v join app.venue_service_settings s on s.venue_id = v.id
+       cross join lateral (select ($1::timestamptz at time zone 'Africa/Addis_Ababa')::time as local_time) clock
+       where app.is_brand_owner(v.brand_id) order by v.id`, [now],
     );
-    return rows.map(({ id }) => id);
+    return rows;
   });
+}
+
+export async function getOwnerVenuesInService(actor: Actor, options: { now?: Date } = {}) {
+  return (await getOwnerVenueSchedule(actor, options)).filter(({ open }) => open).map(({ id }) => id);
 }

@@ -66,11 +66,9 @@ function MenuSection({ section, index }: { section: GuestMenuSection; index: num
             <GuestDishRow key={dish.id} dish={dish} labelId={labelId}>
               <OpenDishButton
                 dishId={dish.id}
-                labelledBy={`${labelId}-choose ${labelId}-name`}
-                describedBy={[
-                  dish.fasting && `${labelId}-fasting`,
-                  dish.description && `${labelId}-description`,
-                ].filter(Boolean).join(" ") || undefined}
+                labelId={labelId}
+                fasting={dish.fasting}
+                hasDescription={!!dish.description}
               />
             </GuestDishRow>
           );

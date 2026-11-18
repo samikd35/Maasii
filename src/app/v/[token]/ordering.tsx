@@ -43,8 +43,11 @@ const newLineId = () => `${Date.now().toString(36)}-${Math.random().toString(36)
 
 // One shared controller keeps server-rendered dish rows small.
 let openSheet: ((dishId: string) => void) | undefined;
-export function OpenDishButton({ dishId, labelledBy, describedBy }: { dishId: string; labelledBy: string; describedBy?: string }) {
-  return <button type="button" aria-haspopup="dialog" aria-labelledby={labelledBy} aria-describedby={describedBy}
+export function OpenDishButton({ dishId, labelId, fasting, hasDescription }: {
+  dishId: string; labelId: string; fasting: boolean; hasDescription: boolean;
+}) {
+  const describedBy = [fasting && `${labelId}-fasting`, hasDescription && `${labelId}-description`].filter(Boolean).join(" ");
+  return <button type="button" aria-haspopup="dialog" aria-labelledby={`${labelId}-choose ${labelId}-name`} aria-describedby={describedBy || undefined}
     ref={button => { if (button) button.dataset.dishId = dishId; }}
     onClick={event => { event.currentTarget.focus({ preventScroll: true }); openSheet?.(dishId); }}
     className="dish-choose focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink" />;

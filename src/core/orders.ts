@@ -312,7 +312,9 @@ export async function getMyTableOrders(
         .map(({ id, kind, provider, accountOrMerchantCode }) => ({ id, kind, provider, accountOrMerchantCode }))
       : [];
     const runningShift = !!await findRunningShift(tx, waiter.venueId, now);
-    return { runningShift, orders, moveTables, assignedTables, tableBills, correctableOrderIds, topic: waiter.topic, venueId: waiter.venueId, tableNumber, billVisitIds: [...billVisitIds], bills, paymentOptions };
+    const venue = table ? (await tx.query<{ name: string }>("select name from app.venues where id = $1", [waiter.venueId])).rows[0] : undefined;
+    return { runningShift, orders, moveTables, assignedTables, tableBills, correctableOrderIds, topic: waiter.topic, venueId: waiter.venueId,
+      tableNumber, billVisitIds: [...billVisitIds], bills, paymentOptions, scope: venue ? `${venue.name} · ${waiter.name}` : undefined };
   });
 }
 

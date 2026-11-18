@@ -125,6 +125,6 @@ export { getLiveFloor } from "./floor";
 export { getVenueInsights, updateVenueService, type ServicePeriod } from "./insights";
 
 export { addWaiterOrder, correctWaiterOrderLine, getOrderCorrections, getWaiterQuickAdd } from "./waiter-orders";
-export { getOwnerVenuesInService, getWeeklyFinding, selectWeeklyFinding, weeklyThresholds } from "./weekly-finding";
+export { getOwnerVenueSchedule, getOwnerVenuesInService, getWeeklyFinding, selectWeeklyFinding, weeklyThresholds } from "./weekly-finding";
 
 export { uploadDishVideo, uploadVenueDishVideo, MAX_DISH_VIDEO_BYTES } from "./dish-videos";

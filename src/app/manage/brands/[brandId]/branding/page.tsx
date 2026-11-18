@@ -1,4 +1,4 @@
-import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations } from "next-intl/server";
@@ -8,6 +8,11 @@ import { BrandingForm } from "./branding-form";
 import { saveBranding, saveSocialLinks } from "./actions";
 import { SocialLinksForm } from "./social-links-form";
 
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("StaffManage");
+  return { title: `${t("brandSettings")} · Maasii` };
+}
+
 export default async function BrandingPage({ params }: PageProps<"/manage/brands/[brandId]/branding">) {
   const { brandId } = await params;
   const actor = await requireStaff();
@@ -15,16 +20,13 @@ export default async function BrandingPage({ params }: PageProps<"/manage/brands
     if (error instanceof MaasiiError) notFound();
     throw error;
   });
-  const [t, staff, messages] = await Promise.all([getTranslations("StaffBranding"), getTranslations("Staff"), getMessages()]);
+  const [t, messages] = await Promise.all([getTranslations("StaffManage"), getMessages()]);
   const { StaffBranding, StaffSocialLinks, StaffForms, StaffErrors, GuestMenu, Ordering, Price } = messages;
 
   return (
     <>
-      <Link href="/manage" className="inline-flex min-h-11 items-center text-sm font-medium underline">
-        {staff("manage")}
-      </Link>
-      <p className="mt-2 text-sm text-ink-muted">{brand.name}</p>
-      <h1 className="mt-1 font-sans text-3xl">{t("heading")}</h1>
+      <p className="text-sm text-ink-muted">{brand.name}</p>
+      <h1 className="mt-1">{t("brandSettings")}</h1>
       <NextIntlClientProvider messages={{ StaffBranding, StaffSocialLinks, StaffForms, StaffErrors, GuestMenu, Ordering, Price }}>
         <BrandingForm
           brand={brand}

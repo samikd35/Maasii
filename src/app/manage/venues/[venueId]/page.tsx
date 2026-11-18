@@ -3,12 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
-import { getPreparedBills, getVenueLink, getVenueSetup, getVenueStaff, getWaiterRatings, MaasiiError, type Actor, type VenueTable } from "@/core";
+import { getVenueLink, getVenueSetup, getVenueStaff, getWaiterRatings, MaasiiError, type Actor, type VenueTable } from "@/core";
 import { requireStaff, siteUrl } from "@/lib/session";
 import { Field } from "@/ui/field";
-import { formatBirr } from "@/ui/price";
 import { ActionForm, CopyField, SubmitButton } from "@/ui/staff-forms";
-import { addTableRange, inviteVenueManager, removeVenueWaiter, renumber, reopenVisitBill, setActive, showWaiterJoinQr } from "../../actions";
+import { addTableRange, inviteVenueManager, removeVenueWaiter, renumber, setActive, showWaiterJoinQr } from "../../actions";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("StaffManage");
@@ -17,14 +16,13 @@ export async function generateMetadata(): Promise<Metadata> {
 
 async function load(actor: Actor, venueId: string) {
   try {
-    const [setup, staff, link, bills, ratings] = await Promise.all([
+    const [setup, staff, link, ratings] = await Promise.all([
       getVenueSetup(actor, { venueId }),
       getVenueStaff(actor, { venueId }),
       getVenueLink(actor, { venueId, siteUrl: await siteUrl() }),
-      getPreparedBills(actor, { venueId }),
       getWaiterRatings(actor, { venueId }),
     ]);
-    return { setup, staff, link, bills, ratings };
+    return { setup, staff, link, ratings };
   } catch (error) {
     if (error instanceof MaasiiError && error.code !== "invalid_input") notFound();
     throw error;
@@ -33,24 +31,19 @@ async function load(actor: Actor, venueId: string) {
 
 export default async function VenuePage({ params }: PageProps<"/manage/venues/[venueId]">) {
   const { venueId } = await params;
-  const { setup, staff, link, bills, ratings } = await load(await requireStaff(), venueId);
-  const { venue, brand, tables, isOwner } = setup;
+  const { setup, staff, link, ratings } = await load(await requireStaff(), venueId);
+  const { venue, tables, isOwner } = setup;
   const t = await getTranslations("StaffManage");
   const common = await getTranslations("Staff");
   const waiter = await getTranslations("StaffWaiter");
   const paymentOptions = await getTranslations("PaymentOptions");
-  const billing = await getTranslations("Bills");
   const reviews = await getTranslations("Reviews");
   const insights = await getTranslations("Insights");
 
   return (
     <>
-      <Link href="/manage/operations" className="inline-flex min-h-11 items-center text-sm font-medium underline">
-        {t("allVenues")}
-      </Link>
-      <p className="mt-2 text-sm text-ink-muted">{brand.name}</p>
-      <h1 className="font-sans text-3xl">{venue.name}</h1>
-      <div className="mt-2 flex flex-wrap gap-x-5">
+      <h1>{venue.name}</h1>
+      <div className="workspace-actions mt-2">
         {isOwner && <Link href={`/manage/venues/${venue.id}/insights`} className="inline-flex min-h-11 items-center text-sm font-medium underline">
           {insights("title")}
         </Link>}
@@ -62,42 +55,21 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
         </Link>
       </div>
 
-      {bills.length > 0 && (
-        <section aria-labelledby="prepared-bills" className="mt-8">
-          <SectionHeading id="prepared-bills">{billing("heading")}</SectionHeading>
-          <ul className="divide-y divide-rule">
-            {bills.map((bill) => (
-              <li key={bill.visitId} className="flex flex-wrap items-center justify-between gap-3 py-2">
-                <div>
-                  <p className="font-semibold">{billing("table", { number: tables.find(({ id }) => id === bill.tableId)?.number ?? "" })}</p>
-                  <p className="text-sm">{billing("total", { amount: formatBirr(bill.totalSantim) })}</p>
-                  {bill.reminder && <p className="text-sm font-semibold">{billing("paidQuestion")}</p>}
-                </div>
-                <ActionForm action={reopenVisitBill.bind(null, venue.id, bill.visitId)}>
-                  <SubmitButton variant="quiet">{billing("reopen")}</SubmitButton>
-                </ActionForm>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {ratings.length > 0 && (
-        <section aria-labelledby="waiter-ratings" className="mt-8">
-          <SectionHeading id="waiter-ratings">{reviews("waiterRatings")}</SectionHeading>
-          <ul className="divide-y divide-rule">
-            {ratings.map((rating) => (
-              <li key={rating.waiterId} className="py-2">
-                <p className="font-semibold">{rating.waiterName}</p>
-                <p className="text-sm">{reviews("ratingsSummary", rating)}</p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      <section aria-labelledby="waiters" className="mt-8">
+      <section aria-labelledby="waiters" className="workspace-panel workspace-section">
         <SectionHeading id="waiters">{waiter("waiters")}</SectionHeading>
+        <ActionForm action={showWaiterJoinQr.bind(null, venue.id)} className="my-3 space-y-3"
+          qrAction={{ show: waiter("showJoinQr"), regenerate: waiter("regenerateQr") }}>
+          <h3>{waiter("connectWaiter")}</h3>
+          {staff.waiters.length > 0 && (
+            <label className="block text-sm font-medium">
+              {waiter("waiterToConnect")}
+              <select name="waiterId" className="workspace-input">
+                <option value="">{waiter("newWaiter")}</option>
+                {staff.waiters.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
+              </select>
+            </label>
+          )}
+        </ActionForm>
         {staff.waiters.length === 0 ? (
           <p className="py-3 text-ink-muted">{waiter("noWaiters")}</p>
         ) : (
@@ -105,31 +77,20 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
             {staff.waiters.map(({ id, name }) => (
               <li key={id} className="flex flex-wrap items-center justify-between gap-2 border-b border-rule py-2">
                 <span className="min-w-0 break-words">{name}</span>
-                <details><summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">{waiter("manageAccess", { name })}</summary><ActionForm action={removeVenueWaiter.bind(null, venue.id, id)} confirmMessage={waiter("removeConsequence", { name })}>
+                <details><summary className="workspace-summary">{waiter("manageAccess", { name })}</summary><ActionForm action={removeVenueWaiter.bind(null, venue.id, id)} confirmMessage={waiter("removeConsequence", { name })} confirmLabel={waiter("removeNamed", { name })}>
                   <SubmitButton variant="destructive">{waiter("removeNamed", { name })}</SubmitButton>
                 </ActionForm></details>
               </li>
             ))}
           </ul>
         )}
-        <ActionForm action={showWaiterJoinQr.bind(null, venue.id)} className="mt-3 space-y-3">
-          {staff.waiters.length > 0 && (
-            <label className="block text-sm font-medium">
-              {waiter("waiterToConnect")}
-              <select name="waiterId" className="mt-1 block min-h-11 w-full rounded-xl border border-ink/30 bg-white px-3 text-base">
-                <option value="">{waiter("newWaiter")}</option>
-                {staff.waiters.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
-              </select>
-            </label>
-          )}
-          <SubmitButton>{waiter("showJoinQr")}</SubmitButton>
-        </ActionForm>
       </section>
 
-      <details role="region" aria-labelledby="venue-link" className="mt-8">
+      <details role="region" aria-labelledby="venue-link" className="workspace-panel workspace-section">
         <summary className="min-h-11 font-semibold"><SectionHeading id="venue-link">{t("venueLink")}</SectionHeading></summary>
         <p className="mt-2 text-sm text-ink-muted">{t("venueLinkHelp")}</p>
         <CopyField label={t("venueLink")} value={link.url} />
+        <Link href={`/v/${venue.linkToken}`} className="workspace-link" prefetch={false}>{t("openGuestMenu")}</Link>
         {/* A plain <img>: the QR is a private, per-request PNG, not something to optimise. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -157,8 +118,13 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
         </div>
       </details>
 
-      <details role="region" aria-labelledby="tables" className="mt-10">
-        <summary className="min-h-11 font-semibold"><SectionHeading id="tables">{t("tables")}</SectionHeading></summary>
+      <details id="tables" role="region" aria-labelledby="tables-title" className="workspace-panel workspace-section">
+        <summary className="min-h-11 font-semibold"><SectionHeading id="tables-title">{t("tables")}</SectionHeading></summary>
+        <ActionForm action={addTableRange.bind(null, venue.id)} className="my-4 flex flex-wrap items-end gap-3">
+          <Field label={t("fromTable")} name="from" type="number" inputMode="numeric" min={1} required className="w-28 max-w-full" />
+          <Field label={t("toTable")} name="to" type="number" inputMode="numeric" min={1} className="w-28 max-w-full" />
+          <SubmitButton>{t("addTables")}</SubmitButton>
+        </ActionForm>
         {tables.length === 0 ? (
           <p className="py-3 text-ink-muted">{t("noTables")}</p>
         ) : (
@@ -168,14 +134,9 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
             ))}
           </ul>
         )}
-        <ActionForm action={addTableRange.bind(null, venue.id)} className="mt-4 flex flex-wrap items-end gap-3">
-          <Field label={t("fromTable")} name="from" type="number" inputMode="numeric" min={1} required className="w-28" />
-          <Field label={t("toTable")} name="to" type="number" inputMode="numeric" min={1} className="w-28" />
-          <SubmitButton>{t("addTables")}</SubmitButton>
-        </ActionForm>
       </details>
 
-      <details role="region" aria-labelledby="managers" className="mt-10">
+      <details role="region" aria-labelledby="managers" className="workspace-panel workspace-section">
         <summary className="min-h-11 font-semibold"><SectionHeading id="managers">{t("managers")}</SectionHeading></summary>
         {staff.managers.length === 0 ? (
           <p className="py-3 text-ink-muted">{t("noManager")}</p>
@@ -209,6 +170,15 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
           </ActionForm>
         )}
       </details>
+      {ratings.length > 0 && <section aria-labelledby="waiter-ratings" className="workspace-panel workspace-section">
+        <SectionHeading id="waiter-ratings">{reviews("waiterRatings")}</SectionHeading>
+        <ul className="divide-y divide-rule">
+          {ratings.map(rating => <li key={rating.waiterId} className="py-2">
+            <p className="font-semibold">{rating.waiterName}</p>
+            <p className="text-sm">{reviews("ratingsSummary", rating)}</p>
+          </li>)}
+        </ul>
+      </section>}
     </>
   );
 }

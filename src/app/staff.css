@@ -37,3 +37,190 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea { 
 #brand-menu-editor > header { gap:8px; padding-block:10px; border-bottom:1px solid var(--color-control-border); }
 #brand-menu-editor { scroll-margin-top:100px; }
 #menu-editor-fields :where(input,select,textarea,summary,button) { scroll-margin-block:10rem 5rem; }
+
+/* Workspaces share the guest palette and put actions next to their Table, Dish or form. */
+.workspace-header, .workspace-frame {
+  max-inline-size: 78rem;
+  margin-inline: auto;
+  padding-inline: clamp(1rem, 3vw, 2rem);
+  overflow-wrap: anywhere;
+}
+.workspace-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .25rem .75rem;
+  padding-block: .375rem;
+}
+.workspace-header > div:first-child { min-inline-size: 0; }
+.workspace-frame { padding-block: 1rem 4rem; color: var(--color-ink); }
+.workspace-waiter { max-inline-size: 62rem; }
+.workspace-skip {
+  position: absolute;
+  z-index: 40;
+  inset-block-start: .5rem;
+  inset-inline-start: .5rem;
+  padding: .75rem;
+  background: white;
+  border: 1px solid var(--color-control-border);
+}
+.workspace-skip:not(:focus) { clip-path: inset(50%); }
+.workspace-account, .workspace-actions, .workspace-title, .workspace-health, .order-row-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+}
+.workspace-account > details { position: relative; }
+.workspace-account-panel {
+  position: absolute;
+  z-index: 35;
+  inset-inline-end: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  inline-size: max-content;
+  max-inline-size: min(15rem, 68vw);
+  padding: .75rem;
+  background: white;
+  border: 1px solid var(--color-control-border);
+  border-radius: .75rem;
+}
+.workspace-title, .workspace-health, .order-row-heading { justify-content: space-between; }
+.workspace-title { align-items: flex-start; margin-block-end: .625rem; }
+.workspace-frame h1 { font-size: clamp(1.75rem, 3vw, 2rem); line-height: 1.2; font-weight: 750; }
+.workspace-frame h2 { font-size: 1.2rem; font-weight: 680; line-height: 1.35; }
+.workspace-frame h3 { font-size: 1.05rem; font-weight: 650; }
+.workspace-section { margin-block-start: 1.5rem; }
+.workspace-section > h2 { margin-block-end: .625rem; }
+.workspace-nav { display: flex; flex-wrap: wrap; gap: .375rem; margin-block-end: 1rem; }
+.workspace-nav a, .workspace-button, .workspace-link, .workspace-summary {
+  min-block-size: 44px;
+  min-inline-size: 44px;
+  max-inline-size: 100%;
+  align-items: center;
+  font-weight: 600;
+}
+.workspace-nav a, .workspace-button, .workspace-link { display: inline-flex; }
+.workspace-nav a, .workspace-button {
+  justify-content: center;
+  padding: .45rem .8rem;
+  border-radius: .625rem;
+}
+.workspace-nav a { text-decoration: none; }
+.workspace-nav [aria-current="page"] { background: var(--color-paper-deep); box-shadow: inset 0 -3px var(--color-ink); font-weight: 750; }
+.workspace-button { border: 1px solid var(--color-control-border); background: white; text-align: center; }
+.workspace-button:disabled { opacity: .55; }
+.workspace-button.workspace-primary { background: var(--color-ink); border-color: var(--color-ink); color: var(--color-paper); }
+.workspace-button.workspace-danger { border-color: #942c25; color: #942c25; }
+.workspace-link { text-decoration: underline; text-underline-offset: .2em; padding-inline: .125rem; }
+.workspace-summary { padding: .6rem .5rem; cursor: pointer; }
+.workspace-input { display: block; min-block-size: 44px; inline-size: 100%; min-inline-size: 0; padding: .5rem .625rem; border: 1px solid var(--color-control-border); }
+.workspace-panel {
+  min-inline-size: 0;
+  padding: clamp(.75rem, 2vw, 1.125rem);
+  border: 1px solid var(--color-rule);
+  border-radius: .875rem;
+  background: white;
+}
+.workspace-health { min-block-size: 44px; margin-block-end: .5rem; color: var(--color-ink-muted); }
+.workspace-device-alerts[open] { flex-basis: 100%; }
+.workspace-device-alerts[open] > p { max-inline-size: 60ch; padding: 0 .5rem .5rem; }
+.workspace-badge {
+  display: inline-block;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  padding: .2rem .5rem;
+  border-radius: .375rem;
+  background: var(--color-paper-deep);
+  font-size: .875rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.workspace-badge[data-tone="waiting"] { background: #fff1d7; color: #7c4200; }
+.workspace-badge[data-tone="urgent"] { background: #fceae7; color: #942c25; }
+.workspace-badge[data-tone="live"] { background: #e7f2e9; color: #24593e; }
+.table-queue { display: grid; gap: .75rem; }
+.workspace-panel.table-queue-group { border-block-start: 1px solid var(--color-rule); }
+.order-row { display: grid; gap: .5rem; padding-block: .625rem; }
+.order-row .workspace-button { min-block-size: 48px; }
+.order-accept { inline-size: 100%; }
+.order-actions .workspace-summary { padding-inline-start: 0; }
+.table-choice { display: grid; min-block-size: 48px; gap: .125rem; padding: .65rem; border: 1px solid var(--color-control-border); border-radius: .625rem; }
+.table-choice small { color: var(--color-ink-muted); }
+.workspace-frame :where([id]) { scroll-margin-block-start: .75rem; }
+
+@media (min-width: 56rem) {
+  .table-queue { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .order-accept { inline-size: fit-content; }
+  .order-row:has(> .order-accept) { grid-template-columns: minmax(0, max-content) minmax(0, 1fr); align-items: start; }
+  .order-row > :not(.order-accept, .order-actions:not([open])) { grid-column: 1 / -1; }
+}
+
+.floor-summary, .floor-attention > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem 1rem;
+}
+.floor-filters { margin-block-end: .75rem; }
+.floor-filters [aria-pressed="true"] { background: var(--color-ink); color: var(--color-paper); }
+.floor-attention { display: grid; gap: .5rem; }
+.floor-tables > li { padding-block: .5rem; }
+
+@media (min-width: 64rem) {
+  .floor-layout { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.25fr); gap: 1.25rem; align-items: start; }
+}
+
+.workspace-context { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .25rem .75rem; }
+.venue-nav { border-block-end: 1px solid var(--color-rule); padding-block-end: .5rem; }
+.venue-nav a { font-size: .875rem; }
+.workspace-management > main { min-inline-size: 0; }
+.owner-nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.owner-nav a { text-align: center; line-height: 1.2; padding-inline: .375rem; }
+@media (min-width: 65rem) {
+  .workspace-management:has(.owner-nav) { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+  .owner-nav { grid-template-columns: 1fr; }
+  .owner-nav a { justify-content: flex-start; text-align: start; padding-inline: .8rem; }
+}
+
+.workspace-dialog {
+  margin: auto;
+  max-inline-size: min(30rem, calc(100% - 2rem));
+  max-block-size: 85dvh;
+  overflow: auto;
+  border: 1px solid var(--color-control-border);
+  border-radius: .875rem;
+  background: white;
+  padding: 1.25rem;
+}
+.workspace-dialog::backdrop { background: #25282280; }
+.receipt-values { display: grid; gap: .5rem 1rem; font-size: .875rem; margin-block: .75rem; }
+.receipt-values dt { color: var(--color-ink-muted); }
+.receipt-values dd { font-variant-numeric: tabular-nums; }
+.owner-venue-row { display: grid; gap: .5rem 1rem; padding-block: .75rem; }
+.owner-summary { display: grid; align-items: start; gap: .75rem; }
+@media (min-width: 45rem) {
+  .receipt-values { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .owner-venue-row { grid-template-columns: minmax(0, 1fr) minmax(0, auto); align-items: center; }
+  .owner-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (hover: hover) {
+  .workspace-button:where(:not(:disabled)):hover, .workspace-nav a:hover { box-shadow: inset 0 0 0 1px currentColor; }
+  .workspace-link:hover { text-decoration-thickness: .14em; }
+}
+
+#brand-menu-editor > .editor-actions {
+  padding: .625rem;
+  padding-inline: max(.625rem, env(safe-area-inset-left)) max(.625rem, env(safe-area-inset-right));
+  border: 1px solid var(--color-rule);
+  border-radius: .625rem;
+  background: white;
+}
+@media (max-width: 22.5rem), (max-height: 34rem) {
+  #brand-menu-editor > .editor-actions { position: static; }
+}
+.insights-table { table-layout: fixed; overflow-wrap: anywhere; }
+.insights-table :is(th, td) { padding-block: .375rem; }

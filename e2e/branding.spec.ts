@@ -22,7 +22,7 @@ test("an Owner previews and saves artwork and readable colours for every Venue",
   const guestHeader = guest.getByRole("banner");
 
   await signIn(page, s.owner);
-  const brandingLink = page.getByRole("link", { name: "Branding", exact: true });
+  const brandingLink = page.getByRole("link", { name: "Brand settings", exact: true });
   await expect(brandingLink).toBeVisible();
   await brandingLink.click();
   const preview = page.getByRole("region", { name: "Guest menu preview" });
@@ -50,7 +50,7 @@ test("an Owner previews and saves artwork and readable colours for every Venue",
   await expect(guestHeader).not.toHaveCSS("border-top-color", "rgb(236, 103, 40)");
   await expect(guestHeader.getByRole("img")).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Save branding" }).click();
+  await page.getByRole("button", { name: "Save appearance" }).click();
   await expect(page.getByRole("status")).toHaveText("Branding saved at every venue.");
 
   for (const venue of Object.values(s.venues)) {
@@ -64,7 +64,7 @@ test("an Owner previews and saves artwork and readable colours for every Venue",
   }
 
   await signIn(guest, s.managers.Hana, "/manage/operations");
-  await expect(guest.getByRole("link", { name: "Branding", exact: true })).toHaveCount(0);
+  await expect(guest.getByRole("link", { name: "Brand settings", exact: true })).toHaveCount(0);
   await guest.goto(page.url());
   await expect(guest.getByRole("heading", { name: "We couldn't find what you were looking for." })).toBeVisible();
   await guest.close();

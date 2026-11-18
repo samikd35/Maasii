@@ -11,7 +11,7 @@ import { Price, formatBirr } from "@/ui/price";
 type Menu = Awaited<ReturnType<typeof getWaiterQuickAdd>>;
 const field = "block min-h-11 w-full rounded-xl border border-rule bg-white px-3 text-base";
 
-export function QuickAdd({ table, dishes, recent }: Menu) {
+export function QuickAdd({ table, dishes, recent, returnTo }: Omit<Menu, "scope"> & { returnTo: string }) {
   const t = useTranslations("StaffOrders");
   const errors = useTranslations("StaffErrors");
   const locale = useLocale();
@@ -50,7 +50,7 @@ export function QuickAdd({ table, dishes, recent }: Menu) {
         body: JSON.stringify({ ...payload, action: "quickAdd", requestId: last.current.id }),
       });
       if (response.ok) {
-        router.replace(`/staff/tables/${table.id}`);
+        router.replace(returnTo);
         return;
       }
       const result = await response.json().catch(() => ({}));
@@ -102,8 +102,8 @@ export function QuickAdd({ table, dishes, recent }: Menu) {
           <label className="block text-sm font-medium">{t("orderNote")}
             <input className={field} name="note" maxLength={MAX_NOTE_LENGTH} />
           </label>
-          <button className="min-h-11 rounded-xl bg-ink px-4 font-semibold text-paper disabled:opacity-60" disabled={working}>
-            {t("addOrder")}
+          <button className="workspace-button workspace-primary" disabled={working}>
+            {t("addOrder", { number: table.number })}
           </button>
         </form>
       ) : (

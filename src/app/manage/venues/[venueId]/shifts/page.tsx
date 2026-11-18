@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
-import { getShiftSetup, MaasiiError, type Shift } from "@/core";
+import { getLiveFloor, getShiftSetup, MaasiiError, type Shift } from "@/core";
 import { requireStaff } from "@/lib/session";
 import { ActionForm, SubmitButton } from "@/ui/staff-forms";
 import { endVenueShift, saveAssignment, saveUsualTables, startVenueShift } from "./actions";
@@ -15,26 +15,19 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t("title")} · Maasii` };
 }
 
-async function load(venueId: string) {
-  try {
-    return await getShiftSetup(await requireStaff(), { venueId });
-  } catch (error) {
-    if (error instanceof MaasiiError) notFound();
-    throw error;
-  }
-}
-
 export default async function ShiftsPage({ params }: PageProps<"/manage/venues/[venueId]/shifts">) {
   const { venueId } = await params;
-  const setup = await load(venueId);
+  const actor = await requireStaff();
+  const setup = await getShiftSetup(actor, { venueId }).catch(error => {
+    if (error instanceof MaasiiError) notFound();
+    throw error;
+  });
   const t = await getTranslations("Shifts");
+  const openVisits = setup.shift ? (await getLiveFloor(actor, { venueId })).tables.length : 0;
   return (
     <>
-      <Link href={`/manage/venues/${venueId}`} className="inline-flex min-h-11 items-center text-sm font-medium underline">
-        {setup.venue.name}
-      </Link>
       <h1 className="font-sans text-3xl">{t("title")}</h1>
-      {setup.shift ? <RunningShift setup={setup} shift={setup.shift} /> : <SuggestedAssignments setup={setup} />}
+      {setup.shift ? <RunningShift setup={setup} shift={setup.shift} openVisits={openVisits} /> : <SuggestedAssignments setup={setup} />}
       <UsualTables setup={setup} />
     </>
   );
@@ -43,27 +36,27 @@ export default async function ShiftsPage({ params }: PageProps<"/manage/venues/[
 function SuggestedAssignments({ setup }: { setup: ShiftSetup }) {
   const t = useTranslations("Shifts");
   return (
-    <section aria-labelledby="suggested" className="mt-7 space-y-3">
-      <h2 id="suggested" className="text-lg font-semibold">{t("suggestedAssignments")}</h2>
+    <section aria-labelledby="suggested" className="workspace-panel workspace-section space-y-3">
+      <h2 id="suggested">{t("suggestedAssignments")}</h2>
+      <p>{t("suggestedCoverage", { count: setup.tables.length - setup.unassignedTables.length, total: setup.tables.length })}</p>
       {setup.tables.length === 0 && <p className="text-sm text-ink-muted">{t("noActiveTables")}</p>}
-      <ActionForm action={startVenueShift.bind(null, setup.venue.id)} className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2">
-          {setup.tables.map((table) => (
-            <AssignmentSelect
-              key={`${table.id}:${table.waiterId}`}
-              name={`assignment:${table.id}`}
-              table={table}
-              waiters={setup.waiters}
-            />
-          ))}
-        </div>
+      {setup.waiters.length === 0 && <Link className="workspace-link" href={`/manage/venues/${setup.venue.id}#waiters`}>{t("connectWaiters")}</Link>}
+      <ActionForm action={startVenueShift.bind(null, setup.venue.id)} className="space-y-2"
+        confirmMessage={t("startUncovered", { venue: setup.venue.name })} confirmLabel={t("start")} confirmWhenEmptyPrefix="assignment:">
         <SubmitButton>{t("start")}</SubmitButton>
+        <details>
+          <summary className="workspace-summary">{t("reviewAssignments")}</summary>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {setup.tables.map(table => <AssignmentSelect key={`${table.id}:${table.waiterId}`} name={`assignment:${table.id}`}
+              table={table} waiters={setup.waiters} />)}
+          </div>
+        </details>
       </ActionForm>
     </section>
   );
 }
 
-function RunningShift({ setup, shift }: { setup: ShiftSetup; shift: Shift }) {
+function RunningShift({ setup, shift, openVisits }: { setup: ShiftSetup; shift: Shift; openVisits: number }) {
   const t = useTranslations("Shifts");
   const manage = useTranslations("StaffManage");
   const locale = useLocale();
@@ -71,17 +64,28 @@ function RunningShift({ setup, shift }: { setup: ShiftSetup; shift: Shift }) {
     timeZone: "Africa/Addis_Ababa", hourCycle: "h23", dateStyle: "medium", timeStyle: "short",
   }).format(shift.startedAt);
   return (
-    <section aria-labelledby="running" className="mt-7">
-      <h2 id="running" className="text-lg font-semibold">{t("runningShift")}</h2>
-      <p className="mt-1 text-sm text-ink-muted">
-        <time dateTime={shift.startedAt.toISOString()}>{t("started", { time })}</time>
-      </p>
-      <section aria-labelledby="unassigned" className="my-4 rounded-xl border border-rule bg-paper-deep p-3">
+    <section aria-labelledby="running" className="workspace-section">
+      <div className="workspace-panel workspace-title">
+        <div><h2 id="running">{t("runningShift")}</h2>
+          <p className="mt-1 text-sm text-ink-muted">
+            <time dateTime={shift.startedAt.toISOString()}>{t("started", { time })}</time>
+          </p>
+          <p>{t("currentCoverage", { count: setup.tables.length - setup.unassignedTables.length, total: setup.tables.length })}</p>
+        </div>
+        <details>
+          <summary className="workspace-summary">{t("shiftActions")}</summary>
+          <ActionForm action={endVenueShift.bind(null, setup.venue.id, shift.id)} confirmLabel={t("end")}
+            confirmMessage={t("endConsequence", { venue: setup.venue.name, count: openVisits })}>
+            <SubmitButton variant="destructive">{t("end")}</SubmitButton>
+          </ActionForm>
+        </details>
+      </div>
+      <section id="assignments" aria-labelledby="unassigned" className="my-4 rounded-xl border border-rule bg-paper-deep p-3">
         <h3 id="unassigned" className="font-semibold">{t("unassignedTables")}</h3>
         {setup.unassignedTables.length > 0 ? (
           <ul className="mt-2 flex flex-wrap gap-2">
             {setup.unassignedTables.map((table) => (
-              <li key={table.id} className="rounded-xl border border-ink/20 px-2 py-1 text-sm">
+              <li key={table.id} id={setup.waiters.length ? undefined : `assignment-${table.id}`} className="rounded-xl border border-ink/20 px-2 py-1 text-sm">
                 {manage("table", { number: table.number })}
               </li>
             ))}
@@ -89,25 +93,23 @@ function RunningShift({ setup, shift }: { setup: ShiftSetup; shift: Shift }) {
         ) : (
           <p className="mt-1 text-sm text-ink-muted">{t(setup.tables.length ? "allAssigned" : "noActiveTables")}</p>
         )}
+        {setup.waiters.length === 0 && <Link className="workspace-link" href={`/manage/venues/${setup.venue.id}#waiters`}>{t("connectWaiters")}</Link>}
       </section>
       {setup.waiters.length > 0 && setup.tables.length > 0 && (
-        <ul className="mb-4">
-          {setup.tables.map((table) => (
+        <ul className="workspace-panel mb-4">
+          {[...setup.tables].sort((a, b) => Number(!!a.waiterId) - Number(!!b.waiterId)).map((table) => (
             <li key={table.id} id={`assignment-${table.id}`} className="border-b border-rule py-3">
               <ActionForm
                 action={saveAssignment.bind(null, { venueId: setup.venue.id, shiftId: shift.id, tableId: table.id })}
                 className="flex flex-wrap items-end gap-2"
               >
                 <AssignmentSelect key={table.waiterId} name="waiterId" table={table} waiters={setup.waiters} required />
-                <SubmitButton variant="quiet">{t("saveAssignment")}</SubmitButton>
+                <SubmitButton variant="secondary">{t("saveAssignment")}</SubmitButton>
               </ActionForm>
             </li>
           ))}
         </ul>
       )}
-      <ActionForm action={endVenueShift.bind(null, setup.venue.id, shift.id)}>
-        <SubmitButton variant="quiet">{t("end")}</SubmitButton>
-      </ActionForm>
     </section>
   );
 }
@@ -121,7 +123,7 @@ function AssignmentSelect({ name, table, waiters, required }: {
   const t = useTranslations("Shifts");
   const manage = useTranslations("StaffManage");
   return (
-    <label className="block min-w-40 flex-1 text-sm font-medium">
+    <label className="block min-w-0 flex-1 basis-40 text-sm font-medium">
       {manage("table", { number: table.number })}
       <select
         name={name}

@@ -22,25 +22,32 @@ export function watchOrders<T extends OrderFeed>(
   let unsubscribe: (() => void) | undefined;
   let nextRead = 0;
   let lastApplied = 0;
+  let lastSuccessful = 0;
 
   async function read() {
     const sequence = ++nextRead;
     try {
       const response = await fetch(url, { cache: "no-store" });
-      if (closed || sequence < lastApplied) { await response.body?.cancel(); return; }
+      if (closed || sequence < lastApplied) {
+        await response.body?.cancel();
+        return !closed && lastSuccessful === lastApplied;
+      }
       if (!response.ok) {
         lastApplied = sequence;
         onError?.(response.status);
-        return;
+        return false;
       }
       const data: T = await response.json();
-      if (closed || sequence < lastApplied) return;
+      if (closed || sequence < lastApplied) return !closed && lastSuccessful === lastApplied;
       lastApplied = sequence;
+      lastSuccessful = sequence;
       connection = data.live;
       onData(data);
       if (connection && !unsubscribe && !connecting) void connect(connection.topic);
+      return true;
     } catch {
       if (!closed && sequence >= lastApplied) { lastApplied = sequence; onError?.(); }
+      return !closed && sequence < lastApplied && lastSuccessful === lastApplied;
     }
   }
 

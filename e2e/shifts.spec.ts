@@ -19,6 +19,7 @@ test("a Manager starts from Usual Tables, moves an assignment and ends the Shift
   await usual.getByRole("button", { name: "Save Usual Tables" }).click();
 
   const suggested = page.getByRole("region", { name: "Suggested Table Assignments" });
+  await suggested.getByText("Review assignments", { exact: true }).click();
   await expect(suggested.getByLabel("Table 1")).toHaveValue(s.waiters.Sam.waiterId);
   await expect(suggested.getByLabel("Table 2")).toHaveValue(s.waiters.Sam.waiterId);
   await suggested.getByLabel("Table 2").selectOption({ label: "Hana" });
@@ -36,9 +37,13 @@ test("a Manager starts from Usual Tables, moves an assignment and ends the Shift
   await expect(first.getByRole("status")).toHaveText("Table Assignment saved.");
   await expect(running.getByLabel("Table 1")).toHaveValue(s.waiters.Hana.waiterId);
 
+  await running.getByText("Shift actions", { exact: true }).click();
   await running.getByRole("button", { name: "End Shift" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "End Shift" }).click();
+  await suggested.getByText("Review assignments", { exact: true }).click();
   await expect(suggested.getByLabel("Table 1")).toHaveValue(s.waiters.Sam.waiterId);
   await expect(suggested.getByLabel("Table 2")).toHaveValue(s.waiters.Sam.waiterId);
+  await page.getByText("Account", { exact: true }).click();
   await page.getByRole("button", { name: "አማ", exact: true }).click();
   await expect(page.getByRole("heading", { name: "የተጠቆሙ የጠረጴዛ ምደባዎች" })).toBeVisible();
 });

@@ -1,3 +1,4 @@
+import { publishDraft } from "./support/menu-editor";
 import { expect, test, type Page } from "@playwright/test";
 import { acceptOrder, getMyTableOrders, startShift, getMenuDraft, saveMenuDraft, updateStaffLanguage } from "@/core";
 import { scenario } from "../tests/support/scenario";
@@ -28,7 +29,7 @@ test("real photo and video uploads require Save and Publish, and video waits for
     await expect(page.locator("#brand-menu-editor").getByRole("alert")).toContainText("H.264");
     await dish.getByLabel("Serving video").setInputFiles("tests/fixtures/serving.mp4");
     await expect(dish.locator("video")).toHaveAttribute("src", /dish-videos/);
-    await expect(page.getByRole("button", { name: "Publish", exact: true })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Review and publish", exact: true })).toHaveCount(0);
     const url = `/v/${s.venue.linkToken}/menu`;
     const requests: string[] = [];
     const imagery: Promise<number>[] = [];
@@ -40,7 +41,7 @@ test("real photo and video uploads require Save and Publish, and video waits for
     await expect(page.getByText("Draft saved.", { exact: true })).toBeVisible();
     await guest.reload();
     await expect(guest.locator(".dish-row img")).toHaveCount(0);
-    await page.getByRole("button", { name: "Publish", exact: true }).click();
+    await publishDraft(page);
     await expect(page.getByText("Menu published.", { exact: true })).toBeVisible();
     await guest.reload();
     await expect(guest.locator(".dish-row img")).toHaveAttribute("src", /-thumb.webp$/);
@@ -103,7 +104,7 @@ test("editor guards navigation, offers explicit tab recovery and retains edits o
   await page.goBack();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.getByRole("button", { name: "Keep editing", exact: true }).click();
-  await page.getByRole("link", { name: "Maasii Manage" }).click();
+  await page.getByRole("link", { name: "Maasii Owner" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.getByRole("button", { name: "Keep editing", exact: true }).click();
   await expect(edit.getByLabel("Dish name in English").first()).toHaveValue("Garden Omelette");
@@ -244,7 +245,7 @@ test("editor explains denied recovery storage and saves in-memory edits before l
   await edit.getByText("Omelette", { exact: true }).click();
   await edit.getByLabel("Dish name in English").first().fill("Saved before leaving");
   await expect(page.getByText(/cannot store a recovery copy/)).toBeVisible();
-  await page.getByRole("link", { name: "Maasii Manage" }).click();
+  await page.getByRole("link", { name: "Maasii Owner" }).click();
   await page.getByRole("button", { name: "Save and leave", exact: true }).click();
   await expect(page).toHaveURL(/\/manage$/);
   const saved = await getMenuDraft(s.owner.actor, { brandId: s.brand.id });
@@ -322,13 +323,10 @@ test("operations and Owner guidance reflect configured running service", async (
   await startShift(s.owner.actor, { venueId: s.venue.id, assignments: [{ tableId: s.venue.tables[0].id, waiterId: s.waiters.Sam.waiterId }] });
   await signIn(page, s.owner, s.brand.id);
   await page.goto("/manage");
-  await expect(page.getByText(/Service is running\. Complete Visits/)).toBeVisible();
+  await expect(page.getByText("Collecting feedback for Ready Venue.")).toBeVisible();
   await page.goto("/manage/operations");
-  const venue = page.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Ready Venue", exact: true }) });
-  await expect(venue.locator("dl").getByText("Assigned Waiters")).toBeVisible();
-  await expect(venue.locator("dl > div").filter({ hasText: "Assigned Waiters" }).locator("dd")).toHaveText("1");
-  await expect(venue.locator("dl > div").filter({ hasText: "Unassigned Tables" }).locator("dd")).toHaveText("1");
-  await expect(venue.locator("a.maasii-button")).toHaveAttribute("href", `/manage/venues/${s.venue.id}/shifts`);
+  await expect(page.getByText("1 of 2 Tables assigned · 1 Waiter")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Assign uncovered Tables" })).toHaveAttribute("href", `/manage/venues/${s.venue.id}/shifts#assignments`);
   await page.screenshot({ path: test.info().outputPath("operations-390.png"), fullPage: true });
   const guest = await browser.newPage({ ...test.info().project.use });
   try {
@@ -341,7 +339,9 @@ test("operations and Owner guidance reflect configured running service", async (
     await guest.getByRole("button", { name: "Send to Table 1", exact: true }).click();
     await expect(guest.getByRole("dialog").getByText("Sent", { exact: true })).toBeVisible();
     await page.reload();
-    await expect(venue.getByRole("link", { name: "Review pending Orders" })).toHaveAttribute("href", `/manage/venues/${s.venue.id}/floor`);
+    await page.getByRole("link", { name: "Open Table 1", exact: true }).click();
+    await expect(page).toHaveURL(/\/operations#floor-visit-/);
+    await expect(page.getByRole("region", { name: "Open Tables" }).getByText("1 × Omelette")).toBeVisible();
   } finally {
     await guest.close();
   }

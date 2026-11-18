@@ -16,13 +16,14 @@ const field = "mt-1 block min-h-11 w-full rounded-xl border border-ink/30 bg-whi
 
 
 export function BillControls({
-  target, bill, methods, refresh, partyPending = false,
+  target, bill, methods, refresh, tableNumber, partyPending = false,
 }: {
   target: Target;
   bill?: Omit<PreparedBill, "preparedAt">;
   methods: Method[];
+  tableNumber?: number;
   partyPending?: boolean;
-  refresh: () => Promise<void>;
+  refresh: () => Promise<unknown>;
 }) {
   const t = useTranslations("Bills");
   const [confirming, setConfirming] = useState(false);
@@ -32,6 +33,7 @@ export function BillControls({
   const [failed, setFailed] = useState(false);
   const [invalidAmount, setInvalidAmount] = useState(false);
   const amountRef = useRef<HTMLInputElement>(null);
+  const receiptButton = useRef<HTMLButtonElement>(null);
   const amountId = useId();
   const errorId = useId();
   const receiptAmountSantim = parseBirr(amount);
@@ -58,18 +60,22 @@ export function BillControls({
     <div className="mt-3 space-y-3">
       {bill ? (
         <>
-          <p className="text-sm font-semibold">{t("total", { amount: formatBirr(bill.totalSantim) })}</p>
-          {bill.reminder && <p role="status" className="text-sm font-semibold">{t("paidQuestion")}</p>}
-          <div className="flex flex-wrap gap-2">
-            {!confirming && (
-              <button type="button" className={primary} disabled={working} onClick={() => setConfirming(true)}>
-                {t(partyPending ? "previousPartyPaid" : "confirm")}
+          <p className="font-semibold tabular-nums">{t("total", { amount: formatBirr(bill.totalSantim) })}</p>
+          {bill.reminder && <p className="workspace-badge" data-tone="waiting">{t("paidQuestion")}</p>}
+          {!confirming && (
+            <div className="workspace-actions">
+              <button ref={receiptButton} type="button" className="workspace-button workspace-primary" disabled={working}
+                onClick={() => { setFailed(false); setConfirming(true); }}>
+                {t(partyPending ? "previousPartyPaid" : "enterReceipt")}
               </button>
-            )}
-            <button type="button" className={secondary} disabled={working} onClick={() => void change({ action: "reopen" })}>
-              {t(partyPending ? "sameParty" : "reopen")}
-            </button>
-          </div>
+              {partyPending ? <button type="button" className={secondary} disabled={working} onClick={() => void change({ action: "reopen" })}>
+                {t("sameParty")}
+              </button> : <details className="workspace-disclosure">
+                <summary className="workspace-summary">{t("actions")}</summary>
+                <button type="button" className={secondary} disabled={working} onClick={() => void change({ action: "reopen" })}>{t("reopen")}</button>
+              </details>}
+            </div>
+          )}
           {confirming && (
             <form className="space-y-3 border-t border-rule pt-3" onSubmit={(event) => {
               event.preventDefault();
@@ -82,9 +88,10 @@ export function BillControls({
                 void change({ action: "confirm", receiptAmountSantim, paymentOptionId: method === "cash" ? null : method });
               }
             }}>
+              <h3>{tableNumber === undefined ? t("enterReceipt") : t("receiptAt", { number: tableNumber })}</h3>
               <label className="block text-sm font-medium">
                 {t("method")}
-                <select className={field} value={method} onChange={(event) => setMethod(event.target.value)} required>
+                <select autoFocus className={field} value={method} onChange={(event) => setMethod(event.target.value)} required>
                   <option value="" disabled>{t("selectMethod")}</option>
                   {!methods.some(({ kind, provider }) => kind === "cash" && !provider) && <option value="cash">{t("cash")}</option>}
                   {methods.map(({ id, kind, provider, accountOrMerchantCode }) => (
@@ -103,14 +110,22 @@ export function BillControls({
                   }} />
               </label>
               {invalidAmount && <p id={errorId} className="text-sm" role="alert">{t("invalidAmount")}</p>}
-              {difference !== 0 && (
+              {receiptAmountSantim !== null && (
                 <p className="text-sm">
-                  {t("difference", { amount: (difference < 0 ? "−" : "+") + formatBirr(Math.abs(difference)) })}
+                  {t("difference", { amount: (difference < 0 ? "−" : difference > 0 ? "+" : "") + formatBirr(Math.abs(difference)) })}
                 </p>
               )}
-              <button type="submit" className={primary} disabled={working}>
-                {t("record")}
-              </button>
+              <div className="workspace-actions">
+                <button type="button" className="workspace-button" disabled={working} onClick={() => {
+                  setConfirming(false);
+                  setInvalidAmount(false);
+                  setFailed(false);
+                  setAmount("");
+                  setMethod("");
+                  requestAnimationFrame(() => receiptButton.current?.focus());
+                }}>{t("cancel")}</button>
+                <button type="submit" className="workspace-button workspace-primary" disabled={working}>{t(working ? "recording" : "record")}</button>
+              </div>
             </form>
           )}
         </>

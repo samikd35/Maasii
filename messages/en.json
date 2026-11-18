@@ -108,7 +108,9 @@
     "owner": "Owner",
     "manager": "Manager",
     "waiting": "Waiting to accept",
-    "goToSignIn": "Go to sign in"
+    "goToSignIn": "Go to sign in",
+    "skip": "Skip to workspace",
+    "account": "Account"
   },
   "StaffSignIn": {
     "heading": "Sign in to Maasii",
@@ -206,7 +208,28 @@
     "assignTablesAction": "Assign uncovered Tables",
     "reviewOrdersAction": "Review pending Orders",
     "reviewReceiptsAction": "Review receipt differences",
-    "viewFloorAction": "Open live floor"
+    "viewFloorAction": "Open live floor",
+    "closingNav": "Closing",
+    "switchVenue": "Switch Venue",
+    "selectVenue": "Venue",
+    "overviewNav": "Overview",
+    "brandMenuNav": "Brand menu",
+    "insightsNav": "Insights",
+    "brandSettings": "Brand settings",
+    "selectBrand": "Brand",
+    "switchBrand": "Switch Brand",
+    "liveVenueCount": "{count} of {total} Venues in service",
+    "scheduledOpen": "Scheduled open",
+    "scheduledClosed": "Outside scheduled hours",
+    "pendingVenueTables": "{count, plural, one {# Table with waiting Orders} other {# Tables with waiting Orders}}",
+    "openOperations": "Open operations",
+    "openVenueOperations": "Open operations for {venue}",
+    "reviewBrandDraft": "Review Brand draft",
+    "openBrandMenu": "Open Brand Menu",
+    "createBrandMenu": "Create Brand Menu",
+    "setUpVenue": "Set up {venue}",
+    "connectWaiterAction": "Connect a Waiter",
+    "openGuestMenu": "Open guest page"
   },
   "Shifts": {
     "title": "Shifts",
@@ -221,7 +244,14 @@
     "started": "Started {time} (Addis Ababa)",
     "end": "End Shift",
     "saveUsual": "Save Usual Tables",
-    "saveAssignment": "Save assignment"
+    "saveAssignment": "Save assignment",
+    "suggestedCoverage": "{count} of {total} Tables have suggested assignments",
+    "currentCoverage": "{count} of {total} Tables assigned",
+    "reviewAssignments": "Review assignments",
+    "connectWaiters": "Connect a Waiter",
+    "startUncovered": "Start service at {venue} without assigning any Tables? There will be no Waiters to receive Order alerts. Cancel to review assignments.",
+    "shiftActions": "Shift actions",
+    "endConsequence": "End service at {venue}? New Orders pause until a Shift starts. {count, plural, one {# open Visit will carry over.} other {# open Visits will carry over.}}"
   },
   "PaymentOptions": {
     "title": "Payment Options",
@@ -258,7 +288,11 @@
     "removed": "Removed",
     "before": "Before",
     "after": "After",
-    "system": "System"
+    "system": "System",
+    "managedByOwner": "Payment Options are managed by the Brand Owner.",
+    "actions": "Payment option actions",
+    "deactivateHelp": "Stop showing {name} as a Payment Option at {venue}?",
+    "removeHelp": "Remove {name} from Payment Options at {venue}?"
   },
   "VenueMenu": {
     "editMenu": "Edit Venue Menu",
@@ -271,7 +305,15 @@
     "savePrice": "Save price",
     "soldOutSwitch": "{name} Sold Out",
     "soldOut": "Sold Out",
-    "available": "Available"
+    "available": "Available",
+    "liveOnly": "Availability changes apply immediately at {venue}.",
+    "findDish": "Find a dish",
+    "availability": "Availability",
+    "allDishes": "All dishes",
+    "noMatches": "No dishes match these filters.",
+    "filter": "Show dishes",
+    "markSoldOut": "Mark sold out",
+    "restoreAvailability": "Restore availability"
   },
   "StaffBranding": {
     "heading": "Branding",
@@ -285,10 +327,11 @@
     "original": "Your colour {colour}",
     "adjusted": "Readable shade {colour}",
     "contrast": "Maasii uses the darker shade for text and buttons so they are easier to read. Your colour still appears in details like the line at the top.",
-    "save": "Save branding",
+    "save": "Save appearance",
     "preview": "Guest menu preview",
     "exampleDish": "Macchiato",
-    "exampleDescription": "Espresso with a dash of milk"
+    "exampleDescription": "Espresso with a dash of milk",
+    "appearance": "Appearance"
   },
   "StaffSocialLinks": {
     "heading": "Social media links",
@@ -324,7 +367,9 @@
     "tableAdded": "Added table {from}.",
     "tablesAdded": "Added tables {from} to {to}.",
     "waiterJoinQr": "Waiter join QR",
-    "waiterJoinReady": "Scan this QR on the waiter's phone. It works once within {minutes} minutes."
+    "waiterJoinReady": "Scan this QR on the waiter's phone. It works once within {minutes} minutes.",
+    "continue": "Continue",
+    "cancel": "Cancel"
   },
   "MenuEditor": {
     "venueHeading": "{venue} Venue Menu",
@@ -434,7 +479,14 @@
     "dishSettings": "Dish maintenance",
     "restorePreview": "Brand restoration preview · Save to apply",
     "matchesBrand": "Matches Brand values",
-    "localOverride": "Venue changes to Brand dish"
+    "localOverride": "Venue changes to Brand dish",
+    "draftPrivate": "Draft saved · Guests still see the published Menu",
+    "reviewPublish": "Review and publish",
+    "publishBrand": "Publish Brand Menu",
+    "publishVenue": "Publish to {venue}",
+    "cancelPublish": "Cancel",
+    "publishBrandHelp": "Publish changes to the {brand} Brand Menu. Venues that inherit these dishes will receive the updates.",
+    "publishVenueHelp": "Publish changes to the Menu at {venue}."
   },
   "StaffErrors": {
     "venueMenuConflict": "This change conflicts with a published Venue Menu. Update that Venue Menu before publishing the Brand Menu.",
@@ -518,13 +570,19 @@
     "rejoinHeading": "Connect your phone",
     "menu": "Menu",
     "removeConsequence": "Remove {name}? This revokes access on every enrolled phone. They will need a new enrollment to return.",
-    "queue": "Table queue",
+    "queue": "Queue",
     "searchMenu": "Find a dish",
     "noMatches": "No dishes match your search.",
-    "manageAccess": "Manage {name}’s access"
+    "manageAccess": "Manage {name}’s access",
+    "tables": "Tables",
+    "backQueue": "Back to Queue",
+    "backTables": "Back to Tables",
+    "connectWaiter": "Connect a Waiter",
+    "regenerateQr": "Regenerate QR"
   },
   "StaffOrders": {
-    "quickAdd": "Quick-add",
+    "quickAdd": "Add a Dish",
+    "backTable": "Back to Table {number}",
     "changeDish": "Change Dish",
     "searchDishes": "Search Dishes",
     "noDishes": "No matching Dishes.",
@@ -532,7 +590,7 @@
     "noOption": "No option",
     "quantity": "Quantity",
     "orderNote": "Note",
-    "addOrder": "Add Order",
+    "addOrder": "Add to Table {number}",
     "guestSource": "Guest Order",
     "waiterSource": "Waiter-entered Order",
     "correctLine": "Correct line",
@@ -540,8 +598,8 @@
     "saveQuantity": "Save quantity",
     "removeLine": "Remove line",
     "removedLine": "Removed from Bill",
-    "moveOrder": "Move Order to Table…",
-    "moveVisit": "Move Visit to Table…",
+    "moveOrder": "Move this Order…",
+    "moveVisit": "Move this Visit…",
     "chooseTable": "Choose Table",
     "move": "Move",
     "carriedFrom": "Carried over from {name}",
@@ -551,10 +609,10 @@
     "heading": "My tables",
     "empty": "No orders at your tables.",
     "table": "Table {number}",
-    "accept": "Accept",
+    "accept": "Accept Order",
     "accepting": "Accepting…",
     "decisionError": "Could not update the Order. Try again.",
-    "decisions": "Order decisions",
+    "decisions": "Order actions",
     "decline": "Decline Order",
     "declined": "Order declined",
     "acceptedOrder": "Order accepted",
@@ -577,12 +635,34 @@
     "notificationError": "Could not enable notifications. Try again.",
     "noShift": "Service has not started. Ask your Manager to open a Shift.",
     "noAssignments": "No Tables are assigned to you. Ask your Manager for an assignment.",
-    "quietTables": "Tables without Orders"
+    "quietTables": "Tables without Orders",
+    "queueHeading": "Order queue",
+    "waitingCount": "{count, plural, one {# Order waiting} other {# Orders waiting}}",
+    "dishQuantity": "{count, plural, one {# dish} other {# dishes}}",
+    "acceptCount": "{count, plural, one {Accept # dish} other {Accept # dishes}}",
+    "acceptSummary": "{count, plural, one {# dish to accept} other {# dishes to accept}} · {dropped} Sold Out",
+    "decisionUncertain": "Could not verify this action. Refresh the queue before you try again.",
+    "deviceAlerts": "Device alerts",
+    "refresh": "Refresh",
+    "live": "Live",
+    "updated": "Updated {time}",
+    "loading": "Connecting to Orders…",
+    "findTable": "Table number",
+    "find": "Find Table",
+    "noTableMatch": "No assigned Table matches that number.",
+    "tableWaiting": "Order waiting",
+    "tableBill": "Prepared Bill",
+    "tableInUse": "In service",
+    "noVisit": "No open Visit",
+    "unassignedTable": "Unassigned Table",
+    "visitActions": "Bills and active Visits",
+    "visitForTable": "Visit at Table {number}",
+    "acceptedOrders": "Accepted Orders"
   },
   "Floor": {
     "title": "Live floor",
     "back": "Venue",
-    "exceptions": "Exceptions",
+    "exceptions": "Needs attention",
     "none": "No exceptions.",
     "sent": "Order waiting for acceptance",
     "prepared": "Prepared Bill unconfirmed",
@@ -599,7 +679,26 @@
     "preparedStatus": "Bill prepared",
     "inServiceStatus": "In service",
     "noPending": "No Orders waiting",
-    "oldest": "Oldest unaccepted Order {minutes, plural, one {# minute} other {# minutes}}"
+    "oldest": "Oldest unaccepted Order {minutes, plural, one {# minute} other {# minutes}}",
+    "shiftUncovered": "Shift open · No Waiters assigned",
+    "shiftRunning": "Shift running",
+    "shiftStopped": "No running Shift",
+    "coverage": "{assigned} of {total} Tables assigned · {waiters, plural, one {# Waiter} other {# Waiters}}",
+    "tableCount": "{count, plural, one {# active Table} other {# active Tables}}",
+    "stale": "Could not refresh the floor",
+    "lastUpdated": "Last updated {time}",
+    "refresh": "Refresh",
+    "refreshing": "Refreshing…",
+    "filter_all": "All",
+    "filter_sent": "Orders",
+    "filter_prepared": "Bills",
+    "filter_unassigned": "Coverage",
+    "filter_difference": "Receipts",
+    "pendingCount": "{count, plural, one {# Order waiting} other {# Orders waiting}}",
+    "viewPending": "Open Table {number}",
+    "pendingOrder": "Order waiting for acceptance",
+    "partyPending": "New party · Previous Bill needs attention",
+    "quietTables": "{count, plural, one {# Table without an open Visit} other {# Tables without open Visits}}"
   },
   "WeeklyFinding": {
     "title": "Weekly Finding",
@@ -615,7 +714,8 @@
     "startService": "Set up service",
     "liveVenues": "{count} Venues in service",
     "collectingEvidence": "Service is running. Complete Visits and collect guest feedback to build a reliable weekly finding.",
-    "viewOperations": "View service"
+    "viewOperations": "View service",
+    "collectingForVenue": "Collecting feedback for {venue}."
   },
   "Insights": {
     "evidence": "Weekly Finding evidence",
@@ -685,7 +785,12 @@
     "showDate": "Show date",
     "nonePaid": "There are no Payment Confirmations on this date.",
     "dayTotal": "Day totals",
-    "amounts": "Official Receipts {receipt} ETB · Bills {bill} ETB · Receipt Difference {difference} ETB"
+    "amounts": "Official Receipts {receipt} ETB · Bills {bill} ETB · Receipt Difference {difference} ETB",
+    "visitActions": "Visit actions",
+    "unpaidConsequence": "Close the Visit at Table {table} without a Payment Confirmation?",
+    "billAmount": "Bill",
+    "receiptAmount": "Official Receipt",
+    "differenceAmount": "Receipt Difference"
   },
   "Reviews": {
     "waiterRatings": "Waiter Ratings",
@@ -710,6 +815,12 @@
     "total": "Bill total: {amount} ETB",
     "difference": "Receipt Difference: {amount} ETB",
     "record": "Record Payment Confirmation",
-    "error": "Could not update the Bill. Try again."
+    "error": "Could not update the Bill. Try again.",
+    "runningTotal": "Accepted running total: {amount} ETB",
+    "enterReceipt": "Enter receipt",
+    "actions": "Bill actions",
+    "cancel": "Cancel",
+    "recording": "Recording payment…",
+    "receiptAt": "Enter receipt for Table {number}"
   }
 }

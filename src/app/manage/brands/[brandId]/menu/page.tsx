@@ -1,5 +1,6 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getMessages } from "next-intl/server";
+import { getMessages, getTranslations } from "next-intl/server";
 import { brandArtworkMimeTypes, deriveBrandTheme, getMenuDraft, MaasiiError, MAX_BRAND_ARTWORK_BYTES, MAX_MENU_IMPORT_PHOTOS } from "@/core";
 import { messages } from "@/i18n/messages";
 import { requireStaff } from "@/lib/session";
@@ -13,6 +14,11 @@ const guestMessages = {
 
 function pickGuestMessages({ GuestMenu, LanguageSwitch, Ordering, Price }: typeof messages.en) {
   return { GuestMenu, LanguageSwitch, Ordering, Price };
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("MenuEditor");
+  return { title: `${t("nav")} · Maasii` };
 }
 
 export default async function BrandMenuPage({ params }: PageProps<"/manage/brands/[brandId]/menu">) {

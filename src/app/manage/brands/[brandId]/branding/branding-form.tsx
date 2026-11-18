@@ -49,9 +49,9 @@ export function BrandingForm({ brand, save, accept, maxFileBytes }: {
   }
 
   return (
-    <ActionForm action={submit} className="mt-5">
-      <div className="grid items-start gap-6 sm:grid-cols-2">
-        <div className="space-y-4">
+    <div className="owner-summary workspace-section">
+      <ActionForm action={submit} className="workspace-panel space-y-4" aria-labelledby="appearance-title">
+          <h2 id="appearance-title">{t("appearance")}</h2>
           <div>
             <div className="flex flex-wrap gap-3">
               <ArtworkField name="logo" label={t("logo")} accept={accept} fileName={logo?.file.name} onChange={(file) => setLogo(preview(file))} />
@@ -90,9 +90,13 @@ export function BrandingForm({ brand, save, accept, maxFileBytes }: {
               {displayFonts.map((face) => <option key={face} value={face}>{t(face)}</option>)}
             </select>
           </label>
+        <div className="workspace-actions">
+          <SubmitButton>{t("save")}</SubmitButton>
+          <a href="#brand-preview" className="workspace-link">{t("preview")}</a>
         </div>
+      </ActionForm>
 
-        <section aria-labelledby="brand-preview">
+        <section className="workspace-panel" aria-labelledby="brand-preview">
           <h2 id="brand-preview" className="mb-2 text-sm font-semibold">{t("preview")}</h2>
           <div
             className={`overflow-hidden rounded-lg border border-rule bg-paper font-sans ${displayFontClasses[font]}`}
@@ -113,9 +117,7 @@ export function BrandingForm({ brand, save, accept, maxFileBytes }: {
             </div>
           </div>
         </section>
-      </div>
-      <div className="mt-5"><SubmitButton>{t("save")}</SubmitButton></div>
-    </ActionForm>
+    </div>
   );
 }
 

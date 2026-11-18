@@ -13,7 +13,8 @@ test("an Owner can set Service Periods and select a reporting week", async ({ pa
   await page.getByLabel("Email or phone").fill(s.owner.email);
   await page.getByLabel("Password").fill(s.owner.password);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await page.getByRole("link", { name: "Lancha" }).click();
+  await page.getByRole("link", { name: "Lancha", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Lancha", level: 1 })).toBeVisible();
   await page.getByRole("link", { name: "Dish insights" }).click();
   await page.getByText("Service hours and periods", { exact: true }).click();
   await page.locator('input[name="opensAt"]').fill("07:00");
@@ -62,7 +63,8 @@ test("an Owner sees the Weekly Finding with its Orders and sees the Live floor d
   await page.context().setExtraHTTPHeaders({ "x-maasii-test-now": "2026-11-11T09:00:00Z" });
   await page.goto("/manage");
   await expect(finding).toBeVisible();
-  await page.getByRole("link", { name: /Venues in service/ }).click();
-  await expect(page.locator("[data-live-floor]").getByRole("link", { name: "Table 1" })).toBeVisible();
+  await expect(page.getByText("1 of 1 Venues in service")).toBeVisible();
+  await page.getByRole("link", { name: "Open operations for Lancha" }).click();
+  await expect(page.locator("[data-live-floor]").getByText("Table 1", { exact: true })).toBeVisible();
   await expect(finding).toHaveCount(0);
 });

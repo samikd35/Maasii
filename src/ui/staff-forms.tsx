@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useActionState, useState, type ReactNode } from "react";
+import { useActionState, useId, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useFormStatus } from "react-dom";
 import type { FormState } from "@/lib/session";
 
@@ -14,19 +14,35 @@ export function ActionForm({
   children,
   className,
   confirmMessage,
+  confirmLabel,
+  confirmWhenEmptyPrefix,
+  qrAction,
   "aria-labelledby": labelledBy,
 }: {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
   children: ReactNode;
   className?: string;
   confirmMessage?: string;
+  confirmLabel?: string;
+  confirmWhenEmptyPrefix?: string;
+  qrAction?: { show: string; regenerate: string };
   "aria-labelledby"?: string;
 }) {
   const t = useTranslations("StaffForms");
   const errors = useTranslations("StaffErrors");
   const [state, formAction] = useActionState(action, undefined);
+  const dialog = useRef<HTMLDialogElement>(null);
+  const form = useRef<HTMLFormElement>(null);
+  const submitter = useRef<HTMLElement | null>(null);
+  const confirmed = useRef(false);
   return (
-    <form action={formAction} className={className} aria-labelledby={labelledBy} onSubmit={event => { if (confirmMessage && !window.confirm(confirmMessage)) event.preventDefault(); }}>
+    <><form ref={form} action={formAction} className={className} aria-labelledby={labelledBy} onSubmit={event => {
+      if (!confirmMessage || confirmed.current) return;
+      if (confirmWhenEmptyPrefix && [...new FormData(event.currentTarget)].some(([name, value]) => name.startsWith(confirmWhenEmptyPrefix) && value)) return;
+      event.preventDefault();
+      submitter.current = (event.nativeEvent as SubmitEvent).submitter;
+      dialog.current?.showModal();
+    }}>
       {children}
       {state?.error && (
         <p role="alert" className="mt-2 basis-full text-sm font-medium text-red-800">
@@ -39,13 +55,36 @@ export function ActionForm({
         </p>
       )}
       {state?.qr && (
-        // The short-lived QR is rendered once by the server action.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={state.qr} alt={t("waiterJoinQr")} width={240} height={240} className="mt-3 h-auto max-w-full border border-rule bg-white" />
+        <div className="mt-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={state.qr} alt={t("waiterJoinQr")} width={240} height={240} className="h-auto max-w-full border border-rule bg-white" />
+        </div>
       )}
+      {qrAction && <SubmitButton>{state?.qr ? qrAction.regenerate : qrAction.show}</SubmitButton>}
       {state?.link && <CopyField key={state.link} label={t("invitationLink")} value={state.link} />}
     </form>
+    {confirmMessage && <ConfirmationDialog dialog={dialog} title={confirmLabel ?? t("continue")} cancel={t("cancel")}
+      onConfirm={() => {
+        dialog.current?.close();
+        confirmed.current = true;
+        try { form.current?.requestSubmit(submitter.current ?? undefined); } finally { confirmed.current = false; }
+      }}>{confirmMessage}</ConfirmationDialog>}
+    </>
   );
+}
+
+export function ConfirmationDialog({ dialog, title, cancel, children, onConfirm }: {
+  dialog: RefObject<HTMLDialogElement | null>; title: string; cancel: string; children: ReactNode; onConfirm: () => void;
+}) {
+  const heading = useId();
+  return <dialog ref={dialog} className="workspace-dialog" aria-labelledby={heading}>
+    <h2 id={heading} className="text-xl font-semibold">{title}?</h2>
+    <div className="my-4">{children}</div>
+    <div className="workspace-actions">
+      <button type="button" autoFocus className="workspace-button" onClick={() => dialog.current?.close()}>{cancel}</button>
+      <button type="button" className="workspace-button workspace-primary" onClick={onConfirm}>{title}</button>
+    </div>
+  </dialog>;
 }
 
 export function SubmitButton({ children, variant = "primary" }: { children: ReactNode; variant?: "primary" | "secondary" | "quiet" | "destructive" }) {

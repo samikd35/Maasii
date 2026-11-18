@@ -71,7 +71,7 @@ export default function OrderService({
   const [choosing, setChoosing] = useState<"send" | "move">();
   const [selectedTable, setSelectedTable] = useState<Table>();
   const tableChoices = useRef<HTMLFieldSetElement>(null);
-  const refresh = useRef<() => Promise<void>>(async () => {});
+  const refresh = useRef<() => Promise<boolean>>(async () => false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<"chooseAgain" | "draftChanged" | "unavailable" | "requestConflict" | "billPrepared" | "orderTableBillPrepared" | "tableChoiceLocked">();
 

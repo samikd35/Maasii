@@ -1,4 +1,4 @@
-import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { getVenueInsights, MaasiiError } from "@/core";
@@ -9,6 +9,11 @@ import { saveServiceSettings } from "./actions";
 const field = "mt-1 block min-h-11 w-full rounded-xl border border-ink/30 bg-white px-3 text-base";
 const experience = ["great", "okay", "needs_work"] as const;
 const dishChoices = ["yes", "maybe", "no"] as const;
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Insights");
+  return { title: `${t("title")} · Maasii` };
+}
 
 export default async function InsightsPage({ params, searchParams }: PageProps<"/manage/venues/[venueId]/insights">) {
   const { venueId } = await params;
@@ -25,10 +30,24 @@ export default async function InsightsPage({ params, searchParams }: PageProps<"
 
   return (
     <>
-      <Link href={`/manage/venues/${venueId}`} className="inline-flex min-h-11 items-center text-sm font-medium underline">{report.venueName}</Link>
       <h1 className="font-sans text-3xl">{t("title")}</h1>
-      <details className="mt-4">
-        <summary className="min-h-11 cursor-pointer py-3 font-semibold">{t("settings")}</summary>
+      <form className="workspace-section flex flex-wrap items-end gap-2">
+        <label className="text-sm font-medium">{t("week")} <input type="date" name="week" className={field} defaultValue={report.week} required /></label>
+        <label className="text-sm font-medium">
+          {t("visitRating")}
+          <select name="rating" className={field} defaultValue={typeof query.rating === "string" ? query.rating : ""}>
+            <option value="">{t("allRatings")}</option>
+            {experience.map((rating) => <option key={rating} value={rating}>{t(rating)}</option>)}
+          </select>
+        </label>
+        <button className="workspace-button">{t("show")}</button>
+      </form>
+      <p className="mt-2 text-sm text-ink-muted">{t("dates", { week: report.week, previous: report.previousWeek })}</p>
+
+      <FindingEvidence report={report} query={query} />
+
+      <details className="workspace-panel workspace-section">
+        <summary className="workspace-summary">{t("settings")}</summary>
         <ActionForm action={saveServiceSettings.bind(null, venueId)} className="space-y-3">
           <div className="flex flex-wrap gap-3">
             <TimeField name="opensAt" label={t("opens")} value={report.settings?.hours.opensAt} required />
@@ -59,29 +78,14 @@ export default async function InsightsPage({ params, searchParams }: PageProps<"
         </ActionForm>
       </details>
 
-      <form className="my-4 flex flex-wrap items-end gap-2">
-        <label className="text-sm font-medium">{t("week")} <input type="date" name="week" className={field} defaultValue={report.week} required /></label>
-        <label className="text-sm font-medium">
-          {t("visitRating")}
-          <select name="rating" className={field} defaultValue={typeof query.rating === "string" ? query.rating : ""}>
-            <option value="">{t("allRatings")}</option>
-            {experience.map((rating) => <option key={rating} value={rating}>{t(rating)}</option>)}
-          </select>
-        </label>
-        <button className="min-h-11 rounded-xl border border-rule px-3 text-sm font-semibold">{t("show")}</button>
-      </form>
-      <p className="text-sm">{t("dates", { week: report.week, previous: report.previousWeek })}</p>
-
-      <FindingEvidence report={report} query={query} />
-
-      <section aria-labelledby="dish-insights" className="mt-6">
+      <section aria-labelledby="dish-insights" className="workspace-section">
         <h2 id="dish-insights" className="text-xl font-semibold">{t("dishes")}</h2>
         {report.dishes.length === 0 && <p className="py-3 text-ink-muted">{t("noDishes")}</p>}
         <ul className="divide-y divide-rule">
           {report.dishes.map((dish) => (
             <li key={dish.id} id={`dish-${dish.id}`} className="space-y-2 py-4">
               <h3 className="font-sans text-xl">{dish.name[locale] || dish.name[other]}</h3>
-              <table className="w-full text-sm">
+              <table className="insights-table w-full text-sm">
                 <thead><tr className="text-start"><th scope="col" className="text-start">{t("period")}</th><th scope="col">{t("current")}</th><th scope="col">{t("previous")}</th></tr></thead>
                 <tbody>
                   {[...dish.periods, { name: t("outside"), ...dish.outside }].map((period, index) => (

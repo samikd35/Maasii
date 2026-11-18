@@ -55,6 +55,7 @@ test("staff installs a scoped worker, hears and sees an incoming Order, and open
     await expect.poll(() => waiter.evaluate(async () => (await navigator.serviceWorker.getRegistrations())
       .map(({ active }) => active?.scriptURL))).toContain(`${baseURL}/staff-sw.js`);
 
+    await waiter.getByText("Device alerts", { exact: true }).click();
     const enable = waiter.getByRole("button", { name: "Enable notifications" });
     // A permission prompt can be dismissed without blocking future requests.
     await waiter.evaluate(() => {
@@ -69,11 +70,13 @@ test("staff installs a scoped worker, hears and sees an incoming Order, and open
     await enable.click();
     await expect(waiter.getByText("Notification setup completed on this device.")).toBeVisible();
     await waiter.reload();
+    await waiter.getByText("Device alerts", { exact: true }).click();
     await expect.poll(() => waiter.evaluate(() => navigator.serviceWorker.controller?.scriptURL)).toBe(`${baseURL}/staff-sw.js`);
     await expect(waiter.getByText("Notification setup completed on this device.")).toBeVisible();
 
     await waiter.evaluate(() => sessionStorage.setItem("pushDenied", "1"));
     await waiter.reload();
+    await waiter.getByText("Device alerts", { exact: true }).click();
     await expect(waiter.getByRole("status").filter({ hasText: "Allow notifications for Maasii in your browser settings." })).toBeVisible();
 
     // The server still has a registration, but the browser no longer does.
@@ -82,6 +85,7 @@ test("staff installs a scoped worker, hears and sees an incoming Order, and open
       sessionStorage.removeItem("pushFixture");
     });
     await waiter.reload();
+    await waiter.getByText("Device alerts", { exact: true }).click();
     await waiter.getByRole("button", { name: "Enable notifications" }).click({ timeout: 4000 });
     await expect(waiter.getByText("Notification setup completed on this device.")).toBeVisible();
 
@@ -106,11 +110,11 @@ test("staff installs a scoped worker, hears and sees an incoming Order, and open
       venueLinkToken: s.venue.linkToken, tableId, requestId: randomUUID(),
       lines: [{ dishId: s.dishId("Omelette"), choiceIds: [], quantity: 1, note: "" }],
     });
-    await waiter.getByRole("heading", { name: "My tables" }).click();
+    await waiter.getByRole("heading", { name: "Order queue" }).click();
     const order = await send(one.id);
     const incoming = waiter.getByText(/^New Order ·/);
     await expect(incoming).toBeVisible({ timeout: 12_000 });
-    await expect(incoming.locator("..").getByRole("button", { name: "Accept", exact: true })).toBeVisible();
+    await expect(incoming.locator("xpath=ancestor::li[1]").getByRole("button", { name: /^Accept / })).toBeVisible();
     await expect(waiter.locator("body")).toHaveAttribute("data-order-chime", "played");
     const path = `/staff/tables/${order.tableId}`;
     const worker = staff.serviceWorkers()[0];
@@ -160,6 +164,7 @@ test("staff installs a scoped worker, hears and sees an incoming Order, and open
     await waiter.getByRole("button", { name: "Unlock", exact: true }).click();
     await expect(waiter).toHaveURL(path);
     await expect(waiter.getByRole("heading", { name: "Table 1" })).toBeVisible();
+    await waiter.getByText("Account", { exact: true }).click();
     await waiter.getByRole("button", { name: "Sign out" }).click();
     await expect(waiter).toHaveURL("/sign-in");
   } finally {

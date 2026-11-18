@@ -22,8 +22,8 @@ const correction = z.object({
 });
 
 async function assignedTable(tx: Tx, venueId: string, tableId: string) {
-  const { rows: [table] } = await tx.query<{ id: string; number: number; venueLinkToken: string }>(
-    `select t.id, t.number, v.link_token as "venueLinkToken" from app.tables t join app.venues v on v.id = t.venue_id
+  const { rows: [table] } = await tx.query<{ id: string; number: number; venueLinkToken: string; venueName: string }>(
+    `select t.id, t.number, v.link_token as "venueLinkToken", v.name as "venueName" from app.tables t join app.venues v on v.id = t.venue_id
      where t.id = $1 and t.venue_id = $2 and t.active and app.waiter_serves_order_table(t.venue_id, t.id)`,
     [tableId, venueId],
   );
@@ -43,7 +43,7 @@ export async function getWaiterQuickAdd(actor: Actor, input: z.input<typeof tabl
     const dishes = published?.menuSections.flatMap((section) => section.dishes.map(({ dishId, name, optionGroups, priceSantim }) =>
       ({ dishId, name, optionGroups, priceSantim }))) ?? [];
     const recent = [...new Set(rows.flatMap(({ lines }) => lines.filter(({ dropReason }) => !dropReason).map(({ dishId }) => dishId)))].slice(0, 8);
-    return { table: { id: table.id, number: table.number }, dishes, recent };
+    return { table: { id: table.id, number: table.number }, dishes, recent, scope: `${table.venueName} · ${waiter.name}` };
   });
 }
 

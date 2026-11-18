@@ -8,22 +8,33 @@ import { signOut } from "@/lib/sign-out";
 import { LanguageSwitch } from "./language-switch";
 
 /** The top bar of every management and platform admin screen. */
-export function StaffHeader({ home, label }: { home: string; label: string }) {
+export function StaffHeader({ home, label, workspace, scope, children }: {
+  home: string; label: string; workspace?: boolean; scope?: string; children?: ReactNode;
+}) {
   const t = useTranslations("Staff");
+  const account = <>
+    <LanguageSwitch area="staff" action={setStaffLanguage} />
+    <form action={signOut}>
+      <button type="submit" className="min-h-11 min-w-11 px-2 text-sm font-medium underline">{t("signOut")}</button>
+    </form>
+  </>;
   return (
     <header className="staff-header">
-      <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-x-3 px-5 py-1">
-        <Link href={home} className="inline-flex min-h-11 items-center font-display text-xl font-semibold">
-          Maasii <span className="ml-2 text-sm font-normal text-ink-muted">{label}</span>
-        </Link>
-        <div className="flex items-center gap-1">
-          <LanguageSwitch area="staff" action={setStaffLanguage} />
-          <form action={signOut}>
-            <button type="submit" className="min-h-11 min-w-11 px-2 text-sm font-medium underline">
-              {t("signOut")}
-            </button>
-          </form>
+      {workspace && <a href="#workspace-content" className="workspace-skip">{t("skip")}</a>}
+      <div className={workspace ? "workspace-header" : "mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-x-3 px-5 py-1"}>
+        <div className="min-w-0">
+          <Link href={home} className="workspace-wordmark inline-flex min-h-11 flex-wrap items-center gap-x-2 font-display text-xl font-semibold">
+            Maasii <span className="text-sm font-normal text-ink-muted">{label}</span>
+          </Link>
+          {scope && <p className="pb-2 text-sm text-ink-muted">{scope}</p>}
         </div>
+        {workspace ? <div className="workspace-account">
+          {children}
+          <details>
+            <summary className="workspace-summary">{t("account")}</summary>
+            <div className="workspace-account-panel">{account}</div>
+          </details>
+        </div> : <div className="flex items-center gap-1">{account}</div>}
       </div>
     </header>
   );

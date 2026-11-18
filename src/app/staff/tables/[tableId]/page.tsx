@@ -1,14 +1,17 @@
+import Link from "next/link";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations } from "next-intl/server";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { getMyTableOrders, MaasiiError } from "@/core";
 import { getSessionActor, waiterUnlockToken } from "@/lib/session";
-import { StaffHeader } from "@/ui/staff-header";
 import { MyTables } from "../../my-tables";
+import { WaiterHeader } from "../../waiter-header";
 
-export default async function TablePage({ params }: PageProps<"/staff/tables/[tableId]">) {
+export default async function TablePage({ params, searchParams }: PageProps<"/staff/tables/[tableId]">) {
   const { tableId } = await params;
+  const { from, number } = await searchParams;
+  const query = from === "tables" && typeof number === "string" && /^\d{1,9}$/.test(number) ? `&number=${number}` : "";
   if (!z.uuid().safeParse(tableId).success) notFound();
   const actor = await getSessionActor();
   if (!actor) redirect("/staff");
@@ -23,10 +26,13 @@ export default async function TablePage({ params }: PageProps<"/staff/tables/[ta
   const [{ StaffOrders, StaffErrors, Bills }, t] = await Promise.all([getMessages(), getTranslations("StaffWaiter")]);
   return (
     <>
-      <StaffHeader home="/staff" label={t("waiter")} />
-      <main className="mx-auto max-w-2xl px-5 pb-16">
+      <WaiterHeader scope={table.scope} />
+      <main id="workspace-content" tabIndex={-1} className="workspace-frame workspace-waiter">
+        <Link href={`/staff${from === "tables" ? `?view=tables${query}` : ""}#table-link-${tableId}`} className="workspace-link">
+          {t(from === "tables" ? "backTables" : "backQueue")}
+        </Link>
         <NextIntlClientProvider messages={{ StaffOrders, StaffErrors, Bills }}>
-          <MyTables tableId={tableId} tableNumber={table.tableNumber} />
+          <MyTables tableId={tableId} tableNumber={table.tableNumber} tableQuery={from === "tables" ? `?from=tables${query}` : ""} />
         </NextIntlClientProvider>
       </main>
     </>

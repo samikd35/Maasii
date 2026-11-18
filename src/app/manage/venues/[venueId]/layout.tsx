@@ -2,25 +2,24 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { requireStaff } from "@/lib/session";
-import { getVenueSetup, MaasiiError } from "@/core";
+import { getMyAccess, getVenueSetup, MaasiiError } from "@/core";
+import { VenueNavigation } from "../../venue-navigation";
 
 export default async function VenueLayout({ children, params }: LayoutProps<"/manage/venues/[venueId]">) {
   const actor = await requireStaff();
   const { venueId } = await params;
-  try { await getVenueSetup(actor, { venueId }); } catch (error) {
+  const setup = await getVenueSetup(actor, { venueId }).catch(error => {
     if (error instanceof MaasiiError) notFound();
     throw error;
-  }
-  const [manage, floor, shifts, menu, closing] = await Promise.all([
-    getTranslations("StaffManage"), getTranslations("Floor"), getTranslations("Shifts"), getTranslations("VenueMenu"), getTranslations("Closing"),
-  ]);
-  const root = `/manage/venues/${venueId}`;
-  return <><nav className="task-nav mb-5" aria-label={manage("operations")}>
-    <Link href="/manage/operations">{manage("operations")}</Link>
-    <Link href={`${root}/floor`}>{floor("title")}</Link>
-    <Link href={`${root}/shifts`}>{shifts("title")}</Link>
-    <Link href={`${root}/menu`}>{menu("title")}</Link>
-    <Link href={`${root}/closing`}>{closing("title")}</Link>
-    <Link href={root}>{manage("venueSetup")}</Link>
-  </nav>{children}</>;
+  });
+  const [t, staff, access] = await Promise.all([getTranslations("StaffManage"), getTranslations("Staff"), getMyAccess(actor)]);
+  const multipleVenues = new Set([...access.venues, ...access.brands.flatMap(brand => brand.venues)].map(venue => venue.id)).size > 1;
+  return <>
+    <div className="workspace-context">
+      <p><strong>{setup.venue.name}</strong> <span className="text-ink-muted">· {setup.brand.name} · {staff(setup.isOwner ? "owner" : "manager")}</span></p>
+      {multipleVenues && <Link href={`/manage/operations?venue=${venueId}`} className="workspace-link">{t("switchVenue")}</Link>}
+    </div>
+    <VenueNavigation venueId={venueId} name={setup.venue.name} />
+    {children}
+  </>;
 }
