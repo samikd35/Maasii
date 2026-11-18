@@ -2,9 +2,17 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { lockWaiter, setWaiterPushSubscription, unlockWaiter } from "@/core";
+import { lockWaiter, setWaiterPushSubscription, signInWaiter, unlockWaiter } from "@/core";
 import { orderPushConfig } from "@/lib/order-push-config";
-import { forForm, getSessionActor, setWaiterUnlockToken, waiterUnlockToken, type FormState } from "@/lib/session";
+import { forForm, getSessionActor, openWaiterWorkspace, setWaiterUnlockToken, waiterUnlockToken, type FormState } from "@/lib/session";
+
+export async function signIn(_state: FormState, formData: FormData): Promise<FormState> {
+  const table = z.uuid().safeParse(formData.get("tableId"));
+  return forForm(async () => openWaiterWorkspace(await signInWaiter({
+    phone: String(formData.get("phone") ?? ""),
+    pin: String(formData.get("pin") ?? ""),
+  }), table.success ? `/staff/tables/${table.data}` : "/staff"));
+}
 
 export async function unlock(_state: FormState, formData: FormData): Promise<FormState> {
   const actor = await getSessionActor();

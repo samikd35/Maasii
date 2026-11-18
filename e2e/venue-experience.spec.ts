@@ -1,3 +1,4 @@
+import { uniquePhone } from "../tests/support/users";
 import { publishDraft } from "./support/menu-editor";
 import { expect, test } from "@playwright/test";
 import {
@@ -54,7 +55,8 @@ test("a local Venue Menu flows through the homepage, Guest and Waiter Orders, pa
       await waiter.goto(url);
       await waiter.getByRole("button", { name: "EN", exact: true }).click();
       await waiter.getByLabel("Name").fill("Sam");
-      await waiter.getByLabel("Choose a 4-digit PIN").fill("0427");
+      await waiter.getByLabel("Phone number").fill(uniquePhone());
+      await waiter.getByLabel("Choose a 6-digit PIN").fill("042731");
       await waiter.getByRole("button", { name: "Join venue" }).click();
       await expect(waiter.getByRole("heading", { name: "Order queue" })).toBeVisible();
       const { waiters } = await getShiftSetup(s.owner.actor, { venueId });

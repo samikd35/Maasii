@@ -17,7 +17,7 @@ import {
   type Table,
   type Venue,
 } from "@/core";
-import { createStaffUser, TEST_PASSWORD, uniqueEmail, type TestUser } from "./users";
+import { uniquePhone, createStaffUser, TEST_PASSWORD, uniqueEmail, type TestUser } from "./users";
 
 /**
  * Builds a fresh, isolated tenant through the Maasii core: a Brand with its Owner, Venues with
@@ -143,7 +143,7 @@ class ScenarioBuilder {
       const venue = venues[plan.venue ?? plans[0].name];
       if (!venue) throw new Error(`No venue called "${plan.venue}" in this scenario.`);
       const { token } = await createWaiterJoinCode(owner.actor, { venueId: venue.id, siteUrl: "https://maasii.test" });
-      waiters[plan.name] = await joinWaiter(publicActor, { token, name: plan.name, pin: "0427" });
+      waiters[plan.name] = await joinWaiter(publicActor, { token, name: plan.name, phone: uniquePhone(), pin: "042731" });
     }
 
     const menu = this.menuToPublish

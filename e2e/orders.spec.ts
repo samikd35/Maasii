@@ -1,3 +1,4 @@
+import { uniquePhone } from "../tests/support/users";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import QRCode from "qrcode";
 import { addPaymentOption, createWaiterJoinCode, endShift, getShiftSetup, startShift, type MenuInput } from "@/core";
@@ -11,7 +12,8 @@ async function service(browser: Browser, baseURL: string, use: object, menu?: Me
   await waiter.goto(url);
   await waiter.getByRole("button", { name: "EN", exact: true }).click();
   await waiter.getByLabel("Name").fill("Sam");
-  await waiter.getByLabel("Choose a 4-digit PIN").fill("0427");
+  await waiter.getByLabel("Phone number").fill(uniquePhone());
+  await waiter.getByLabel("Choose a 6-digit PIN").fill("042731");
   await waiter.getByRole("button", { name: "Join venue" }).click();
   await waiter.waitForURL("**/staff");
   await expect(waiter.getByRole("heading", { name: "Order queue", exact: true })).toBeVisible();

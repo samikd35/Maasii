@@ -1,3 +1,4 @@
+import { uniquePhone } from "../tests/support/users";
 import { createECDH, randomBytes, randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import { createWaiterJoinCode, getShiftSetup, guestActor, sendOrder, startShift } from "@/core";
@@ -46,7 +47,8 @@ test("staff installs a scoped worker, hears and sees an incoming Order, and open
     await waiter.goto(url);
     await waiter.getByRole("button", { name: "EN", exact: true }).click();
     await waiter.getByLabel("Name").fill("Sam");
-    await waiter.getByLabel("Choose a 4-digit PIN").fill("0427");
+    await waiter.getByLabel("Phone number").fill(uniquePhone());
+    await waiter.getByLabel("Choose a 6-digit PIN").fill("042731");
     await waiter.getByRole("button", { name: "Join venue" }).click();
     await waiter.waitForURL("**/staff");
     await expect(waiter.locator('link[rel="manifest"]')).toHaveAttribute("href", "/staff/manifest.webmanifest");
@@ -160,7 +162,7 @@ test("staff installs a scoped worker, hears and sees an incoming Order, and open
     await waiter.getByRole("button", { name: "Lock", exact: true }).click();
     await expect(waiter.getByLabel("PIN", { exact: true })).toBeVisible();
     await waiter.goto(path);
-    await waiter.getByLabel("PIN", { exact: true }).fill("0427");
+    await waiter.getByLabel("PIN", { exact: true }).fill("042731");
     await waiter.getByRole("button", { name: "Unlock", exact: true }).click();
     await expect(waiter).toHaveURL(path);
     await expect(waiter.getByRole("heading", { name: "Table 1" })).toBeVisible();
