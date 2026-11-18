@@ -275,7 +275,8 @@ test("a Manager enrolls a Waiter by QR and removes their access on two phones", 
   await expect(first.locator("html")).toHaveAttribute("lang", "am");
   await chooseEnglish(first);
   await first.getByLabel("Name").fill("Sam");
-  await first.getByLabel("Choose a 4-digit PIN").fill("0427");
+  await first.getByLabel("Phone number").fill(uniquePhone());
+  await first.getByLabel("Choose a 6-digit PIN").fill("042731");
   await first.getByRole("button", { name: "Join venue" }).click();
   await expect(first.getByRole("heading", { level: 1 })).toHaveText("Order queue");
   await first.getByRole("link", { name: "Menu", exact: true }).click();
@@ -295,10 +296,10 @@ test("a Manager enrolls a Waiter by QR and removes their access on two phones", 
   await reopened.goto(new URL("/staff", firstUrl).toString());
   await expect(reopened.getByRole("heading", { name: "Unlock Maasii" })).toBeVisible();
   await expect(reopened.getByText("Omelette", { exact: true })).toHaveCount(0);
-  await reopened.getByLabel("PIN", { exact: true }).fill("1111");
+  await reopened.getByLabel("PIN", { exact: true }).fill("111184");
   await reopened.getByRole("button", { name: "Unlock" }).click();
   await expect(reopened.getByRole("main").getByRole("alert")).toHaveText("That PIN is not right.");
-  await reopened.getByLabel("PIN", { exact: true }).fill("0427");
+  await reopened.getByLabel("PIN", { exact: true }).fill("042731");
   await reopened.getByRole("button", { name: "Unlock" }).click();
   await expect(reopened.getByRole("heading", { level: 1 })).toHaveText("Order queue");
 
@@ -316,7 +317,8 @@ test("a Manager enrolls a Waiter by QR and removes their access on two phones", 
   await expect(qr).toBeVisible();
   await second.goto(decodeJoinQr((await qr.getAttribute("src"))!));
   await expect(second.locator("html")).toHaveAttribute("lang", "am");
-  await second.getByLabel("ባለ 4 አሃዝ PIN ይምረጡ").fill("1111");
+  await second.getByLabel("ስልክ ቁጥር").fill(uniquePhone());
+  await second.getByLabel("ባለ 6 አሃዝ PIN ይምረጡ").fill("111184");
   await second.getByRole("button", { name: "ቦታውን ይቀላቀሉ" }).click();
   // Sam's English preference follows their account, even though this phone used Amharic.
   await expect(second.getByRole("heading", { level: 1 })).toHaveText("Order queue");
@@ -328,7 +330,7 @@ test("a Manager enrolls a Waiter by QR and removes their access on two phones", 
   await expect(waiters.getByRole("button", { name: "Remove Sam" })).toHaveCount(0);
   for (const phone of [reopened, second]) {
     await phone.reload();
-    await expect(phone.getByRole("main").getByRole("alert")).toContainText(/fresh join QR|አዲስ የመቀላቀያ QR/);
+    await expect(phone.getByRole("main").getByText(/fresh join QR|አዲስ የመቀላቀያ QR/)).toBeVisible();
     await expect(phone.getByText("Omelette", { exact: true })).toHaveCount(0);
   }
   await reopenedPhone.close();
@@ -342,7 +344,7 @@ test("an expired Waiter join QR tells the phone to ask the Manager for a new cod
   await page.goto(url);
   await chooseEnglish(page);
   await expect(page.getByRole("main").getByRole("alert")).toContainText("has expired");
-  await expect(page.getByLabel("Choose a 4-digit PIN")).toHaveCount(0);
+  await expect(page.getByLabel("Choose a 6-digit PIN")).toHaveCount(0);
 });
 
 function decodeJoinQr(src: string): string {

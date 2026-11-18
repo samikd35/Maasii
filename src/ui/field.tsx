@@ -13,6 +13,7 @@ export function Field({ label, className, ...input }: { label: string } & Compon
   );
 }
 
-export function PinField({ label }: { label: string }) {
-  return <Field label={label} name="pin" type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="off" required />;
+export function PinField({ label, setup = false, legacy = false }: { label: string; setup?: boolean; legacy?: boolean }) {
+  return <Field label={label} name="pin" type="password" inputMode="numeric" pattern={legacy ? "(?:[0-9]{4}|[0-9]{6})" : "[0-9]{6}"} maxLength={6}
+    autoComplete={setup ? "new-password" : "current-password"} required />;
 }

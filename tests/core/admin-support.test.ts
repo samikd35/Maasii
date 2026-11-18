@@ -1,3 +1,4 @@
+import { uniquePhone } from "../support/users";
 import { expect, test } from "vitest";
 import {
   acceptInvitation,
@@ -80,7 +81,7 @@ test("support access refuses Brand writes even for an admin who also owns the Br
   const join = await createWaiterJoinCode(owner.actor, { venueId: venue.id, siteUrl: "https://maasii.test" });
   await expect(acceptInvitation(support, { token: invite.token, password: "injera-and-tea" }))
     .rejects.toMatchObject({ code: "not_allowed" });
-  await expect(joinWaiter(support, { token: join.token, name: "Liya", pin: "0427" }))
+  await expect(joinWaiter(support, { phone: uniquePhone(), token: join.token, name: "Liya", pin: "042731" }))
     .rejects.toMatchObject({ code: "not_allowed" });
 });
 

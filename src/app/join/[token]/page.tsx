@@ -34,7 +34,8 @@ export default async function JoinWaiterPage({ params }: PageProps<"/join/[token
       {code.waiterName && <p className="mt-3">{t("joinAgain", { name: code.waiterName })}</p>}
       <ActionForm action={join.bind(null, token)} className="mt-6 space-y-4">
         {!code.waiterName && <Field name="name" label={staff("name")} autoComplete="name" maxLength={80} required />}
-        <PinField label={t("choosePin")} />
+        <Field label={t("phone")} name="phone" type="tel" autoComplete="username" maxLength={40} required />
+        <PinField label={t("choosePin")} setup />
         <SubmitButton>{t("join")}</SubmitButton>
       </ActionForm>
     </StaffEntry>

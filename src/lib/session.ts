@@ -69,6 +69,20 @@ export async function setWaiterUnlockToken(token: string) {
   });
 }
 
+export async function openWaiterWorkspace({ actor, session, unlockToken }: {
+  actor: StaffActor;
+  session: { access_token: string; refresh_token: string };
+  unlockToken: string;
+}, path = "/staff"): Promise<FormState> {
+  const supabase = await createSessionClient();
+  const { error } = await supabase.auth.setSession(session);
+  if (error?.code === "session_not_found") return { error: "waiterRejoin" };
+  if (error) throw error;
+  await rememberStaffLanguage(actor);
+  await setWaiterUnlockToken(unlockToken);
+  redirect(path);
+}
+
 export type FormState = {
   error?: keyof Messages["StaffErrors"];
   done?: { key: keyof Messages["StaffForms"]; values?: Record<string, string | number> };

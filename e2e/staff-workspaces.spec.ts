@@ -1,3 +1,4 @@
+import { uniquePhone } from "../tests/support/users";
 import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 import { createWaiterJoinCode, guestActor, sendOrder, startShift, updateVenueService } from "@/core";
@@ -27,6 +28,39 @@ async function sendAt(s: Scenario, number: number, dishes = [{ name: "Omelette",
   });
 }
 
+test("a Waiter signs in with phone and PIN from a fresh browser", async ({ page, browser, baseURL }, info) => {
+  const s = await scenario().venue("Lancha").build();
+  const { url } = await createWaiterJoinCode(s.owner.actor, { venueId: s.venue.id, siteUrl: baseURL! });
+  const phone = uniquePhone();
+  await page.goto(url);
+  await page.getByRole("button", { name: "EN", exact: true }).click();
+  await page.getByLabel("Name", { exact: true }).fill("Mekdes");
+  await page.getByLabel("Phone number").fill(phone);
+  await page.getByLabel("Choose a 6-digit PIN").fill("042731");
+  await page.getByRole("button", { name: "Join venue" }).click();
+  await expect(page.getByRole("heading", { name: "Order queue" })).toBeVisible();
+
+  const other = await browser.newContext({ ...info.project.use });
+  try {
+    const returning = await other.newPage();
+    await returning.goto(new URL("/staff", baseURL).toString());
+    await returning.getByRole("button", { name: "EN", exact: true }).click();
+    await expect(returning.getByRole("heading", { name: "Waiter sign-in" })).toBeVisible();
+    await returning.getByLabel("Phone number").fill(`0${phone.slice(4)}`);
+    await returning.getByLabel("PIN", { exact: true }).fill("042731");
+    await returning.getByRole("button", { name: "Sign in", exact: true }).click();
+    await expect(returning.getByRole("heading", { name: "Order queue" })).toBeVisible();
+    await expect(returning.getByText("Lancha · Mekdes", { exact: true })).toBeVisible();
+    await returning.getByRole("button", { name: "Lock", exact: true }).click();
+    await expect(returning.getByRole("heading", { name: "Unlock Maasii" })).toBeVisible();
+    await returning.getByLabel("PIN", { exact: true }).fill("042731");
+    await returning.getByRole("button", { name: "Unlock", exact: true }).click();
+    await expect(returning.getByRole("heading", { name: "Order queue" })).toBeVisible();
+  } finally {
+    await other.close();
+  }
+});
+
 test("Staff keeps Order decisions, retries and receipt entry next to the affected work", async ({ page, baseURL }, info) => {
   const s = await scenario().venue("Lancha", { tables: 16 }).waiter("Mekdes").publishedMenu().build();
   const waiter = s.waiters.Mekdes;
@@ -36,7 +70,8 @@ test("Staff keeps Order decisions, retries and receipt entry next to the affecte
   const { url } = await createWaiterJoinCode(s.owner.actor, { venueId: s.venue.id, waiterId: waiter.waiterId, siteUrl: baseURL! });
   await page.goto(url);
   await page.getByRole("button", { name: "EN", exact: true }).click();
-  await page.getByLabel("Choose a 4-digit PIN").fill("0427");
+  await page.getByLabel("Phone number").fill(uniquePhone());
+  await page.getByLabel("Choose a 6-digit PIN").fill("042731");
   await page.getByRole("button", { name: "Join venue" }).click();
 
   const queue = page.getByRole("region", { name: "Order queue" });

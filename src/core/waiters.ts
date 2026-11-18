@@ -6,6 +6,7 @@ import { createPublicAuthClient } from "@/lib/supabase/public";
 import { requireOutsideBrandSupport, requireVenueManager } from "./access";
 import { staffActor, systemActor, type Actor } from "./actor";
 import { findVenue } from "./brands";
+import { parseStaffContact } from "./contact";
 import { inTransaction, type Tx } from "./db";
 import type { Bilingual } from "./language";
 import { MaasiiError } from "./errors";
@@ -17,7 +18,9 @@ import { parseInput } from "./validation";
 export const WAITER_JOIN_MINUTES = 5;
 const MAX_PIN_FAILURES = 5;
 const UNLOCK_MS = 8 * 60 * 60 * 1000;
-const pinInput = z.string().regex(/^[0-9]{4}$/, "Enter a 4-digit PIN.");
+const pinInput = z.string().regex(/^[0-9]{6}$/, "Enter a 6-digit PIN.");
+const unlockPinInput = z.string().regex(/^(?:[0-9]{4}|[0-9]{6})$/, "Enter your PIN.");
+const SIGN_IN_COOLDOWN_MS = 30 * 60 * 1000;
 const nameInput = z.string().trim().min(1, "Enter your name.").max(80, "Use at most 80 characters.");
 const derivePin = promisify(scrypt);
 
@@ -27,6 +30,53 @@ function newToken(): string {
 
 export function tokenHash(token: string): string {
   return createHash("sha256").update(token).digest("hex");
+}
+
+function waiterPhone(value: string) {
+  try {
+    const contact = parseStaffContact(value);
+    if ("phone" in contact) return contact.phone;
+  } catch (error) {
+    if (!(error instanceof MaasiiError)) throw error;
+  }
+  throw new MaasiiError("invalid_input", "Enter a phone number.", "invalidWaiterPhone");
+}
+
+async function verifyPin(pin: string, encoded: string) {
+  const [salt, verifier] = encoded.split(":");
+  return timingSafeEqual(await derivePin(pin, salt, 32) as Buffer, Buffer.from(verifier, "hex"));
+}
+
+async function createWaiterSession(email: string, expectedUserId?: string) {
+  const { data: link, error: linkError } = await createAdminClient().auth.admin.generateLink({ type: "magiclink", email });
+  if (linkError) throw linkError;
+  const auth = createPublicAuthClient().auth;
+  // Verify the generated credential on the server to establish the enrolled browser's session.
+  const { data, error } = await auth.verifyOtp({ type: "email", token_hash: link.properties.hashed_token });
+  if (error) throw error;
+  if (!data.session || !data.user || data.user.id !== (expectedUserId ?? link.user.id)) {
+    throw new Error("Waiter Auth session was not issued for the expected person.");
+  }
+  const { data: jwt, error: jwtError } = await auth.getClaims(data.session.access_token);
+  if (jwtError) throw jwtError;
+  const sessionId = z.uuid().parse(jwt?.claims.session_id);
+  return {
+    sessionId,
+    actor: staffActor(data.user.id, sessionId),
+    session: { access_token: data.session.access_token, refresh_token: data.session.refresh_token },
+  };
+}
+
+async function enrollWaiterDevice(
+  tx: Tx, sessionId: string, waiterId: string, verifier: string, now: Date,
+) {
+  const unlockToken = newToken();
+  await tx.query(
+    `insert into app.waiter_devices (session_id, waiter_id, pin_verifier, unlock_hash, unlocked_until)
+     values ($1, $2, $3, $4, $5)`,
+    [sessionId, waiterId, verifier, tokenHash(unlockToken), new Date(now.getTime() + UNLOCK_MS)],
+  );
+  return unlockToken;
 }
 
 export async function createWaiterJoinCode(
@@ -103,11 +153,12 @@ export async function getWaiterJoinCode(
 
 export async function joinWaiter(
   actor: Actor,
-  input: { token: string; name: string; pin: string },
+  input: { token: string; name: string; phone: string; pin: string },
   { now }: { now?: Date } = {},
 ) {
   requireOutsideBrandSupport(actor);
   const pin = parseInput(pinInput, input.pin, "invalidPin");
+  const phone = waiterPhone(input.phone);
   return inTransaction(systemActor, async (tx) => {
     const code = await findJoinCode(tx, input.token, true);
     if (!code) throw new MaasiiError("not_found", "This join QR is not valid. Ask your manager for a new one.", "waiterJoinInvalid");
@@ -134,44 +185,76 @@ export async function joinWaiter(
       ({ email, userId: existingUserId } = rows[0]);
     }
     const name = code.waiterName ?? parseInput(nameInput, input.name, "waiterNameRequired");
-    const { data: link, error: linkError } = await createAdminClient().auth.admin.generateLink({ type: "magiclink", email });
-    if (linkError) throw linkError;
-    const auth = createPublicAuthClient().auth;
-    // The generated link is verified on the server. No email, OTP or password goes to the phone.
-    const { data, error } = await auth.verifyOtp({ type: "email", token_hash: link.properties.hashed_token });
-    if (error) throw error;
-    if (!data.session || !data.user || data.user.id !== (existingUserId ?? link.user.id)) {
-      throw new Error("Waiter Auth session was not issued for the expected person.");
-    }
-    const { data: jwt, error: jwtError } = await auth.getClaims(data.session.access_token);
-    if (jwtError) throw jwtError;
-    const sessionId = z.uuid().parse(jwt?.claims.session_id);
-    const userId = data.user.id;
+    const identity = await createWaiterSession(email, existingUserId);
 
     let waiterId = code.waiterId;
     if (!waiterId) {
       const { rows } = await tx.query<{ id: string }>(
         `insert into app.memberships (user_id, role, venue_id, name) values ($1, 'waiter', $2, $3) returning id`,
-        [userId, code.venueId, name],
+        [identity.actor.userId, code.venueId, name],
       );
       waiterId = rows[0].id;
     }
     const salt = randomBytes(16).toString("hex");
     const pinHash = (await derivePin(pin, salt, 32) as Buffer).toString("hex");
-    const unlockToken = newToken();
+    const verifier = `${salt}:${pinHash}`;
     await tx.query(
-      `insert into app.waiter_devices (session_id, waiter_id, pin_verifier, unlock_hash, unlocked_until)
-       values ($1, $2, $3, $4, $5)`,
-      [sessionId, waiterId, `${salt}:${pinHash}`, tokenHash(unlockToken), new Date(at.getTime() + UNLOCK_MS)],
+      `insert into app.waiter_sign_ins (waiter_id, phone, pin_verifier) values ($1, $2, $3)
+       on conflict (waiter_id) do update set phone = excluded.phone, pin_verifier = excluded.pin_verifier,
+         failed_attempts = 0, blocked_until = null`,
+      [waiterId, phone, verifier],
     );
+    if (code.waiterId) {
+      await tx.query(
+        `update app.waiter_devices set pin_verifier = $2, failed_attempts = 0, unlock_hash = null, unlocked_until = null
+         where waiter_id = $1`, [waiterId, verifier],
+      );
+    }
+    const unlockToken = await enrollWaiterDevice(tx, identity.sessionId, waiterId, verifier, at);
     await tx.query("update app.waiter_join_codes set used_at = $2 where id = $1", [code.id, at]);
-    return {
-      actor: staffActor(userId, sessionId),
-      waiterId,
-      session: { access_token: data.session.access_token, refresh_token: data.session.refresh_token },
-      unlockToken,
-    };
+    return { ...identity, waiterId, unlockToken };
+  }).catch((error) => {
+    if (error?.constraint === "waiter_sign_ins_phone_key") {
+      throw new MaasiiError("invalid_input", "That phone number is already linked to a Waiter.", "waiterPhoneTaken");
+    }
+    throw error;
   });
+}
+
+export async function signInWaiter(input: { phone: string; pin: string }, { now }: { now?: Date } = {}) {
+  const phone = waiterPhone(input.phone);
+  const pin = parseInput(pinInput, input.pin, "invalidPin");
+  const result = await inTransaction(systemActor, async (tx) => {
+    const { rows: [account] } = await tx.query<{
+      waiterId: string; userId: string; email: string; verifier: string; attempts: number; blockedUntil: Date | null;
+    }>(
+      `select m.id as "waiterId", m.user_id as "userId", u.email, c.pin_verifier as verifier,
+              c.failed_attempts as attempts, c.blocked_until as "blockedUntil"
+       from app.waiter_sign_ins c join app.memberships m on m.id = c.waiter_id
+       join auth.users u on u.id = m.user_id
+       where c.phone = $1 and m.active and m.role = 'waiter'
+         and not exists (select 1 from app.memberships other where other.user_id = m.user_id and other.active and other.id <> m.id)
+         and not exists (select 1 from app.platform_admins admin where admin.user_id = m.user_id)
+       for update of m, c`, [phone],
+    );
+    const at = now ?? new Date();
+    if (!account || (account.blockedUntil && account.blockedUntil > at)) return null;
+    if (!await verifyPin(pin, account.verifier)) {
+      const attempts = account.blockedUntil ? 1 : account.attempts + 1;
+      const blockedUntil = attempts === MAX_PIN_FAILURES ? new Date(at.getTime() + SIGN_IN_COOLDOWN_MS) : null;
+      await tx.query(
+        "update app.waiter_sign_ins set failed_attempts = $2, blocked_until = $3 where waiter_id = $1",
+        [account.waiterId, attempts, blockedUntil],
+      );
+      return null;
+    }
+    const identity = await createWaiterSession(account.email, account.userId);
+    const unlockToken = await enrollWaiterDevice(tx, identity.sessionId, account.waiterId, account.verifier, at);
+    await tx.query("update app.waiter_sign_ins set failed_attempts = 0, blocked_until = null where waiter_id = $1", [account.waiterId]);
+    return { ...identity, unlockToken };
+  });
+  if (result) return result;
+  throw new MaasiiError("not_allowed", "Check your phone number and PIN, or try again later.", "waiterSignInFailed");
 }
 
 type WaiterDevice = {
@@ -235,7 +318,7 @@ export async function unlockWaiter(
   { now = new Date() }: { now?: Date } = {},
 ): Promise<{ unlockToken: string }> {
   if (actor.kind !== "staff" || !actor.sessionId) throw rejoinRequired();
-  const pin = parseInput(pinInput, input.pin, "invalidPin");
+  const pin = parseInput(unlockPinInput, input.pin, "invalidPin");
 
   const result = await inTransaction(systemActor, async (tx) => {
     const { rows } = await tx.query<{ verifier: string; attempts: number }>(
@@ -247,8 +330,7 @@ export async function unlockWaiter(
     const device = rows[0];
     if (!device || device.attempts >= MAX_PIN_FAILURES) return { status: "rejoin" } as const;
 
-    const [salt, verifier] = device.verifier.split(":");
-    const correct = timingSafeEqual(await derivePin(pin, salt, 32) as Buffer, Buffer.from(verifier, "hex"));
+    const correct = await verifyPin(pin, device.verifier);
     if (!correct) {
       const attempts = device.attempts + 1;
       await tx.query(

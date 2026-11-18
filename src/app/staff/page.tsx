@@ -6,10 +6,10 @@ import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { getWaiterSession } from "@/core";
 import { orderPushConfig } from "@/lib/order-push-config";
 import { getSessionActor, waiterUnlockToken } from "@/lib/session";
-import { PinField } from "@/ui/field";
+import { Field, PinField } from "@/ui/field";
 import { ActionForm, SubmitButton } from "@/ui/staff-forms";
 import { StaffEntry } from "@/ui/staff-header";
-import { unlock } from "./actions";
+import { signIn, unlock } from "./actions";
 import { MyTables } from "./my-tables";
 import { MenuReference } from "./menu-reference";
 import Link from "next/link";
@@ -37,7 +37,7 @@ export default async function WaiterPage({ searchParams }: PageProps<"/staff">) 
         <h1 className="font-sans text-3xl">{t("unlockHeading")}</h1>
         <ActionForm action={unlock} className="mt-6 space-y-4">
           {table.success && <input name="tableId" type="hidden" value={table.data} />}
-          <PinField label={t("pin")} />
+          <PinField label={t("pin")} legacy />
           <SubmitButton>{t("unlock")}</SubmitButton>
         </ActionForm>
       </StaffEntry>
@@ -49,7 +49,14 @@ export default async function WaiterPage({ searchParams }: PageProps<"/staff">) 
     return (
       <StaffEntry>
         <h1 className="font-sans text-3xl">{t("rejoinHeading")}</h1>
-        <p className="mt-3" role="alert">{errors("waiterRejoin")}</p>
+        <ActionForm action={signIn} className="mt-6 space-y-4">
+          {table.success && <input name="tableId" type="hidden" value={table.data} />}
+          <Field label={t("phone")} name="phone" type="tel" autoComplete="username" maxLength={40} required />
+          <PinField label={t("pin")} />
+          <SubmitButton>{t("signIn")}</SubmitButton>
+        </ActionForm>
+        <p className="mt-5 text-sm">{t("signInHelp")}</p>
+        <p className="mt-1 text-sm" role={device?.status === "rejoin" ? "alert" : undefined}>{errors("waiterRejoin")}</p>
       </StaffEntry>
     );
   }

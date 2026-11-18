@@ -60,6 +60,7 @@ export {
   joinWaiter,
   lockWaiter,
   removeWaiter,
+  signInWaiter,
   unlockWaiter,
   WAITER_JOIN_MINUTES,
   type WaiterSession,

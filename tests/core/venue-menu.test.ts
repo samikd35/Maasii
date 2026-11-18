@@ -1,3 +1,4 @@
+import { uniquePhone } from "../support/users";
 import { expect, test } from "vitest";
 import {
   createWaiterJoinCode,
@@ -79,7 +80,7 @@ test("only the Brand's Owner can set or clear a Venue price, with the changes at
   await expect(setVenueDishSoldOut(manager.actor, { ...target, dishId: anotherBrand.dishId("Omelette"), soldOut: true }))
     .rejects.toMatchObject({ code: "not_found" });
   const qr = await createWaiterJoinCode(manager.actor, { venueId: target.venueId, siteUrl: "https://maasii.test" });
-  const waiter = await joinWaiter(publicActor, { token: qr.token, name: "Sam", pin: "0427" });
+  const waiter = await joinWaiter(publicActor, { phone: uniquePhone(), token: qr.token, name: "Sam", pin: "042731" });
   await expect(setVenueDishSoldOut(waiter.actor, { ...target, soldOut: true }))
     .rejects.toMatchObject({ code: "not_allowed" });
   await expect(getVenueMenuSettings(publicActor, { venueId: target.venueId }))
