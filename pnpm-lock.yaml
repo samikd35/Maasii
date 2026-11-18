@@ -14,6 +14,9 @@ importers:
       '@supabase/supabase-js':
         specifier: ^2.119.0
         version: 2.119.0
+      mp4box:
+        specifier: 2.5.0
+        version: 2.5.0
       next:
         specifier: 16.4.6
         version: 16.4.6(@babel/core@7.29.13)(@playwright/test@1.65.0)(@types/node@22.20.5)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -2413,6 +2416,10 @@ packages:
 
   minimist@1.2.8:
     resolution: {integrity: sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA==}
+
+  mp4box@2.5.0:
+    resolution: {integrity: sha512-AK5FQsN5aD2m91HuCGPlRDomDhGxK0o4F8ZVyAbAfcMWBW2QlhZvE0S7v9lBq0Ib4eONq7mT1SBVdrnnIrn4pw==}
+    engines: {node: '>=20.8.1'}
 
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
@@ -5306,6 +5313,8 @@ snapshots:
       brace-expansion: 1.1.21
 
   minimist@1.2.8: {}
+
+  mp4box@2.5.0: {}
 
   ms@2.1.3: {}
 

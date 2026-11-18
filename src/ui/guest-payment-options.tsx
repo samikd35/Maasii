@@ -10,11 +10,11 @@ export function GuestPaymentOptions({ options }: { options: GuestPaymentOption[]
   const t = createTranslator({ locale, messages: locale === "am" ? am : en });
   const copyLabels = { copyCode: t("copyCode"), copied: t("copied"), copyFailed: t("copyFailed") };
   return (
-    <ul role="list" className="divide-y divide-rule">
+    <ul role="list" className="mt-3 space-y-3">
       {options.map((option, index) => (
-        <li key={index} className="space-y-1 py-3 text-sm">
+        <li key={index} className="space-y-2 rounded-xl border border-rule bg-white p-4 text-sm">
           <p className="font-semibold">{option.provider ?? t(option.kind)}</p>
-          {option.recipientName && <p>{option.recipientName}</p>}
+          {option.recipientName && <p className="text-ink-muted">{option.recipientName}</p>}
           {option.accountOrMerchantCode && (
             <GuestCopyPaymentCode key={option.accountOrMerchantCode} code={option.accountOrMerchantCode} labels={copyLabels} />
           )}

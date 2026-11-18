@@ -6,7 +6,7 @@ import { requireStaff } from "@/lib/session";
 import { ActionForm, SubmitButton } from "@/ui/staff-forms";
 import { saveServiceSettings } from "./actions";
 
-const field = "mt-1 block min-h-11 w-full rounded-md border border-ink/30 bg-white px-3 text-base";
+const field = "mt-1 block min-h-11 w-full rounded-xl border border-ink/30 bg-white px-3 text-base";
 const experience = ["great", "okay", "needs_work"] as const;
 const dishChoices = ["yes", "maybe", "no"] as const;
 
@@ -26,7 +26,7 @@ export default async function InsightsPage({ params, searchParams }: PageProps<"
   return (
     <>
       <Link href={`/manage/venues/${venueId}`} className="inline-flex min-h-11 items-center text-sm font-medium underline">{report.venueName}</Link>
-      <h1 className="font-display text-3xl">{t("title")}</h1>
+      <h1 className="font-sans text-3xl">{t("title")}</h1>
       <details className="mt-4">
         <summary className="min-h-11 cursor-pointer py-3 font-semibold">{t("settings")}</summary>
         <ActionForm action={saveServiceSettings.bind(null, venueId)} className="space-y-3">
@@ -68,7 +68,7 @@ export default async function InsightsPage({ params, searchParams }: PageProps<"
             {experience.map((rating) => <option key={rating} value={rating}>{t(rating)}</option>)}
           </select>
         </label>
-        <button className="min-h-11 rounded-md border border-rule px-3 text-sm font-semibold">{t("show")}</button>
+        <button className="min-h-11 rounded-xl border border-rule px-3 text-sm font-semibold">{t("show")}</button>
       </form>
       <p className="text-sm">{t("dates", { week: report.week, previous: report.previousWeek })}</p>
 
@@ -80,7 +80,7 @@ export default async function InsightsPage({ params, searchParams }: PageProps<"
         <ul className="divide-y divide-rule">
           {report.dishes.map((dish) => (
             <li key={dish.id} id={`dish-${dish.id}`} className="space-y-2 py-4">
-              <h3 className="font-display text-xl">{dish.name[locale] || dish.name[other]}</h3>
+              <h3 className="font-sans text-xl">{dish.name[locale] || dish.name[other]}</h3>
               <table className="w-full text-sm">
                 <thead><tr className="text-start"><th scope="col" className="text-start">{t("period")}</th><th scope="col">{t("current")}</th><th scope="col">{t("previous")}</th></tr></thead>
                 <tbody>
@@ -155,7 +155,7 @@ async function FindingEvidence({ report, query }: {
     ? report.dishReviewEvidence.filter((review) => review.dishId === dish.id && review.current) : [];
   const dateTime = (date: Date) => format.dateTime(date, { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Addis_Ababa" });
   return (
-    <section id="finding-evidence" aria-labelledby="evidence-title" className="mt-6 rounded-md border border-rule px-4 py-3">
+    <section id="finding-evidence" aria-labelledby="evidence-title" className="mt-6 rounded-xl border border-rule px-4 py-3">
       <h2 id="evidence-title" className="text-xl font-semibold">{t("evidence")}</h2>
       {title && <p className="font-semibold">{title}{kind === "orders" && dish?.periods[period] ? ` · ${dish.periods[period].name}` : ""}</p>}
       {orders.length + reviews.length === 0 && <p className="py-3 text-ink-muted">{t("evidenceEmpty")}</p>}

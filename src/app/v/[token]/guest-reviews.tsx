@@ -13,7 +13,6 @@ const parts = {
   dish: { ratings: ["yes", "maybe", "no"], topics: ["taste", "portion", "temperature", "value"] },
   waiter: { ratings: experience, topics: ["service", "wait_time"] },
 } as const;
-const button = "min-h-11 rounded-lg border border-rule px-4 text-sm font-semibold disabled:opacity-50";
 
 export function GuestReviews({ form, url, titleId, feedbackHref }: {
   form: GuestReviewForm;
@@ -33,11 +32,14 @@ export function GuestReviews({ form, url, titleId, feedbackHref }: {
         </GuestLink>
       )}
       <ReviewPart form={form} url={url} kind="visit" prompt={t("visit")} />
-      {form.dishes.map(({ id, name }) => (
-        <ReviewPart key={id} form={form} url={url} kind="dish" dishId={id}
-          prompt={t("dish", { name: name[locale] || name[locale === "am" ? "en" : "am"] })} />
-      ))}
-      {form.waiterName && <ReviewPart form={form} url={url} kind="waiter" prompt={t("waiter", { name: form.waiterName })} />}
+      {form.dishes.length > 0 && <details className="maasii-card mt-4"><summary className="min-h-11 font-semibold">{t("dishOptional")}</summary>
+        <p className="my-2 text-sm text-ink-muted">{t("triedPrompt")}</p>
+        {form.dishes.map(({ id, name }) => <TriedDish key={id} form={form} url={url} id={id} name={name[locale] || name[locale === "am" ? "en" : "am"]} />)}
+      </details>}
+      {form.waiterName && <details className="maasii-card mt-4"><summary className="min-h-11 font-semibold">{t("waiterOptional")}</summary>
+        <ReviewPart form={form} url={url} kind="waiter" prompt={t("waiter", { name: form.waiterName })} />
+      </details>}
+
     </section>
   );
 }
@@ -80,10 +82,10 @@ function ReviewPart({ form, url, kind, prompt, dishId }: {
       }
     }}>
       <fieldset disabled={working}>
-        <legend className="text-sm font-semibold">{prompt}</legend>
+        <legend className="mb-2 text-lg font-semibold">{prompt}</legend>
         <div className="flex flex-wrap gap-2">
           {parts[kind].ratings.map((rating) => (
-            <label key={rating} className="flex min-h-11 items-center gap-2 text-sm">
+            <label key={rating} className="flex min-h-11 flex-1 cursor-pointer items-center gap-2 rounded-xl border border-control-border bg-white px-3 text-sm has-[:checked]:border-brand-readable">
               <input type="radio" name="rating" value={rating} required /> {t(rating)}
             </label>
           ))}
@@ -102,14 +104,23 @@ function ReviewPart({ form, url, kind, prompt, dishId }: {
       <label className="block text-sm">
         {t("comment")}
         <textarea name="comment" rows={2} maxLength={500} disabled={working}
-          className="mt-1 block w-full rounded-lg border border-rule px-3 py-2" />
+          className="mt-1 block w-full rounded-lg border border-control-border bg-white px-3 py-2" />
       </label>
       <p className="text-sm text-ink-muted">{t("private", { brand: form.brandName })}</p>
       <div className="flex gap-2">
-        <button className={button} disabled={working}>{t("submit")}</button>
-        <button type="button" className={button} disabled={working} onClick={() => setSkipped(true)}>{t("skip")}</button>
+        <button className="maasii-button disabled:opacity-50" disabled={working}>{t("submit")}</button>
+        <button type="button" className="min-h-11 px-4 text-sm underline" disabled={working} onClick={() => setSkipped(true)}>{t("skip")}</button>
       </div>
       {failed && <p role="alert" className="text-sm">{t("error")}</p>}
     </form>
   );
+}
+
+function TriedDish({ form, url, id, name }: { form: GuestReviewForm; url: string; id: string; name: string }) {
+  const locale = useLocale();
+  const t = createTranslator({ locale, messages: locale === "am" ? am : en });
+  const [tried, setTried] = useState(form.submitted.includes(`dish:${id}`));
+  return <div><label className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={tried} onChange={e => setTried(e.target.checked)} />{name}</label>
+    {tried && <ReviewPart form={form} url={url} kind="dish" dishId={id} prompt={t("dish", { name })} />}
+  </div>;
 }

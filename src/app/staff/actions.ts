@@ -28,9 +28,10 @@ export async function lock() {
 
 export async function allowNotifications(subscription: unknown): Promise<boolean> {
   const actor = await getSessionActor();
-  if (!actor || !orderPushConfig()) return false;
+  const push = orderPushConfig();
+  if (!actor || !push) return false;
   const result = await forForm(async () => {
-    await setWaiterPushSubscription(actor, { subscription, unlockToken: await waiterUnlockToken() });
+    await setWaiterPushSubscription(actor, { subscription, unlockToken: await waiterUnlockToken() }, { waiterIds: push.waiterIds });
   });
   return !result?.error;
 }

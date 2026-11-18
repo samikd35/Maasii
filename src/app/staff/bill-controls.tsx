@@ -12,7 +12,7 @@ type Action = { action: "prepare" | "reopen" }
 
 const primary = "min-h-11 rounded-lg bg-ink px-4 text-sm font-semibold text-paper disabled:opacity-50";
 const secondary = "min-h-11 rounded-lg border border-ink/30 px-4 text-sm font-semibold disabled:opacity-50";
-const field = "mt-1 block min-h-11 w-full rounded-md border border-ink/30 bg-white px-3 text-base";
+const field = "mt-1 block min-h-11 w-full rounded-xl border border-ink/30 bg-white px-3 text-base";
 
 
 export function BillControls({

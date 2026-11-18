@@ -121,6 +121,10 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
   }
 
   const visibleOrders = tableId ? orders.filter((order) => order.tableId === tableId) : orders;
+  const tableGroups = [...Map.groupBy(visibleOrders, order => order.tableId)].sort((a, b) => {
+    const oldest = (items: LiveOrder[]) => Math.min(...items.filter(order => order.state === "sent").map(order => Date.parse(order.sentAt)));
+    return oldest(a[1]) - oldest(b[1]) || a[1][0].tableNumber - b[1][0].tableNumber;
+  });
   const activeVisit = feed?.tableBills.find((visit) => visit.tableId === tableId);
   const showQuickAdd = tableId && feed?.assignedTables.some((table) => table.id === tableId)
     && !feed.bills.some((bill) => bill.tableId === tableId);
@@ -138,15 +142,15 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
   }
 
   return (
-    <section className="mt-8" aria-labelledby={heading}>
+    <section className="waiter-queue mt-8" aria-labelledby={heading}>
       {tableId
-        ? <h1 id={heading} className="font-display text-3xl">{t("table", { number: tableNumber })}</h1>
+        ? <h1 id={heading} className="font-sans text-3xl">{t("table", { number: tableNumber })}</h1>
         : <h2 id={heading} className="border-b border-ink/70 pb-1.5 text-sm font-semibold uppercase">{t("heading")}</h2>}
       {tableId && feed && (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3">
           <p className="font-semibold">{billing("total", { amount: formatBirr(activeVisit?.totalSantim ?? 0) })}</p>
           {showQuickAdd && (
-            <Link href={`/staff/tables/${tableId}/quick-add`} className="inline-flex min-h-11 items-center rounded-md bg-ink px-4 text-sm font-semibold text-paper">
+            <Link href={`/staff/tables/${tableId}/quick-add`} className="inline-flex min-h-11 items-center rounded-xl bg-ink px-4 text-sm font-semibold text-paper">
               {t("quickAdd")}
             </Link>
           )}
@@ -171,25 +175,19 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
           </button>
         </div>
       ))}
-      {visibleOrders.length === 0 && <p className="mt-3 text-sm text-ink-muted">{t("empty")}</p>}
-      <ul className="divide-y divide-rule">
-        {visibleOrders.map((order) => {
+      {feed && visibleOrders.length === 0 && <p className="maasii-card mt-3 text-sm text-ink-muted">{t(!feed.runningShift ? "noShift" : !feed.assignedTables.length ? "noAssignments" : "empty")}</p>}
+      <ul className="mt-4 space-y-4">
+        {tableGroups.map(([groupId, tableOrders]) => <li key={groupId} className="table-queue-group">
+          {!tableId && <h3 className="text-xl font-semibold"><Link className="inline-flex min-h-11 items-center" href={`/staff/tables/${groupId}`}>{t("table", { number: tableOrders[0].tableNumber })}</Link></h3>}
+          <ul className="divide-y divide-rule">{tableOrders.map((order) => {
           const bill = bills.get(order.visitId);
           const destinations = feed?.moveTables.filter(({ id }) => id !== order.tableId) ?? [];
           const drops = soldOut[order.id] ?? [];
           const seconds = Math.max(0, Math.floor((now - Date.parse(order.sentAt)) / 1000));
           const waiting = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
           return (
-            <li key={order.id} className="space-y-2 py-4"
-              style={order.state === "sent" ? { background: "var(--color-paper-deep)", borderInlineStart: "3px solid var(--color-ink)", paddingInline: "1rem" } : undefined}>
+            <li key={order.id} className="space-y-2 py-4">
               <div className="flex items-center justify-between gap-3">
-                {!tableId && (
-                  <h3 className="font-display text-2xl">
-                    <Link className="inline-flex min-h-11 items-center underline" href={`/staff/tables/${order.tableId}`}>
-                      {t("table", { number: order.tableNumber })}
-                    </Link>
-                  </h3>
-                )}
                 {order.state === "sent" && (
                   <p role="timer" className="text-sm tabular-nums text-ink-muted">{t("waiting", { time: waiting })}</p>
                 )}
@@ -198,18 +196,22 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
               {order.carriedOver && <p className="text-sm font-semibold">
                 {order.carriedFrom ? t("carriedFrom", { name: order.carriedFrom }) : t("carriedOver")}
               </p>}
-              {order.state === "sent" && (
+              {order.state === "sent" && (order.partyPending || order.escalatedAt) && (
                 <p role="status" className="text-sm font-semibold">
                   {order.partyPending ? t("newParty", { number: order.tableNumber }) : t(order.escalatedAt ? "escalatedOrder" : "newOrder")}
                 </p>
               )}
+              <details open={order.state === "sent" || !!tableId}>
+              <summary className="min-h-11 py-2 text-sm font-semibold">{t(order.state === "sent" ? "newOrder" : "acceptedOrder")} · {order.lines.length}</summary>
               <ul className="space-y-2">
                 {order.lines.map((line, index) => (
                   <li key={index} className="flex gap-2">
                     <span className="tabular-nums">{line.quantity} ×</span>
                     <div>
                       {line.name[locale] && <p lang={locale} className="font-semibold">{line.name[locale]}</p>}
-                      {line.name[other] && <p lang={other} className={line.name[locale] ? "text-sm text-ink-muted" : "font-semibold"}>{line.name[other]}</p>}
+                      {(!line.name[locale] || tableId || order.state === "sent") && line.name[other] && line.name[other] !== line.name[locale] && (
+                        <p lang={other} className={line.name[locale] ? "text-sm text-ink-muted" : "font-semibold"}>{line.name[other]}</p>
+                      )}
                       {line.choices.map((choice) => (
                         <p key={choice.id} className="text-sm text-ink-muted">
                           {([locale, other] as const).map((lang) => choice.name[lang] && <span key={lang} lang={lang} className="me-2">{choice.name[lang]}</span>)}
@@ -232,7 +234,7 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
                   <>
                     <button type="button" disabled={!!working || !!bill || drops.length === order.lines.length}
                       onClick={() => void decide(order.id, { action: "accept", soldOutLineIndices: drops })}
-                      className="min-h-11 rounded-lg bg-ink px-5 text-sm font-semibold text-paper disabled:opacity-50">
+                      className="mt-3 min-h-11 w-full rounded-lg bg-ink px-5 text-sm font-semibold text-paper disabled:opacity-50">
                       {t(working?.orderId === order.id && working.action === "accept" ? "accepting" : "accept")}
                     </button>
                     <details>
@@ -263,12 +265,6 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
                         className="min-h-11 rounded-lg border border-ink/30 px-4 text-sm font-semibold disabled:opacity-50">
                         {t("decline")}
                       </button>
-                    </details>
-                  </>
-                )
-              ) : (
-                <p role="status" className="text-sm font-semibold">{t("accepted", { name: order.acceptedByName ?? "" })}</p>
-              )}
               {destinations.length > 0 && !bill && !order.partyPending && (
                 <MoveControl label={t("moveOrder")} tables={destinations} disabled={!!working}
                   submit={(tableId) => void decide(order.id, { action: "moveOrder", tableId })} />
@@ -277,6 +273,27 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
                 <MoveControl label={t("moveVisit")} tables={destinations} disabled={!!working}
                   submit={(tableId) => void decide(order.id, { action: "moveVisit", visitId: order.visitId, tableId })} />
               )}
+                    </details>
+                  </>
+                )
+              ) : (
+                <p role="status" className="text-sm font-semibold">{t("accepted", { name: order.acceptedByName ?? "" })}</p>
+              )}
+              {order.partyPending && destinations.length > 0 && billVisitIds.has(order.visitId) && firstOrder.get(order.visitId) === order.id && (
+                <MoveControl label={t("moveVisit")} tables={destinations} disabled={!!working}
+                  submit={(tableId) => void decide(order.id, { action: "moveVisit", visitId: order.visitId, tableId })} />
+              )}
+              {order.state !== "sent" && <>
+              {destinations.length > 0 && !bill && !order.partyPending && (
+                <MoveControl label={t("moveOrder")} tables={destinations} disabled={!!working}
+                  submit={(tableId) => void decide(order.id, { action: "moveOrder", tableId })} />
+              )}
+              {destinations.length > 0 && billVisitIds.has(order.visitId) && firstOrder.get(order.visitId) === order.id && (
+                <MoveControl label={t("moveVisit")} tables={destinations} disabled={!!working}
+                  submit={(tableId) => void decide(order.id, { action: "moveVisit", visitId: order.visitId, tableId })} />
+              )}
+              </>}
+              </details>
               {feed && billRows.get(order.visitId) === order.id && (
                 <BillControls
                   key={bill?.preparedAt ?? order.visitId}
@@ -289,18 +306,18 @@ export function MyTables({ tableId, tableNumber }: { tableId: string; tableNumbe
               )}
             </li>
           );
-        })}
+        })}</ul></li>)}
       </ul>
       {emptyAssigned.length > 0 && (
-        <ul className="divide-y divide-rule border-t border-rule">
+        <section className="mt-6"><h3 className="mb-3 text-sm font-semibold">{t("quietTables")}</h3><ul className="quiet-tables">
           {emptyAssigned.map((table) => (
             <li key={table.id}>
-              <Link href={`/staff/tables/${table.id}`} className="inline-flex min-h-11 items-center font-semibold underline">
+              <Link href={`/staff/tables/${table.id}`} className="flex min-h-12 items-center justify-center rounded-xl border border-rule bg-white px-3 font-semibold">
                 {t("table", { number: table.number })}
               </Link>
             </li>
           ))}
-        </ul>
+        </ul></section>
       )}
     </section>
   );
@@ -312,7 +329,7 @@ function CorrectionForm({ quantity, disabled, submit }: {
   submit: (quantity: number | null, reason: string) => void;
 }) {
   const t = useTranslations("StaffOrders");
-  const field = "mt-1 block min-h-11 w-full rounded-md border border-rule bg-white px-3 text-base";
+  const field = "mt-1 block min-h-11 w-full rounded-xl border border-rule bg-white px-3 text-base";
   return (
     <details>
       <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold">{t("correctLine")}</summary>
@@ -328,8 +345,8 @@ function CorrectionForm({ quantity, disabled, submit }: {
           <input className={field} name="reason" maxLength={300} required />
         </label>
         <div className="flex flex-wrap gap-2">
-          <button name="correction" value="save" disabled={disabled} className="min-h-11 rounded-md border border-rule px-3 text-sm font-semibold disabled:opacity-50">{t("saveQuantity")}</button>
-          <button name="correction" value="remove" disabled={disabled} className="min-h-11 rounded-md border border-rule px-3 text-sm font-semibold disabled:opacity-50">{t("removeLine")}</button>
+          <button name="correction" value="save" disabled={disabled} className="min-h-11 rounded-xl border border-rule px-3 text-sm font-semibold disabled:opacity-50">{t("saveQuantity")}</button>
+          <button name="correction" value="remove" disabled={disabled} className="min-h-11 rounded-xl border border-rule px-3 text-sm font-semibold disabled:opacity-50">{t("removeLine")}</button>
         </div>
       </form>
     </details>
@@ -351,11 +368,11 @@ function MoveControl({ label, tables, disabled, submit }: {
         submit(String(new FormData(event.currentTarget).get("tableId")));
       }}>
         <select name="tableId" aria-label={label} defaultValue="" required disabled={disabled}
-          className="min-h-11 rounded-md border border-rule bg-white px-3 text-base">
+          className="min-h-11 rounded-xl border border-rule bg-white px-3 text-base">
           <option value="" disabled>{t("chooseTable")}</option>
           {tables.map(({ id, number }) => <option key={id} value={id}>{t("table", { number })}</option>)}
         </select>
-        <button type="submit" disabled={disabled} className="min-h-11 rounded-md border border-rule px-3 text-sm font-semibold disabled:opacity-50">
+        <button type="submit" disabled={disabled} className="min-h-11 rounded-xl border border-rule px-3 text-sm font-semibold disabled:opacity-50">
           {t("move")}
         </button>
       </form>

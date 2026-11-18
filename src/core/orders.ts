@@ -311,7 +311,8 @@ export async function getMyTableOrders(
       ? (await readVenuePaymentOptions(tx, waiter.venueId, { activeOnly: true }))
         .map(({ id, kind, provider, accountOrMerchantCode }) => ({ id, kind, provider, accountOrMerchantCode }))
       : [];
-    return { orders, moveTables, assignedTables, tableBills, correctableOrderIds, topic: waiter.topic, venueId: waiter.venueId, tableNumber, billVisitIds: [...billVisitIds], bills, paymentOptions };
+    const runningShift = !!await findRunningShift(tx, waiter.venueId, now);
+    return { runningShift, orders, moveTables, assignedTables, tableBills, correctableOrderIds, topic: waiter.topic, venueId: waiter.venueId, tableNumber, billVisitIds: [...billVisitIds], bills, paymentOptions };
   });
 }
 

@@ -37,7 +37,7 @@ export default async function BrandSupportPage({ params }: PageProps<"/admin/bra
         {t("allBrands")}
       </Link>
       <p className="mt-2 text-sm text-ink-muted">{t("supportHeading")}</p>
-      <h1 className="font-display text-3xl break-words">{brand.name}</h1>
+      <h1 className="font-sans text-3xl break-words">{brand.name}</h1>
 
       <section aria-labelledby="support-menu" className="mt-6">
         <h2 id="support-menu" className="font-semibold">{t("publishedMenu")}</h2>
@@ -60,9 +60,9 @@ export default async function BrandSupportPage({ params }: PageProps<"/admin/bra
 
       {venues.length === 0 && <p className="mt-6 text-sm text-ink-muted">{manage("noVenues")}</p>}
       {venues.map((venue) => (
-        <section key={venue.id} aria-labelledby={`venue-${venue.id}`} className="mt-6 space-y-4 rounded-md border border-rule p-4">
+        <section key={venue.id} aria-labelledby={`venue-${venue.id}`} className="mt-6 space-y-4 rounded-xl border border-rule p-4">
           <div>
-            <h2 id={`venue-${venue.id}`} className="font-display text-xl break-words">{venue.name}</h2>
+            <h2 id={`venue-${venue.id}`} className="font-sans text-xl break-words">{venue.name}</h2>
             <Link href={`/v/${venue.linkToken}`} className="inline-flex min-h-11 items-center text-sm font-medium underline">
               {manage("venueLink")}
             </Link>
@@ -72,7 +72,7 @@ export default async function BrandSupportPage({ params }: PageProps<"/admin/bra
             {venue.tables.length === 0 ? <p className="text-sm text-ink-muted">{t("noSupportTables")}</p> : (
               <ul className="mt-1 flex flex-wrap gap-2 text-sm">
                 {venue.tables.map((table) => (
-                  <li key={table.id} className="rounded-md border border-rule px-2 py-1">
+                  <li key={table.id} className="rounded-xl border border-rule px-2 py-1">
                     {manage("table", { number: table.number })}
                     {!table.active && <span className="text-ink-muted"> · {manage("notInUse")}</span>}
                   </li>
@@ -97,7 +97,7 @@ export default async function BrandSupportPage({ params }: PageProps<"/admin/bra
             <h3 className="font-semibold">{payment("title")}</h3>
             {venue.paymentOptions.length === 0 && <p className="text-sm text-ink-muted">{payment("empty")}</p>}
             {venue.paymentOptions.map((option) => (
-              <article key={option.id} className="mt-2 rounded-md border border-rule p-3">
+              <article key={option.id} className="mt-2 rounded-xl border border-rule p-3">
                 <h4 className="font-medium break-words">{option.provider ?? payment(option.kind)}</h4>
                 <PaymentOptionValues option={option} />
               </article>

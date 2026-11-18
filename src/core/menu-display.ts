@@ -16,6 +16,8 @@ export function localizeMenuSections(
       priceSantim: dish.priceSantim,
       fasting: dish.fasting,
       photoUrl: dish.photoUrl ?? null,
+      thumbnailUrl: dish.photoUrl?.endsWith("-detail.webp") ? dish.photoUrl.replace(/-detail\.webp$/, "-thumb.webp") : dish.photoUrl ?? null,
+      videoUrl: dish.videoAssetId ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/dish-videos/${dish.videoAssetId}.mp4` : null,
       optionGroups: dish.optionGroups.map((group) => ({
         id: group.optionGroupId,
         name: text(group.name),

@@ -12,7 +12,7 @@ You need Node 22.12 or later, pnpm 10 and Docker (running).
 pnpm install
 pnpm exec playwright install chromium   # once per machine, for the browser tests
 pnpm db:start                           # start this checkout's Supabase stack and write .env.local
-pnpm db:reset                           # apply migrations and seed the guest menus
+pnpm db:reset                           # apply migrations and seed Bilo's Menu
 pnpm dev                                # then open http://localhost:3000/v/bilos-lancha
 ```
 
@@ -28,7 +28,7 @@ pnpm dev                                # then open http://localhost:3000/v/bilo
 | `pnpm db:start` / `pnpm db:stop` | Start or stop this checkout's Supabase stack. `db:start` also runs `db:env`. |
 | `pnpm db:env` | Rewrite `.env.local` from the running stack (ports and keys). |
 | `pnpm db:reset` | Recreate the database from `supabase/migrations`, then run `db:seed`. |
-| `pnpm db:seed` | Seed Bilo's Pastry and Saba House through the Maasii core. Skips each Brand if already seeded. |
+| `pnpm db:seed` | Seed Bilo's Pastry through the Maasii core. Skips Bilo's if already seeded. |
 | `pnpm supabase <args>` | The pinned Supabase CLI (3.1.0). Never use a global `supabase` binary. |
 
 ## One local Supabase stack per worktree
@@ -103,7 +103,9 @@ Interface messages live in `messages/en.json` and `messages/am.json`. The next-i
 
 `pnpm db:seed` creates Bilo's Pastry with its Lancha venue (tables 1-16) and an Owner (`owner@bilos.test`, no password yet), and publishes Bilo's Menu as that Owner through the core. English dish names and descriptions come from bilospastry.com. The Amharic Menu and interface text are drafts for a fluent speaker and Bilo's to review before the pilot. **All prices are placeholders** until Bilo's provides real ones (see `scripts/seed/bilos.ts`). Bilo's must confirm in writing that we may use its name, logo, photos and Menu.
 
-The seed also creates a fictional Saba House at `/v/saba-bole` with a green accent and Noto Serif Ethiopic. Open it alongside `/v/bilos-lancha` to compare the two Brand themes. Choose Menu on either homepage or append `/menu` for a direct link.
+Open Maasii at `/`. The only seeded guest demo is Bilo's at `/v/bilos-lancha`. Choose **Menu** there or open `/v/bilos-lancha/menu` directly. For `/staff` and `/manage`, follow the staff setup below.
+
+If your local stack still has the old Saba House demo, `pnpm db:reset` clears the local database and reseeds Bilo's only.
 
 ## Staff setup
 
@@ -116,6 +118,8 @@ In a Venue's **Waiters** section, show a QR for a new Waiter or select an existi
 Staff language choices follow their account between phones. Amharic is the default.
 
 Set `MAASII_SITE_URL` on the server to the public origin when deploying so the Venue Links, QR images and invitation links use the same address.
+
+For hosted Supabase, use the transaction pooler URL in `DATABASE_URL` and set `SUPABASE_DB_CA` to the PEM certificate from Supabase Database Settings. Leave SSL query parameters off that URL so the PostgreSQL driver uses the supplied CA and verifies the hostname.
 
 Use an HTTPS `MAASII_SITE_URL` in deployments. Auth and Waiter unlock cookies share a Secure policy;
 HTTP cookies are permitted for local development. The proxy supplies a fresh nonce for Next.js scripts,
@@ -158,3 +162,21 @@ The deployed staff origin must use HTTPS. Local browser tests use a fixture at t
 Set `OPENAI_API_KEY` and `MAASII_MENU_AI_MODEL` on the server to enable Menu photo import and translation suggestions. Choose a model that supports image input and Structured Outputs in the [Responses API](https://developers.openai.com/api/docs/guides/structured-outputs). Never use a `NEXT_PUBLIC_` prefix for these values.
 
 Owners can import one or two JPEG, PNG or WebP photos at a time, up to 4 MB each. Crop to the paper Menu and remove any personal information before upload. Maasii removes image metadata before sending the photos and sends only the source Menu fields and language codes for translations. The model call runs outside the database transaction. Maasii checks the draft revision again before saving a result. Keep or discard imported entries, and edit or accept suggested translations, before publishing the Menu manually. Core tests use a fake model.
+
+## Production redesign and serving media
+
+The production UI uses shared warm surfaces, sans-serif operational text, four guest destinations, and explicit Table confirmation. Menu changes still require **Save draft**, then **Publish**. Editor recovery stays in the current tab, keyed by actor and Brand/Venue; restoring an older revision never overwrites a newer server draft silently.
+
+Serving photos accept JPEG, PNG or WebP up to 4 MiB. New uploads strip metadata and produce a 960px detail image and 320px thumbnail; existing photo URLs continue to work. Videos are externally prepared MP4/H.264 clips: 2–5 seconds, at most 1 MiB and 720px on the long edge, one video track and no audio. The server inspects the MP4; a serving photo is required before publication. Uploading either medium only changes the editing draft.
+
+Apply `20261117093036_dish_serving_media.sql` before deploying the UI. It adds immutable video metadata, a nullable published-dish reference and the public `dish-videos` bucket. Uploads remain server-mediated and actor-authorized. No existing Menu needs backfilling or republishing. The MP4 parser stays outside browser bundles.
+
+Unreferenced serving uploads can be inspected with:
+
+```sh
+node scripts/cleanup-serving-media.mjs
+```
+
+The default is a dry run. `--delete` removes only unreferenced serving objects older than seven days; it locks Menu reference tables during the check and retains references in saved drafts, archives and every published version. It never removes media on ordinary replace/remove actions. Unsaved browser drafts are not durable references: save work before long-term storage maintenance. Run this maintenance command against the intended environment, with its database and server Storage credentials.
+
+The release register is [production redesign coverage](.scratch/maasii-production-redesign/coverage.md). Real-phone notification delivery, fluent Amharic review, first-time user observation and final manual accessibility/visual review remain required before production release. Keep the additive migration during an application rollback; never reset production data. Pause Menu authoring during rollback to an older application version so its older draft schema cannot discard newly added video references.

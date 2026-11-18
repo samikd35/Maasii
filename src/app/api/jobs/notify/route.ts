@@ -9,10 +9,11 @@ export async function POST(request: Request) {
   if (!authorization?.startsWith("Bearer ") || !await consumeOrderNotificationWake(systemActor, authorization.slice(7))) {
     return new Response(null, { status: 401 });
   }
-  const vapidDetails = orderPushConfig();
-  if (!vapidDetails) {
+  const config = orderPushConfig();
+  if (!config) {
     return new Response(null, { status: 503 });
   }
+  const { waiterIds, ...vapidDetails } = config;
 
   await sendOrderNotifications(systemActor, async (notice) => {
     const t = await getTranslations({ locale: notice.language, namespace: "StaffOrders" });
@@ -38,6 +39,6 @@ export async function POST(request: Request) {
     await response.body?.cancel();
     if (response.status === 404 || response.status === 410) return "expired";
     return response.ok ? "sent" : "retry";
-  });
+  }, { waiterIds });
   return new Response(null, { status: 204 });
 }

@@ -13,18 +13,20 @@ export function ActionForm({
   action,
   children,
   className,
+  confirmMessage,
   "aria-labelledby": labelledBy,
 }: {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
   children: ReactNode;
   className?: string;
+  confirmMessage?: string;
   "aria-labelledby"?: string;
 }) {
   const t = useTranslations("StaffForms");
   const errors = useTranslations("StaffErrors");
   const [state, formAction] = useActionState(action, undefined);
   return (
-    <form action={formAction} className={className} aria-labelledby={labelledBy}>
+    <form action={formAction} className={className} aria-labelledby={labelledBy} onSubmit={event => { if (confirmMessage && !window.confirm(confirmMessage)) event.preventDefault(); }}>
       {children}
       {state?.error && (
         <p role="alert" className="mt-2 basis-full text-sm font-medium text-red-800">
@@ -46,16 +48,20 @@ export function ActionForm({
   );
 }
 
-export function SubmitButton({ children, variant = "primary" }: { children: ReactNode; variant?: "primary" | "quiet" }) {
+export function SubmitButton({ children, variant = "primary" }: { children: ReactNode; variant?: "primary" | "secondary" | "quiet" | "destructive" }) {
   const { pending } = useFormStatus();
   return (
     <button
       type="submit"
       disabled={pending}
+      aria-busy={pending}
       className={
-        variant === "primary"
-          ? "min-h-11 min-w-11 rounded-md bg-ink px-4 font-semibold text-paper disabled:opacity-60"
-          : "min-h-11 min-w-11 rounded-md border border-ink/30 px-4 font-medium disabled:opacity-60"
+        variant === "destructive"
+          ? "min-h-11 min-w-11 rounded-xl border border-red-800 px-4 font-medium text-red-800 disabled:opacity-60"
+          : variant === "primary"
+          ? "min-h-11 min-w-11 rounded-xl bg-ink px-4 font-semibold text-paper disabled:opacity-60"
+          : variant === "quiet" ? "min-h-11 min-w-11 rounded-xl px-4 font-medium underline underline-offset-4 disabled:opacity-60"
+          : "min-h-11 min-w-11 rounded-xl border border-ink/30 px-4 font-medium disabled:opacity-60"
       }
     >
       {children}
@@ -75,7 +81,7 @@ export function CopyField({ label, value }: { label: string; value: string }) {
           readOnly
           value={value}
           onFocus={(event) => event.currentTarget.select()}
-          className="mt-1 min-h-11 w-full rounded-md border border-ink/30 bg-paper-deep px-3 text-sm"
+          className="mt-1 min-h-11 w-full rounded-xl border border-ink/30 bg-paper-deep px-3 text-sm"
         />
       </label>
       <button
@@ -90,7 +96,7 @@ export function CopyField({ label, value }: { label: string; value: string }) {
           }
           setCopyStatus((previous) => previous === message ? `${message}\u00a0` : message);
         }}
-        className="mt-2 min-h-11 min-w-11 rounded-md border border-ink/30 px-4 font-medium"
+        className="mt-2 min-h-11 min-w-11 rounded-xl border border-ink/30 px-4 font-medium"
       >
         {t("copyLink")}
       </button>

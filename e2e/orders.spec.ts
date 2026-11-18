@@ -25,18 +25,18 @@ async function service(browser: Browser, baseURL: string, use: object, menu?: Me
 
 async function openDraft(page: Page, url: string, dish = "Omelette") {
   await page.goto(url);
-  await page.getByRole("button", { name: dish, exact: true }).click();
+  await page.getByRole("button", { name: `Choose ${dish}`, exact: true }).click();
   await page.getByRole("button", { name: "Add to order" }).click();
   await page.getByRole("button", { name: /Your Draft/ }).click();
 }
 
 async function pickDishAndSend(page: Page, url: string) {
   await openDraft(page, url);
-  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await page.getByRole("button", { name: "Choose your table", exact: true }).click();
   await expect(page.getByRole("button", { name: "Table 1", exact: true })).toBeVisible();
 }
 
-test("a guest chooses a Table, the assigned Waiter sees the Order live and the guest sees Accept, the Bill and its payment confirmation", async ({ page, browser, baseURL }) => {
+test("a guest chooses a Table, the assigned Waiter sees the Order live and the guest sees Accept, the Bill and its payment confirmation", async ({ page, browser, baseURL, browserName }) => {
   const { waiter, context, url, s } = await service(browser, baseURL!, test.info().project.use);
   try {
     await addPaymentOption(s.owner.actor, {
@@ -45,9 +45,12 @@ test("a guest chooses a Table, the assigned Waiter sees the Order live and the g
     });
     await pickDishAndSend(page, url);
     await page.getByRole("button", { name: "Table 1", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Table 1", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("button", { name: "Send to Table 1", exact: true }).click();
     await expect(page.getByRole("dialog").getByText("Sent", { exact: true })).toBeVisible();
     const queue = waiter.getByRole("region", { name: "My tables" });
     await expect(queue.getByRole("button", { name: "Accept" })).toBeVisible({ timeout: 6000 });
+    await expect(queue.getByText("Omelette", { exact: true })).toBeVisible();
     await expect(queue.getByText("ኦምሌት", { exact: true })).toBeVisible();
     await queue.getByRole("button", { name: "Accept" }).click();
     await expect(page.getByRole("dialog").getByText("Accepted by Sam", { exact: true })).toBeVisible({ timeout: 6000 });
@@ -61,6 +64,7 @@ test("a guest chooses a Table, the assigned Waiter sees the Order live and the g
     await prepare.click();
     const bill = sheet.getByRole("region", { name: "Bill", exact: true });
     await expect(bill.getByText("Not a tax receipt")).toBeVisible({ timeout: 6000 });
+    await expect(bill.getByText("Waiting for your Waiter to confirm payment")).toBeVisible();
     await expect(bill.getByText("1 × Omelette")).toBeVisible();
     await expect(bill.getByRole("region", { name: "Bill total" }).getByTestId("price")).toHaveText("220 ETB");
     const paymentOptions = sheet.getByRole("region", { name: "Payment Options" });
@@ -68,18 +72,25 @@ test("a guest chooses a Table, the assigned Waiter sees the Order live and the g
     await expect(paymentOptions.getByText("Lancha Café")).toBeVisible();
     await expect(paymentOptions.getByText("001234")).toBeVisible();
     await expect(paymentOptions.getByRole("img", { name: "Payment QR image" })).toBeVisible();
+    if (browserName === "chromium") {
     await page.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin: baseURL });
     await page.bringToFront();
     await paymentOptions.getByRole("button", { name: "Copy account number or merchant code" }).click();
     await expect(paymentOptions.getByRole("status").filter({ hasText: "Copied" })).toBeVisible();
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("001234");
+    } else {
+      // WebKit has no Playwright clipboard permission API. Exercise the manual-copy fallback.
+      await page.evaluate(() => Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async () => { throw new DOMException("Denied", "NotAllowedError"); } } }));
+      await paymentOptions.getByRole("button", { name: "Copy account number or merchant code" }).click();
+      await expect(paymentOptions.getByRole("status").filter({ hasText: "Could not copy" })).toBeVisible();
+    }
 
     await sheet.getByRole("button", { name: "Close", exact: true }).click();
-    await page.getByRole("button", { name: "Macchiato", exact: true }).click();
+    await page.getByRole("button", { name: "Choose Macchiato", exact: true }).click();
     await page.getByRole("button", { name: "Add to order" }).click();
     await page.getByRole("button", { name: /Your Draft/ }).click();
     await expect(sheet.getByText("Ask your waiter to reopen the Bill to add an Order.")).toBeVisible();
-    await expect(sheet.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
+    await expect(sheet.getByRole("button", { name: "Choose your table", exact: true })).toBeDisabled();
     await sheet.getByRole("button", { name: "Close", exact: true }).click();
     await page.getByRole("link", { name: "Home", exact: true }).click();
     await expect(page.getByRole("link", { name: "Continue your order", exact: true })).toBeVisible();
@@ -116,9 +127,12 @@ test("a guest chooses a Table, the assigned Waiter sees the Order live and the g
     await visitReview.getByLabel("Comment (optional)").fill("Great breakfast.");
     await visitReview.getByRole("button", { name: "Submit review" }).click();
     await expect(reviews.getByText("Review sent. How was your visit?")).toBeVisible();
+    await reviews.getByText("Tell us about a dish · optional", { exact: true }).click();
+    await reviews.getByRole("checkbox", { name: "Omelette", exact: true }).check();
     const dishReview = reviews.locator("form").filter({ has: page.getByRole("group", { name: "Would you order Omelette again?" }) });
     await dishReview.getByRole("button", { name: "Skip" }).click();
     await expect(dishReview).toHaveCount(0);
+    await reviews.getByText("Tell us about the service · optional", { exact: true }).click();
     await expect(reviews.getByRole("group", { name: "How was the service from Sam?" })).toBeVisible();
 
   } finally {
@@ -135,25 +149,29 @@ test("two guest phones share live Orders and the Bill while each Draft stays on 
     await openDraft(other, staff.url, "Chechebsa");
     await pickDishAndSend(page, staff.url);
     await page.getByRole("button", { name: "Table 1", exact: true }).click();
+    await page.getByRole("button", { name: "Send to Table 1", exact: true }).click();
 
     const first = page.getByRole("dialog");
     const second = other.getByRole("dialog");
-    const bill = (sheet: typeof first) => sheet.getByRole("region", { name: "Bill total" }).getByTestId("price");
+    const bill = (sheet: typeof first) => sheet.getByRole("region", { name: /^(Bill total|Accepted running total)$/ }).getByTestId("price");
     await expect(first.getByText("1 × Omelette", { exact: true })).toBeVisible();
     await expect(first.getByText("Chechebsa", { exact: false })).toHaveCount(0);
     await expect(second.getByText("Omelette", { exact: false })).toHaveCount(0);
-    await expect(bill(first)).toHaveText("0 ETB");
+    await expect(bill(first)).toHaveCount(0);
+    await expect(first.getByRole("region", { name: "Submitted amount" }).getByTestId("price")).toHaveText("220 ETB");
 
-    await second.getByRole("button", { name: "Send", exact: true }).click();
+    await second.getByRole("button", { name: "Choose your table", exact: true }).click();
     await second.getByRole("button", { name: "Table 1", exact: true }).click();
+    await second.getByRole("button", { name: "Send to Table 1", exact: true }).click();
     await expect(first.getByText("1 × Chechebsa", { exact: true })).toBeVisible({ timeout: 6000 });
     await expect(second.getByText("1 × Omelette", { exact: true })).toBeVisible();
     await expect(first.getByText("Sent", { exact: true })).toHaveCount(2);
     await expect(second.getByText("Sent", { exact: true })).toHaveCount(2);
-    await expect(bill(second)).toHaveText("0 ETB");
+    await expect(bill(second)).toHaveCount(0);
+    await expect(second.getByRole("region", { name: "Submitted amount" }).getByTestId("price")).toHaveText("410 ETB");
 
     await first.getByRole("button", { name: "Close", exact: true }).click();
-    await page.getByRole("button", { name: "Macchiato", exact: true }).click();
+    await page.getByRole("button", { name: "Choose Macchiato", exact: true }).click();
     await page.getByRole("button", { name: "Add to order" }).click();
     await page.getByRole("button", { name: /Your Draft/ }).click();
     await expect(first.getByRole("heading", { name: "Draft · not sent yet" })).toBeVisible();
@@ -194,13 +212,14 @@ test("a waiter can drop a Sold Out Dish and undo a whole Decline while the guest
   try {
     await page.goto(url);
     for (const dish of ["Omelette", "Chechebsa"]) {
-      await page.getByRole("button", { name: dish, exact: true }).click();
+      await page.getByRole("button", { name: `Choose ${dish}`, exact: true }).click();
       await page.getByRole("button", { name: "Add to order" }).click();
     }
     await page.getByRole("button", { name: /Your Draft/ }).click();
     const sheet = page.getByRole("dialog");
-    await sheet.getByRole("button", { name: "Send", exact: true }).click();
+    await sheet.getByRole("button", { name: "Choose your table", exact: true }).click();
     await sheet.getByRole("button", { name: "Table 1", exact: true }).click();
+    await sheet.getByRole("button", { name: "Send to Table 1", exact: true }).click();
 
     const queue = waiter.getByRole("region", { name: "My tables" });
     await queue.getByText("Order decisions", { exact: true }).click({ timeout: 6000 });
@@ -215,11 +234,11 @@ test("a waiter can drop a Sold Out Dish and undo a whole Decline while the guest
     await expect(sheet.getByText("Accepted by Sam", { exact: true })).toBeVisible({ timeout: 6000 });
     const dropped = sheet.getByRole("listitem").filter({ hasText: "1 × Omelette" }).last();
     await expect(dropped.getByText("Sold out", { exact: true })).toBeVisible();
-    await expect(sheet.getByRole("region", { name: "Bill total" }).getByTestId("price")).toHaveText("190 ETB");
+    await expect(sheet.getByRole("region", { name: "Accepted running total" }).getByTestId("price")).toHaveText("190 ETB");
     await expect(queue.getByRole("button", { name: "Undo", exact: true })).toBeVisible();
     await expect(queue.getByRole("button", { name: "Undo", exact: true })).toHaveCount(0, { timeout: 6000 });
     await page.reload();
-    await expect(page.getByRole("button", { name: "Omelette", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Choose Omelette", exact: true })).toHaveCount(0);
   } finally {
     await context.close();
   }
@@ -231,7 +250,8 @@ test("offline Send keeps the Draft and a lost acknowledgement can be retried wit
     await pickDishAndSend(page, staff.url);
     await context.setOffline(true);
     await page.getByRole("button", { name: "Table 1", exact: true }).click();
-    const retry = page.getByRole("button", { name: "Not sent - tap to retry" });
+    await page.getByRole("button", { name: "Send to Table 1", exact: true }).click();
+    const retry = page.getByRole("button", { name: "Check Order again" });
     await expect(retry).toBeVisible();
     await expect(page.getByRole("dialog").getByText("Omelette", { exact: true })).toBeVisible();
     await context.setOffline(false);
@@ -262,14 +282,15 @@ test("a guest can browse while service is off and still sees Accept when Realtim
     await endShift(s.owner.actor, { venueId: s.venue.id, shiftId: shift.id });
     await page.routeWebSocket("**/realtime/v1/websocket*", (socket) => socket.close());
     await openDraft(page, staff.url);
-    const send = page.getByRole("button", { name: "Send", exact: true });
+    const send = page.getByRole("button", { name: "Choose your table", exact: true });
     await expect(send).toBeDisabled();
-    await expect(page.getByText("Ordering is unavailable until a Shift starts.")).toBeVisible();
+    await expect(page.getByText("Online ordering is unavailable right now. Please order with your Waiter.")).toBeVisible();
 
     await startShift(s.owner.actor, { venueId: s.venue.id, assignments: [assignment] });
     await expect(send).toBeEnabled({ timeout: 15_000 });
     await send.click();
     await page.getByRole("button", { name: "Table 1", exact: true }).click();
+    await page.getByRole("button", { name: "Send to Table 1", exact: true }).click();
     await expect(page.getByRole("dialog").getByText("Sent", { exact: true })).toBeVisible();
     await staff.waiter.getByRole("button", { name: "Accept" }).click();
     await expect(page.getByRole("dialog").getByText("Accepted by Sam", { exact: true })).toBeVisible({ timeout: 15_000 });
@@ -285,6 +306,7 @@ test("a new phone can Send at a prepared Table while the Waiter confirms the pre
     const queue = waiter.getByRole("region", { name: "My tables" });
     await pickDishAndSend(page, url);
     await page.getByRole("button", { name: "Table 1", exact: true }).click();
+    await page.getByRole("button", { name: "Send to Table 1", exact: true }).click();
     await queue.getByRole("button", { name: "Accept", exact: true }).click();
     await queue.getByRole("button", { name: "Prepare bill" }).click();
     const original = page.getByRole("dialog");
@@ -293,6 +315,7 @@ test("a new phone can Send at a prepared Table while the Waiter confirms the pre
     const next = await nextContext.newPage();
     await pickDishAndSend(next, url);
     await next.getByRole("button", { name: "Table 1", exact: true }).click();
+    await next.getByRole("button", { name: "Send to Table 1", exact: true }).click();
     const nextSheet = next.getByRole("dialog");
     await expect(nextSheet.getByText("Order sent. Your waiter will check the Table.")).toBeVisible();
     await expect(nextSheet.getByText("Not a tax receipt")).toHaveCount(0);
@@ -317,6 +340,7 @@ test("an Owner adjusts a live Bill and reconciles the typed receipt at closing",
   try {
     await pickDishAndSend(page, url);
     await page.getByRole("button", { name: "Table 1", exact: true }).click();
+    await page.getByRole("button", { name: "Send to Table 1", exact: true }).click();
     await waiter.getByRole("button", { name: "Accept", exact: true }).click();
     const sheet = page.getByRole("dialog");
     await expect(sheet.getByText("Accepted by Sam", { exact: true })).toBeVisible();
@@ -336,7 +360,7 @@ test("an Owner adjusts a live Bill and reconciles the typed receipt at closing",
     await discount.getByLabel("Discount amount (ETB)").fill("20");
     await discount.getByLabel("Reason").fill("Service recovery");
     await discount.getByRole("button", { name: "Save discount" }).click();
-    await expect(sheet.getByRole("region", { name: "Bill total" }).getByTestId("price")).toHaveText("200 ETB");
+    await expect(sheet.getByRole("region", { name: "Accepted running total" }).getByTestId("price")).toHaveText("200 ETB");
     await expect(visits.getByText("Discount: 20 ETB · Service recovery")).toBeVisible();
 
     await visits.getByRole("button", { name: "Prepare bill" }).click();
@@ -400,15 +424,18 @@ test("a Waiter can move a Sent Order, and its guest can change Table before Acce
   try {
     await pickDishAndSend(page, url);
     await page.getByRole("button", { name: "Table 1", exact: true }).click();
+    await page.getByRole("button", { name: "Send to Table 1", exact: true }).click();
     const slip = page.getByRole("dialog");
     await expect(slip.getByRole("button", { name: "Change Table" })).toBeVisible();
     const queue = waiter.getByRole("region", { name: "My tables" });
+    await queue.getByText("Order decisions", { exact: true }).click();
     await queue.getByText("Move Order to Table…", { exact: true }).click();
     await queue.getByLabel("Move Order to Table…").selectOption({ label: "Table 2" });
     await queue.getByRole("button", { name: "Move", exact: true }).click();
     await expect(slip.getByRole("heading", { name: /Your table.*Table 2/ })).toBeVisible();
     await slip.getByRole("button", { name: "Change Table" }).click();
     await slip.getByRole("button", { name: "Table 1", exact: true }).click();
+    await slip.getByRole("button", { name: "Confirm Table 1", exact: true }).click();
     await expect(slip.getByRole("heading", { name: /Your table.*Table 1/ })).toBeVisible();
     await expect(queue.getByRole("link", { name: "Table 1", exact: true })).toBeVisible();
     await queue.getByRole("button", { name: "Accept", exact: true }).click();

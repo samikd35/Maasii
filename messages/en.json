@@ -20,18 +20,29 @@
     "sections": "Menu sections",
     "fastingSection": "Fasting dishes",
     "houseFavourite": "House favourite",
-    "comingSoon": "The menu is on its way. Please ask a member of staff."
+    "comingSoon": "The menu is on its way. Please ask a member of staff.",
+    "search": "Search dishes or ingredients",
+    "all": "All dishes",
+    "noResults": "No dishes found. Try another search or section."
   },
   "GuestNavigation": {
     "pages": "Venue pages",
     "home": "Home",
     "menu": "Menu",
-    "feedback": "Reviews",
+    "feedback": "Private feedback",
     "payment": "Payment details",
     "social": "Social media",
     "choose": "What would you like to do?",
     "continueOrder": "Continue your order",
-    "viewBill": "View your bill"
+    "viewBill": "View your bill",
+    "more": "More",
+    "table": "Your table",
+    "welcome": "What looks good today?",
+    "explore": "Explore the Menu",
+    "fresh": "Fresh from the kitchen",
+    "automaticVideo": "Play serving videos automatically",
+    "videoPreferenceHelp": "For this browser session. Reduced motion and data-saving preferences take priority. Playback is optional.",
+    "houseFavourite": "House favourite"
   },
   "GuestPayment": {
     "heading": "Payment details",
@@ -82,7 +93,9 @@
     "editToFix": "Edit this dish to choose again, or remove it.",
     "added": "Added {dish} to your Draft",
     "updated": "Updated {dish} in your Draft",
-    "removed": "Removed {dish} from your Draft"
+    "removed": "Removed {dish} from your Draft",
+    "playVideo": "Play serving video",
+    "chooseDish": "Choose"
   },
   "Staff": {
     "manage": "Manage",
@@ -181,7 +194,19 @@
     "managers": "Managers",
     "noManager": "No manager yet.",
     "inviteHeading": "Invite a manager",
-    "inviteManager": "Invite manager"
+    "inviteManager": "Invite manager",
+    "serviceRunning": "Service is running",
+    "serviceStopped": "Start a Shift to begin service",
+    "assignedWaiters": "Assigned Waiters",
+    "unassignedTables": "Unassigned Tables",
+    "pendingTables": "Tables awaiting acceptance",
+    "receiptDifferences": "Receipt Differences",
+    "venueSetup": "Venue setup",
+    "startServiceAction": "Start service",
+    "assignTablesAction": "Assign uncovered Tables",
+    "reviewOrdersAction": "Review pending Orders",
+    "reviewReceiptsAction": "Review receipt differences",
+    "viewFloorAction": "Open live floor"
   },
   "Shifts": {
     "title": "Shifts",
@@ -380,7 +405,36 @@
     "archivedDishes": "Archived dishes",
     "restoreDish": "Restore {dish}",
     "missingTranslation": "Missing translation",
-    "translationCount": "{count, plural, one {# dish is missing a translation.} other {# dishes are missing a translation.}}"
+    "translationCount": "{count, plural, one {# dish is missing a translation.} other {# dishes are missing a translation.}}",
+    "unsavedChanges": "Unsaved changes",
+    "savedUnpublished": "Draft saved · not published",
+    "leaveHelp": "Save your changes before leaving, or discard them.",
+    "saveAndLeave": "Save and leave",
+    "discardAndLeave": "Discard and leave",
+    "stay": "Keep editing",
+    "recoveryFound": "Recover your unfinished edits",
+    "recoveryHelp": "Edits from this tab are available. Restore them or continue with the saved draft.",
+    "recoveryConflict": "The saved Menu has changed. Recovered edits keep their original revision and cannot overwrite it silently.",
+    "restoreDraft": "Restore edits",
+    "discardRecovery": "Use saved draft",
+    "recoveryUnavailable": "This browser cannot store a recovery copy. Save before leaving or reloading.",
+    "findDish": "Find a dish",
+    "sectionSettings": "Section settings",
+    "servingVideo": "Serving video · optional",
+    "videoHelp": "Silent H.264 MP4 · 2–5 seconds · up to 720px and 1 MiB. A serving photo is required as the poster. Uploading does not publish.",
+    "removeVideo": "Remove video",
+    "compareLatest": "Compare latest in another tab",
+    "reloadLatest": "Reload latest",
+    "reloadConfirm": "Discard your local edits and load the latest saved Menu?",
+    "backToDishes": "← All dishes",
+    "localDish": "Venue-only dish",
+    "uploading": "Uploading…",
+    "uploadedDraft": "Uploaded to this draft. Save, then publish to show guests.",
+    "retryUpload": "Retry upload",
+    "dishSettings": "Dish maintenance",
+    "restorePreview": "Brand restoration preview · Save to apply",
+    "matchesBrand": "Matches Brand values",
+    "localOverride": "Venue changes to Brand dish"
   },
   "StaffErrors": {
     "venueMenuConflict": "This change conflicts with a published Venue Menu. Update that Venue Menu before publishing the Brand Menu.",
@@ -441,7 +495,8 @@
     "waiterJoinUsed": "This join QR has already been used. Ask your manager for a new one.",
     "waiterJoinExpired": "This join QR has expired. Ask your manager for a new one.",
     "waiterRejoin": "Ask your manager for a fresh join QR.",
-    "wrongPin": "That PIN is not right."
+    "wrongPin": "That PIN is not right.",
+    "invalidDishVideo": "Use a silent H.264 MP4, 2–5 seconds, at most 720px and 1 MiB. Export a web-ready clip and try again."
   },
   "StaffWaiter": {
     "waiters": "Waiters",
@@ -461,7 +516,12 @@
     "unlock": "Unlock",
     "lock": "Lock",
     "rejoinHeading": "Connect your phone",
-    "menu": "Menu"
+    "menu": "Menu",
+    "removeConsequence": "Remove {name}? This revokes access on every enrolled phone. They will need a new enrollment to return.",
+    "queue": "Table queue",
+    "searchMenu": "Find a dish",
+    "noMatches": "No dishes match your search.",
+    "manageAccess": "Manage {name}’s access"
   },
   "StaffOrders": {
     "quickAdd": "Quick-add",
@@ -514,7 +574,10 @@
     "notificationDenied": "Allow notifications for Maasii in your browser settings.",
     "notificationUnsupported": "This browser cannot receive device notifications here. On iPhone, install Maasii and open it from your Home Screen.",
     "notificationDismissed": "Notification permission was not granted. Select Enable notifications to try again.",
-    "notificationError": "Could not enable notifications. Try again."
+    "notificationError": "Could not enable notifications. Try again.",
+    "noShift": "Service has not started. Ask your Manager to open a Shift.",
+    "noAssignments": "No Tables are assigned to you. Ask your Manager for an assignment.",
+    "quietTables": "Tables without Orders"
   },
   "Floor": {
     "title": "Live floor",
@@ -547,7 +610,12 @@
     "quantity": "{dish} at {period}: {current} accepted, down from {previous} the week before.",
     "visits": "Needs work rose to {current} ({currentTotal} Visit Reviews) from {previous} ({previousTotal} Visit Reviews).",
     "insufficient": "Not enough data for a finding yet. Most Dish Reviews for one Dish: {dishReviews}. Highest previous quantity in one Service Period: {previousQuantity}. Visit Reviews: {currentVisits} this week and {previousVisits} the week before.",
-    "evidence": "View evidence"
+    "evidence": "View evidence",
+    "gettingStarted": "Your first finding will appear as Orders and private feedback build up. Start service and invite guests to share their experience.",
+    "startService": "Set up service",
+    "liveVenues": "{count} Venues in service",
+    "collectingEvidence": "Service is running. Complete Visits and collect guest feedback to build a reliable weekly finding.",
+    "viewOperations": "View service"
   },
   "Insights": {
     "evidence": "Weekly Finding evidence",

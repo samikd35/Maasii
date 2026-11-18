@@ -33,7 +33,7 @@ function dishSheet(page: Page) {
 }
 
 async function openDish(page: Page, name: string) {
-  await page.getByRole("button", { name, exact: true }).click();
+  await page.getByRole("button", { name: new RegExp(`(?:Choose|ይምረጡ) ${name}$`) }).click();
   await expect(dishSheet(page).getByRole("heading", { name, level: 2 })).toBeVisible();
 }
 

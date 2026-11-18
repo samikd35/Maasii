@@ -20,7 +20,7 @@ test("a Manager previews and publishes local dish changes without changing anoth
   await page.getByRole("link", { name: "Edit Venue Menu" }).click();
 
   const dish = page.locator("details").filter({ has: page.getByText("Omelette", { exact: true }) }).first();
-  await dish.locator("summary").click();
+  await dish.locator(":scope > summary").click();
   await dish.getByLabel("Base price (ETB)").fill("249.75");
   await page.getByRole("button", { name: "Save draft" }).click();
   await expect(page.getByText("Draft saved.")).toBeVisible();
@@ -66,7 +66,8 @@ test("a Manager publishes a photographed local dish and archives and restores it
   const edit = page.getByRole("region", { name: "Edit" });
   await edit.getByRole("button", { name: "Add dish", exact: true }).first().click();
   await edit.getByLabel("Dish name in English", { exact: true }).filter({ visible: true }).fill("Lancha cake");
-  const dish = edit.locator("details").filter({ hasText: "Lancha cake" });
+  const dish = edit.locator("details.editor-dish").filter({ hasText: "Lancha cake" });
+  await dish.locator("summary").filter({ hasText: /^Description$/ }).click();
   await dish.getByLabel("Description in English").fill("Baked at this Venue.");
   await dish.getByLabel("Base price (ETB)").fill("80.50");
   await dish.getByLabel("Upload photo").setInputFiles("public/brands/bilos/almond-cake.webp");
@@ -79,14 +80,15 @@ test("a Manager publishes a photographed local dish and archives and restores it
   };
   await publish();
   await guest.goto(`/v/${s.venue.linkToken}/menu`);
-  await guest.getByRole("button", { name: "Lancha cake", exact: true }).click();
+  await guest.getByRole("button", { name: "Choose Lancha cake", exact: true }).click();
   const detail = guest.getByRole("dialog");
   await expect(detail.getByText("Baked at this Venue.")).toBeVisible();
   await expect(detail.locator("img")).toHaveAttribute("src", /\/venues\/[^/]+\/dish-.*\.webp$/);
   await guest.goto(`/v/${s.venues.Bole.linkToken}/menu`);
   await expect(guest.getByRole("heading", { name: "Lancha cake" })).toHaveCount(0);
 
-  if (!await dish.getByLabel("Base price (ETB)").isVisible()) await dish.locator("summary").click();
+  if (!await dish.getByLabel("Base price (ETB)").isVisible()) await dish.locator(":scope > summary").click();
+  await dish.locator("summary").filter({ hasText: /^Dish maintenance$/ }).click();
   await dish.getByRole("button", { name: "Archive dish" }).click();
   await publish();
   await guest.goto(`/v/${s.venue.linkToken}/menu`);

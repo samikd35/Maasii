@@ -12,16 +12,17 @@ test("the private Reviews page reuses the paid Visit and keeps feedback on failu
   await startShift(s.owner.actor, { venueId, assignments: [{ tableId, waiterId: sam.waiterId }] });
 
   await page.goto(feedback);
-  await expect(page.getByRole("heading", { name: "Reviews", exact: true, level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Private feedback", exact: true, level: 1 })).toBeVisible();
   await expect(page.getByText("No paid visit is linked to this phone.", { exact: false })).toBeVisible();
   expect((await page.context().cookies()).some(({ name }) => name.startsWith("mx_guest_session"))).toBe(false);
 
   await page.getByRole("link", { name: "Menu", exact: true }).click();
-  await page.getByRole("button", { name: "Omelette", exact: true }).click();
+  await page.getByRole("button", { name: "Choose Omelette", exact: true }).click();
   await page.getByRole("button", { name: "Add to order" }).click();
   await page.getByRole("button", { name: /Your Draft/ }).click();
-  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await page.getByRole("button", { name: "Choose your table", exact: true }).click();
   await page.getByRole("button", { name: "Table 1", exact: true }).click();
+  await page.getByRole("button", { name: "Send to Table 1", exact: true }).click();
   await expect(page.getByRole("dialog").getByText("Sent", { exact: true })).toBeVisible();
 
   await page.goto(feedback);

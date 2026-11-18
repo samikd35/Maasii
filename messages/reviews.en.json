@@ -27,5 +27,8 @@
   "submit": "Submit review",
   "skip": "Skip",
   "saved": "Review sent. {prompt}",
-  "error": "Could not send the review. Try again."
+  "error": "Could not send the review. Try again.",
+  "dishOptional": "Tell us about a dish · optional",
+  "triedPrompt": "Which of your Table’s dishes did you try?",
+  "waiterOptional": "Tell us about the service · optional"
 }

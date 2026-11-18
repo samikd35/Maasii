@@ -23,7 +23,7 @@ export default async function AdminHome() {
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-x-4">
-        <h1 className="font-display text-3xl">{t("brands")}</h1>
+        <h1 className="font-sans text-3xl">{t("brands")}</h1>
         <Link href="/admin/fasting-calendar" className="inline-flex min-h-11 items-center text-sm font-medium underline">
           {t("fastingCalendar")}
         </Link>

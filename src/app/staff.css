@@ -3,3 +3,37 @@
 @import "./theme.css";
 @source "./";
 @source "../ui";
+
+/* Staff screens share the same controls while retaining their own CSS bundle. */
+body:has(.staff-header), body:has(.staff-entry) { background:var(--color-paper); }
+.staff-header { background:white; border-bottom:1px solid var(--color-rule); }
+.staff-entry { margin-top:3rem; background:white; border:1px solid var(--color-rule); border-radius:24px; padding:28px; }
+:where(main) :where(button, input:not([type=checkbox]):not([type=radio]), select, textarea) { border-radius:var(--radius-control); }
+:where(main) :where(input:not([type=checkbox]):not([type=radio]),select,textarea) { background:white; border-color:var(--color-control-border); }
+:where(main) :where(section.border,article.border,li.border) { background:white; border-radius:var(--radius-card); }
+:where(main) :where(h1) { font-weight:750; }
+
+.staff-workspace > section:not(.waiter-queue) { background:white; border:1px solid var(--color-rule); border-radius:var(--radius-card); padding:20px; }
+.staff-workspace > h1 { font-size:clamp(1.7rem,4vw,2.3rem); letter-spacing:-.04em; margin-bottom:16px; }
+.staff-workspace > div:has(> a), .staff-workspace > nav { gap:12px; }
+.staff-workspace > div:has(> a) > a, .staff-workspace > nav > a { padding:10px 15px; background:white; border:1px solid var(--color-rule); border-radius:12px; text-decoration:none; }
+.staff-workspace > details { border:1px solid var(--color-rule); border-radius:var(--radius-card); padding:16px 20px; background:white; }
+#brand-menu-editor > header { position:sticky; top:0; z-index:25; background:var(--color-paper); padding:16px 0; }
+#menu-edit-panel fieldset > details { padding-top:8px; }
+#menu-edit-panel div > details { background:white; border:1px solid var(--color-rule); border-radius:16px; padding:12px; }
+@media (max-width:600px) { .staff-workspace > section:not(.waiter-queue) { padding:16px; } }
+
+main input:not([type=checkbox]):not([type=radio]), main select, main textarea { border-color:var(--color-control-border); }
+.task-nav { display:flex; flex-wrap:wrap; gap:8px; }
+.task-nav > a { display:inline-flex; align-items:center; min-block-size:44px; padding:8px 12px; border-radius:12px; text-decoration:none; }
+.task-nav > a[aria-current=page] { background:var(--color-ink); color:white; }
+.table-queue-group { border-block-start:2px solid var(--color-rule); padding-block:12px; }
+.quiet-tables { display:grid; grid-template-columns:repeat(auto-fit,minmax(95px,1fr)); gap:8px; }
+#menu-editor-fields > fieldset { display:flex; flex-direction:column; }
+#menu-editor-fields > fieldset > .editor-maintenance { order:2; }
+#menu-editor-fields [hidden] { display:none; }
+#menu-edit-panel .editor-dish { border:0; border-bottom:1px solid var(--color-rule); border-radius:0; padding:0; }
+#menu-edit-panel .editor-dish[open] { padding:16px; border:1px solid var(--color-rule); border-radius:16px; }
+#brand-menu-editor > header { gap:8px; padding-block:10px; border-bottom:1px solid var(--color-control-border); }
+#brand-menu-editor { scroll-margin-top:100px; }
+#menu-editor-fields :where(input,select,textarea,summary,button) { scroll-margin-block:10rem 5rem; }

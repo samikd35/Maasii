@@ -11,6 +11,8 @@ import { ActionForm, SubmitButton } from "@/ui/staff-forms";
 import { StaffEntry, StaffHeader } from "@/ui/staff-header";
 import { lock, unlock } from "./actions";
 import { MyTables } from "./my-tables";
+import { MenuReference } from "./menu-reference";
+import Link from "next/link";
 import { Notifications } from "./notifications";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -19,7 +21,9 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function WaiterPage({ searchParams }: PageProps<"/staff">) {
-  const table = z.uuid().safeParse((await searchParams).table);
+  const params = await searchParams;
+  const showMenu = params.view === "menu";
+  const table = z.uuid().safeParse(params.table);
   const actor = await getSessionActor();
   const device = actor && await getWaiterSession(actor, { unlockToken: await waiterUnlockToken() });
   const t = await getTranslations("StaffWaiter");
@@ -27,7 +31,7 @@ export default async function WaiterPage({ searchParams }: PageProps<"/staff">) 
   if (device?.status === "locked") {
     return (
       <StaffEntry>
-        <h1 className="font-display text-3xl">{t("unlockHeading")}</h1>
+        <h1 className="font-sans text-3xl">{t("unlockHeading")}</h1>
         <ActionForm action={unlock} className="mt-6 space-y-4">
           {table.success && <input name="tableId" type="hidden" value={table.data} />}
           <PinField label={t("pin")} />
@@ -41,7 +45,7 @@ export default async function WaiterPage({ searchParams }: PageProps<"/staff">) 
     const errors = await getTranslations("StaffErrors");
     return (
       <StaffEntry>
-        <h1 className="font-display text-3xl">{t("rejoinHeading")}</h1>
+        <h1 className="font-sans text-3xl">{t("rejoinHeading")}</h1>
         <p className="mt-3" role="alert">{errors("waiterRejoin")}</p>
       </StaffEntry>
     );
@@ -50,37 +54,32 @@ export default async function WaiterPage({ searchParams }: PageProps<"/staff">) 
   if (table.success) redirect(`/staff/tables/${table.data}`);
 
   const [locale, { StaffOrders, StaffErrors, Bills }] = await Promise.all([getLocale(), getMessages()]);
-  const other = locale === "am" ? "en" : "am";
+
+  const push = orderPushConfig();
+  const vapidKey = push?.waiterIds && !push.waiterIds.includes(device.waiterId) ? undefined : push?.publicKey;
+
   return (
     <>
       <StaffHeader home="/staff" label={t("waiter")} />
-      <main className="mx-auto max-w-2xl px-5 pt-6 pb-16">
+      <main className="staff-workspace mx-auto max-w-2xl px-5 pt-6 pb-16">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0 break-words">
             <p className="text-sm text-ink-muted">{device.name}</p>
-            <h1 className="font-display text-3xl">{device.venue.name}</h1>
+            <h1 className="font-sans text-3xl">{device.venue.name}</h1>
           </div>
           <form action={lock}>
             <SubmitButton variant="quiet">{t("lock")}</SubmitButton>
           </form>
         </div>
-        <NextIntlClientProvider messages={{ StaffOrders, StaffErrors, Bills }}>
-          <Notifications vapidKey={orderPushConfig()?.publicKey} subscribed={device.hasPush} />
-          <MyTables />
-        </NextIntlClientProvider>
-        {device.dishes.length > 0 && (
-          <section className="mt-8" aria-labelledby="staff-menu">
-            <h2 id="staff-menu" className="border-b border-ink/70 pb-1.5 text-sm font-semibold uppercase">{t("menu")}</h2>
-            <ul>
-              {device.dishes.map((dish) => (
-                <li key={dish.id} className="border-b border-rule py-3">
-                  {dish[locale] && <span lang={locale} className="block font-semibold">{dish[locale]}</span>}
-                  {dish[other] && <span lang={other} className={dish[locale] ? "block text-sm text-ink-muted" : "block font-semibold"}>{dish[other]}</span>}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+        <nav className="task-nav my-4 flex gap-3" aria-label={t("waiter")}>
+          <Link href="/staff" aria-current={!showMenu ? "page" : undefined}>{t("queue")}</Link>
+          <Link href="/staff?view=menu" aria-current={showMenu ? "page" : undefined}>{t("menu")}</Link>
+        </nav>
+        {showMenu ? <MenuReference dishes={device.dishes} locale={locale} title={t("menu")} search={t("searchMenu")} empty={t("noMatches")} /> :
+          <NextIntlClientProvider messages={{ StaffOrders, StaffErrors, Bills }}>
+            <Notifications vapidKey={vapidKey} subscribed={device.hasPush} />
+            <MyTables />
+          </NextIntlClientProvider>}
       </main>
     </>
   );

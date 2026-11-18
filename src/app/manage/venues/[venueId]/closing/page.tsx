@@ -9,7 +9,7 @@ import { ActionForm, SubmitButton } from "@/ui/staff-forms";
 import { ClosingBillControls } from "./bill-controls";
 import { closeUnpaid, removeLine, saveDiscount } from "./actions";
 
-const field = "mt-1 block min-h-11 w-full rounded-md border border-ink/30 bg-white px-3 text-base";
+const field = "mt-1 block min-h-11 w-full rounded-xl border border-ink/30 bg-white px-3 text-base";
 const unpaid = ["walked_out", "on_the_house", "entered_by_mistake"] as const;
 
 export default async function ClosingPage({ params, searchParams }: PageProps<"/manage/venues/[venueId]/closing">) {
@@ -27,14 +27,14 @@ export default async function ClosingPage({ params, searchParams }: PageProps<"/
   return (
     <>
       <Link href={`/manage/venues/${venueId}`} className="inline-flex min-h-11 items-center text-sm font-medium underline">{t("back")}</Link>
-      <h1 className="font-display text-3xl">{t("title")}</h1>
+      <h1 className="font-sans text-3xl">{t("title")}</h1>
       <section aria-labelledby="open-visits" className="mt-8">
         <h2 id="open-visits" className="text-xl font-semibold">{t("open")}</h2>
         {report.visits.length === 0 && <p className="py-3 text-ink-muted">{t("noneOpen")}</p>}
         <ul className="divide-y divide-rule">
           {report.visits.map((visit) => (
             <li key={visit.id} id={`visit-${visit.id}`} className="space-y-3 py-4">
-              <h3 className="font-display text-2xl">{bills("table", { number: visit.tableNumber })}</h3>
+              <h3 className="font-sans text-2xl">{bills("table", { number: visit.tableNumber })}</h3>
               <p className="text-sm">{t("age", { minutes: visit.minutesOpen })} · {visit.waiterName ?? t("noWaiter")} · {bills("total", { amount: formatBirr(visit.totalSantim) })}</p>
               {(visit.preparedAt || visit.lines.length > 0) && (
                 <NextIntlClientProvider messages={{ Bills }}>
@@ -103,7 +103,7 @@ export default async function ClosingPage({ params, searchParams }: PageProps<"/
         <h2 id="daily-payments" className="text-xl font-semibold">{t("payments")}</h2>
         <form className="my-3 flex flex-wrap items-end gap-2">
           <label className="text-sm font-medium">{t("date")} <input type="date" name="date" className={field} defaultValue={report.date} required /></label>
-          <button className="min-h-11 rounded-md border border-rule px-3 text-sm font-semibold">{t("showDate")}</button>
+          <button className="min-h-11 rounded-xl border border-rule px-3 text-sm font-semibold">{t("showDate")}</button>
         </form>
         {report.payments.length === 0 && <p className="py-3 text-ink-muted">{t("nonePaid")}</p>}
         <ul className="divide-y divide-rule">

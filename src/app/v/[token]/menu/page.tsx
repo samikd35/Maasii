@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: PageProps<"/v/[token]/menu">)
 export default async function GuestMenuPage({ params, searchParams }: PageProps<"/v/[token]/menu">) {
   const menu = await loadMenu((await params).token);
   if (!menu) notFound();
-  const [{ Ordering: orderingMessages, Price: priceMessages }, { view }] = await Promise.all([getMessages(), searchParams]);
+  const [{ Ordering: orderingMessages, Price: priceMessages }, { view, dish }] = await Promise.all([getMessages(), searchParams]);
   const initialView = view === "order" || view === "bill" ? view : undefined;
   return (
     <GuestMenuView
@@ -36,10 +36,10 @@ export default async function GuestMenuPage({ params, searchParams }: PageProps<
       fastingDishes={menu.fastingDishes}
       houseFavourite={menu.houseFavourite}
       languageSwitch={<LanguageSwitch area="guest" action={setGuestLanguage} />}
-      navigation={<GuestVenueNavigation token={menu.venue.linkToken} current="menu" />}
+      navigation={<GuestVenueNavigation token={menu.venue.linkToken} current={initialView ? "table" : "menu"} />}
       ordering={
         <NextIntlClientProvider messages={{ Ordering: orderingMessages, Price: priceMessages }}>
-          <Ordering key={initialView ?? "menu"} initialView={initialView} venueLinkToken={menu.venue.linkToken} sections={[{ dishes: menu.sections.flatMap(({ dishes }) => dishes) }]} recordBrowsing orderService />
+          <Ordering key={initialView ?? (typeof dish === "string" ? dish : "menu")} initialDish={typeof dish === "string" && menu.sections.some(section => section.dishes.some(item => item.id === dish)) ? dish : undefined} initialView={initialView} venueLinkToken={menu.venue.linkToken} sections={[{ dishes: menu.sections.flatMap(({ dishes }) => dishes) }]} recordBrowsing orderService />
         </NextIntlClientProvider>
       }
     />

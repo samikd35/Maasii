@@ -29,7 +29,7 @@ export default defineConfig({
   },
   projects: [
     { name: "android-chrome", use: { ...devices["Pixel 7"] } },
-    { name: "webkit", testMatch: ["web-reliability.spec.ts", "guest-homepage.spec.ts"], use: { ...devices["iPhone 13"] } },
+    { name: "webkit", testMatch: ["web-reliability.spec.ts", "guest-homepage.spec.ts", "production-redesign.spec.ts", "orders.spec.ts", "venue-menu.spec.ts"], use: { ...devices["iPhone 13"] } },
   ],
   webServer: {
     // A production build: the page-weight budget only means something with compression and no dev overlay.

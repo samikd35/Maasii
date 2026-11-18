@@ -126,3 +126,5 @@ export { getVenueInsights, updateVenueService, type ServicePeriod } from "./insi
 
 export { addWaiterOrder, correctWaiterOrderLine, getOrderCorrections, getWaiterQuickAdd } from "./waiter-orders";
 export { getOwnerVenuesInService, getWeeklyFinding, selectWeeklyFinding, weeklyThresholds } from "./weekly-finding";
+
+export { uploadDishVideo, uploadVenueDishVideo, MAX_DISH_VIDEO_BYTES } from "./dish-videos";

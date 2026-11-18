@@ -18,16 +18,17 @@ function pickGuestMessages({ GuestMenu, LanguageSwitch, Ordering, Price }: typeo
 export default async function BrandMenuPage({ params }: PageProps<"/manage/brands/[brandId]/menu">) {
   const { brandId } = await params;
   const actor = await requireStaff();
+  if (actor.kind !== "staff") notFound();
   const draft = await getMenuDraft(actor, { brandId }).catch((error: unknown) => {
     if (error instanceof MaasiiError) notFound();
     throw error;
   });
-  const { MenuEditor: editorMessages, StaffErrors } = await getMessages();
+  const { MenuEditor: editorMessages, StaffErrors, Price } = await getMessages();
 
   return (
-    <NextIntlClientProvider messages={{ MenuEditor: editorMessages, StaffErrors }}>
+    <NextIntlClientProvider messages={{ MenuEditor: editorMessages, StaffErrors, Price }}>
       <MenuEditor
-        initialDraft={draft}
+        initialDraft={draft} recoveryKey={`maasii:editor:${actor.userId}:${brandId}`}
         theme={deriveBrandTheme(draft.brand.colour)}
         guestMessages={guestMessages}
         maxImportPhotos={MAX_MENU_IMPORT_PHOTOS}

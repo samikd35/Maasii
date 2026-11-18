@@ -1,7 +1,7 @@
 "use server";
 
 import {
-  getMenuDraft, importMenuPhotos, publishMenuDraft, saveMenuDraft, suggestMenuTranslations, uploadDishPhoto, type MenuDraftContent,
+  uploadDishVideo, getMenuDraft, importMenuPhotos, publishMenuDraft, saveMenuDraft, suggestMenuTranslations, uploadDishPhoto, type MenuDraftContent,
 } from "@/core";
 import { forForm, requireStaff } from "@/lib/session";
 
@@ -49,4 +49,13 @@ export async function requestMenuAssistance(
   });
   if (result?.error) return { error: result.error };
   return { draft: await getMenuDraft(actor, { brandId }) };
+}
+
+export async function prepareDishVideo(brandId: string, form: FormData) {
+  const actor = await requireStaff();
+  const video = form.get("video");
+  if (!(video instanceof File)) return { error: "invalidDishVideo" as const };
+  let videoAssetId: string | undefined;
+  const result = await forForm(async () => { videoAssetId = (await uploadDishVideo(actor, { brandId, video })).id; });
+  return { videoAssetId, error: result?.error };
 }

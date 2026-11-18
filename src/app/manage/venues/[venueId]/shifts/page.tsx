@@ -33,7 +33,7 @@ export default async function ShiftsPage({ params }: PageProps<"/manage/venues/[
       <Link href={`/manage/venues/${venueId}`} className="inline-flex min-h-11 items-center text-sm font-medium underline">
         {setup.venue.name}
       </Link>
-      <h1 className="font-display text-3xl">{t("title")}</h1>
+      <h1 className="font-sans text-3xl">{t("title")}</h1>
       {setup.shift ? <RunningShift setup={setup} shift={setup.shift} /> : <SuggestedAssignments setup={setup} />}
       <UsualTables setup={setup} />
     </>
@@ -76,12 +76,12 @@ function RunningShift({ setup, shift }: { setup: ShiftSetup; shift: Shift }) {
       <p className="mt-1 text-sm text-ink-muted">
         <time dateTime={shift.startedAt.toISOString()}>{t("started", { time })}</time>
       </p>
-      <section aria-labelledby="unassigned" className="my-4 rounded-md border border-rule bg-paper-deep p-3">
+      <section aria-labelledby="unassigned" className="my-4 rounded-xl border border-rule bg-paper-deep p-3">
         <h3 id="unassigned" className="font-semibold">{t("unassignedTables")}</h3>
         {setup.unassignedTables.length > 0 ? (
           <ul className="mt-2 flex flex-wrap gap-2">
             {setup.unassignedTables.map((table) => (
-              <li key={table.id} className="rounded-md border border-ink/20 px-2 py-1 text-sm">
+              <li key={table.id} className="rounded-xl border border-ink/20 px-2 py-1 text-sm">
                 {manage("table", { number: table.number })}
               </li>
             ))}
@@ -127,7 +127,7 @@ function AssignmentSelect({ name, table, waiters, required }: {
         name={name}
         defaultValue={table.waiterId ?? ""}
         required={required}
-        className="mt-1 block min-h-11 w-full rounded-md border border-ink/30 bg-white px-3 text-base"
+        className="mt-1 block min-h-11 w-full rounded-xl border border-ink/30 bg-white px-3 text-base"
       >
         <option value="" disabled={required}>{t("unassigned")}</option>
         {waiters.map((waiter) => <option value={waiter.id} key={waiter.id}>{waiter.name}</option>)}

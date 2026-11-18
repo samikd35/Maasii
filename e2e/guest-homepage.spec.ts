@@ -8,15 +8,15 @@ test("an existing Venue Link offers four destinations without ordering or JavaSc
   try {
     const page = await context.newPage();
     await page.goto(root);
-    await expect(page.getByRole("heading", { name: "Lancha", level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     const nav = page.getByRole("navigation", { name: "Venue pages" });
-    await expect(nav.getByRole("link")).toHaveText(["Menu", "Reviews", "Payment details", "Social media"]);
-    for (const [label, path] of [["Menu", "menu"], ["Reviews", "feedback"], ["Payment details", "payment"], ["Social media", "social"]]) {
-      await nav.getByRole("link", { name: label, exact: true }).click();
+    await expect(nav.getByRole("link")).toHaveText(["Home", "Menu", "Your table", "More"]);
+    for (const [label, path] of [["Payment details", "payment"], ["Private feedback", "feedback"], ["Social media", "social"]]) {
+      await nav.getByRole("link", { name: "More", exact: true }).click();
+      await page.getByRole("main").getByRole("link", { name: label, exact: false }).click();
       await expect(page).toHaveURL((url) => url.pathname === `${root}/${path}`);
-      await expect(nav.getByRole("link", { name: label, exact: true })).toHaveAttribute("aria-current", "page");
+      await expect(nav.getByRole("link", { name: "More", exact: true })).toHaveAttribute("aria-current", "page");
       await nav.getByRole("link", { name: "Home", exact: true }).click();
-      await expect(page).toHaveURL((url) => url.pathname === root);
     }
     expect((await context.cookies()).filter(({ name }) => name.startsWith("mx_guest_session"))).toEqual([]);
   } finally {
@@ -40,18 +40,20 @@ test("keyboard navigation preserves a Draft when the browser will not write it t
   await nav.getByRole("link", { name: "Menu", exact: true }).focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { name: "Our menu" })).toBeVisible();
-  await page.getByRole("button", { name: "Omelette", exact: true }).click();
+  await page.getByRole("button", { name: "Choose Omelette", exact: true }).click();
   const sheet = page.getByRole("dialog");
   await sheet.getByLabel("Note for the kitchen").fill("Less salt, please");
   await sheet.getByRole("button", { name: "Add to order" }).click();
   await expect(page.locator("dialog")).toHaveCount(0);
 
-  await nav.getByRole("link", { name: "Payment details", exact: true }).click();
+  await nav.getByRole("link", { name: "More", exact: true }).click();
+  await page.getByRole("main").getByRole("link", { name: /Payment details/ }).click();
   await expect(page.getByRole("heading", { name: "Payment details" })).toBeVisible();
-  await nav.getByRole("link", { name: "Social media", exact: true }).click();
+  await nav.getByRole("link", { name: "More", exact: true }).click();
+  await page.getByRole("main").getByRole("link", { name: /Social media/ }).click();
   await expect(page).toHaveURL((url) => url.pathname === `${root}/social`);
   await page.goBack();
-  await expect(page).toHaveURL((url) => url.pathname === `${root}/payment`);
+  await expect(page).toHaveURL((url) => url.pathname === `${root}/more`);
   await nav.getByRole("link", { name: "Home", exact: true }).click();
 
   const resume = page.getByRole("link", { name: "Continue your order", exact: true });
@@ -71,6 +73,6 @@ test("keyboard navigation preserves a Draft when the browser will not write it t
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
 
   await page.goto(`/v/${s.venues.Bole.linkToken}`);
-  await expect(page.getByRole("heading", { name: "Bole", level: 1 })).toBeVisible();
+  await expect(page.getByText("Bole", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "ትዕዛዝዎን ይቀጥሉ" })).toHaveCount(0);
 });

@@ -1,15 +1,16 @@
 "use client";
 
 import { NextIntlClientProvider, useLocale, useTranslations } from "next-intl";
-import { useRef, useState, useTransition, type FormEvent } from "react";
+import { useEffect, useRef, useState, useTransition, type FormEvent } from "react";
 import type { Bilingual, GuestMenu, Language, MenuDraft, MenuDraftContent } from "@/core";
 import { localizeMenuSections } from "@/core/browser";
 import type { Messages } from "@/i18n/messages";
+import { Price } from "@/ui/price";
 import { Field } from "@/ui/field";
 import { GuestMenuView } from "@/ui/guest-menu-view";
 import { languageButtonClass } from "@/ui/language-switch";
 import { Ordering } from "@/app/v/[token]/ordering";
-import { persistMenuDraft, prepareDishPhoto, requestMenuAssistance } from "./actions";
+import { persistMenuDraft, prepareDishPhoto, prepareDishVideo, requestMenuAssistance } from "./actions";
 
 type Section = MenuDraftContent["sections"][number];
 type Dish = Section["dishes"][number];
@@ -19,7 +20,7 @@ type Artwork = { accept: string; maxFileBytes: number };
 type GuestMessages = Pick<Messages, "GuestMenu" | "LanguageSwitch" | "Ordering" | "Price">;
 
 const emptyText = { en: "", am: "" };
-const editorButton = "min-h-11 min-w-11 rounded-md border border-ink/30 px-3 text-sm font-medium disabled:opacity-45";
+const editorButton = "min-h-11 min-w-11 rounded-xl border border-ink/30 px-3 text-sm font-medium disabled:opacity-45";
 const panelTabs = ["edit", "preview"] as const;
 const dishLanguages = ["am", "en"] as const;
 
@@ -48,6 +49,7 @@ function move<T>(items: T[], index: number, step: number) {
 
 export function MenuEditor({
   initialDraft,
+  recoveryKey,
   theme,
   guestMessages,
   artwork,
@@ -55,6 +57,7 @@ export function MenuEditor({
   venue,
 }: {
   initialDraft: MenuDraft;
+  recoveryKey: string;
   theme: GuestMenu["theme"];
   guestMessages: Record<Language, GuestMessages>;
   artwork: Artwork;
@@ -65,11 +68,24 @@ export function MenuEditor({
     persist: (revision: string | null, menu: MenuDraftContent, publish: boolean, inherit: string[]) =>
       Promise<{ draft?: MenuDraft; error?: keyof Messages["StaffErrors"] }>;
     upload: (form: FormData) => ReturnType<typeof prepareDishPhoto>;
+    uploadVideo: (form: FormData) => ReturnType<typeof prepareDishVideo>;
   };
 }) {
   const t = useTranslations("MenuEditor");
   const errors = useTranslations("StaffErrors");
   const locale = useLocale();
+  const [query, setQuery] = useState("");
+  const [recovery, setRecovery] = useState<{ menu: MenuDraftContent; revision: string | null; inherit: string[] }>();
+  const [recoveryUnavailable, setRecoveryUnavailable] = useState(false);
+  const recoveryLoaded = useRef(false);
+  const recoveryPending = useRef(false);
+  const leaveDialog = useRef<HTMLDialogElement>(null);
+  const leaveHref = useRef<string | undefined>(undefined);
+  const leaveAfterSave = useRef(false);
+  const leaveBack = useRef(false);
+  const historyGuard = useRef<string | undefined>(undefined);
+  const leaveForm = useRef<{ form: HTMLFormElement; submitter: HTMLElement | null } | undefined>(undefined);
+  const bypassGuard = useRef(false);
   const [saved, setSaved] = useState(initialDraft);
   const [menu, setMenu] = useState(initialDraft.menu);
   const [tab, setTab] = useState<(typeof panelTabs)[number]>("edit");
@@ -79,12 +95,95 @@ export function MenuEditor({
   const importInput = useRef<HTMLInputElement>(null);
   const [importCount, setImportCount] = useState(0);
   const [error, setError] = useState<keyof Messages["StaffErrors"]>();
+  const errorNotice = useRef<HTMLParagraphElement>(null);
+  useEffect(() => { if (error) errorNotice.current?.focus({ preventScroll: true }); }, [error]);
   const [saving, startTransition] = useTransition();
   const [aiPending, startAiTransition] = useTransition();
-  const pending = saving || aiPending;
+  const [uploading, setUploading] = useState(false);
+  const pending = saving || aiPending || uploading;
   const [inherit, setInherit] = useState<string[]>([]);
   const [priceReset, setPriceReset] = useState<Record<string, number>>({});
   const dirty = inherit.length > 0 || (menu !== saved.menu && JSON.stringify(menu) !== JSON.stringify(saved.menu));
+  /* eslint-disable react-hooks/set-state-in-effect -- Browser recovery is read after hydration; it is not derived React state. */
+  useEffect(() => {
+    if (recoveryLoaded.current) return;
+    recoveryLoaded.current = true;
+    try {
+      const raw = sessionStorage.getItem(recoveryKey);
+      if (raw) {
+        const snapshot = JSON.parse(raw);
+        if (Array.isArray(snapshot.menu?.sections) && Array.isArray(snapshot.menu?.archivedDishes) && Array.isArray(snapshot.inherit)) { recoveryPending.current = true; setRecovery(snapshot); }
+      }
+    } catch { setRecoveryUnavailable(true); }
+  }, [recoveryKey]);
+  useEffect(() => {
+    if (!recoveryLoaded.current || recoveryPending.current || recovery) return;
+    try {
+      if (dirty) sessionStorage.setItem(recoveryKey, JSON.stringify({ menu, revision: saved.revision, inherit }));
+      else sessionStorage.removeItem(recoveryKey);
+    } catch { setRecoveryUnavailable(true); }
+  }, [dirty, menu, saved.revision, inherit, recovery, recoveryKey]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (!dirty) return;
+    const guard = crypto.randomUUID();
+    historyGuard.current = guard;
+    if (history.state?.maasiiEditor) history.replaceState({ ...history.state, maasiiEditor: guard }, "");
+    else history.pushState({ ...history.state, maasiiEditor: guard }, "");
+    const back = (event: PopStateEvent) => {
+      if (bypassGuard.current) return;
+      event.stopImmediatePropagation();
+      if (history.state?.maasiiEditor === guard) { leaveBack.current = false; leaveDialog.current?.close(); return; }
+      leaveBack.current = true;
+      leaveHref.current = undefined;
+      leaveForm.current = undefined;
+      leaveDialog.current?.showModal();
+    };
+    const submitElsewhere = (event: SubmitEvent) => {
+      const form = event.target as HTMLFormElement;
+      if (bypassGuard.current || form.closest("#brand-menu-editor")) return;
+      event.preventDefault(); event.stopPropagation();
+      leaveHref.current = undefined;
+      leaveForm.current = { form, submitter: event.submitter };
+      leaveAfterSave.current = false;
+      leaveDialog.current?.showModal();
+    };
+    const unload = (event: BeforeUnloadEvent) => { if (!bypassGuard.current) event.preventDefault(); };
+    const navigate = (event: MouseEvent) => {
+      const link = (event.target as HTMLElement).closest<HTMLAnchorElement>("a[href]");
+      if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || link.target === "_blank" || link.href === location.href) return;
+      if (link.origin === location.origin && link.pathname === location.pathname && link.search === location.search && link.hash) return;
+      event.preventDefault(); event.stopPropagation();
+      leaveAfterSave.current = false;
+      leaveForm.current = undefined;
+      leaveHref.current = link.href;
+      leaveDialog.current?.showModal();
+    };
+    window.addEventListener("popstate", back, true);
+    document.addEventListener("submit", submitElsewhere, true);
+    window.addEventListener("beforeunload", unload);
+    document.addEventListener("click", navigate, true);
+    return () => {
+      window.removeEventListener("popstate", back, true);
+      document.removeEventListener("submit", submitElsewhere, true);
+      window.removeEventListener("beforeunload", unload);
+      document.removeEventListener("click", navigate, true);
+      if (!bypassGuard.current && history.state?.maasiiEditor === guard) history.back();
+    };
+  }, [dirty]);
+  function leave() {
+    bypassGuard.current = true;
+    try { sessionStorage.removeItem(recoveryKey); } catch {}
+    if (leaveBack.current) history.back();
+    else if (leaveForm.current) leaveForm.current.form.requestSubmit(leaveForm.current.submitter ?? undefined);
+    else if (leaveHref.current) location.replace(leaveHref.current);
+  }
+  function stay() {
+    if (leaveBack.current) history.pushState({ ...history.state, maasiiEditor: historyGuard.current }, "");
+    leaveBack.current = false;
+    leaveAfterSave.current = false;
+    leaveDialog.current?.close();
+  }
   const inherited = new Map(venue?.inherited.flatMap((section) => section.dishes.map((dish) => [dish.dishId, dish] as const)));
   const inheritedSections = new Set(venue?.inherited.map((s) => s.sectionId));
   const needsReview = menu.sections.some((section) => section.imported || section.suggestedName || section.dishes.some(
@@ -112,6 +211,7 @@ export function MenuEditor({
   }
 
   function archiveDish(section: Section, dish: Dish) {
+    setOpenedDish(undefined);
     changeSections(menu.sections.map((candidate) => candidate.sectionId === section.sectionId
       ? { ...section, dishes: section.dishes.filter(({ dishId }) => dishId !== dish.dishId) }
       : candidate), [...menu.archivedDishes, { sectionId: section.sectionId, sectionName: section.name, dish }]);
@@ -127,23 +227,28 @@ export function MenuEditor({
     setOpenedDish(dish.dishId);
   }
 
-  function uploadPhoto(file: File, onUploaded: (photoUrl: string) => void) {
-    setError(undefined);
-    if (file.size > artwork.maxFileBytes) {
-      setError("invalidBrandArtwork");
-      return;
-    }
-    const form = new FormData();
-    form.set("photo", file);
-    startTransition(async () => {
-      try {
-        const result = await (venue ? venue.upload(form) : prepareDishPhoto(saved.brand.id, form));
-        if (result.photoUrl) onUploaded(result.photoUrl);
-        else setError(result.error ?? "invalid_input");
-      } catch {
-        setError("menuRequestFailed");
-      }
-    });
+  async function uploadPhoto(file: File, onUploaded: (photoUrl: string) => void): Promise<keyof Messages["StaffErrors"] | undefined> {
+    if (file.size > artwork.maxFileBytes) return "invalidBrandArtwork";
+    const form = new FormData(); form.set("photo", file);
+    setUploading(true);
+    try {
+      const result = await (venue ? venue.upload(form) : prepareDishPhoto(saved.brand.id, form));
+      if (!result.photoUrl) return result.error ?? "invalid_input";
+      onUploaded(result.photoUrl);
+    } catch { return "menuRequestFailed"; }
+    finally { setUploading(false); }
+  }
+
+  async function uploadVideo(file: File, onUploaded: (videoAssetId: string) => void): Promise<keyof Messages["StaffErrors"] | undefined> {
+    if (file.size > 1024 * 1024 || file.type !== "video/mp4") return "invalidDishVideo";
+    const form = new FormData(); form.set("video", file);
+    setUploading(true);
+    try {
+      const result = await (venue ? venue.uploadVideo(form) : prepareDishVideo(saved.brand.id, form));
+      if (!result.videoAssetId) return result.error ?? "invalidDishVideo";
+      onUploaded(result.videoAssetId);
+    } catch { return "menuRequestFailed"; }
+    finally { setUploading(false); }
   }
 
   function requestAi(request: Parameters<typeof requestMenuAssistance>[3]) {
@@ -161,6 +266,7 @@ export function MenuEditor({
             setImportCount(0);
           }
         } else {
+          leaveAfterSave.current = false;
           setError(result.error ?? "invalid_input");
         }
       } catch {
@@ -183,6 +289,7 @@ export function MenuEditor({
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const publish = (event.nativeEvent as SubmitEvent).submitter?.getAttribute("value") === "publish";
+    if (publish && dirty) return;
     setError(undefined);
     setStatus(undefined);
     startTransition(async () => {
@@ -195,7 +302,9 @@ export function MenuEditor({
           setMenu(result.draft.menu);
           setInherit([]);
           setStatus(publish ? "published" : "saved");
+          if (leaveAfterSave.current) leave();
         } else {
+          leaveAfterSave.current = false;
           setError(result.error ?? "invalid_input");
         }
       } catch {
@@ -225,17 +334,31 @@ export function MenuEditor({
 
   return (
     <div id="brand-menu-editor">
-      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-rule pb-4">
-        <div>
-          <h1 className="font-display text-3xl">{venue ? t("venueHeading", { venue: saved.venueName ?? "" }) : t("heading", { brand: saved.brand.name })}</h1>
-          <p className="mt-1 text-sm text-ink-muted">{lastPublish ? t("lastPublish", { date: lastPublish }) : t("neverPublished")}</p>
-          <p className="text-sm font-semibold">{t(dirty || saved.hasUnpublishedChanges ? "unpublished" : "upToDate")}</p>
-        </div>
+      <dialog ref={leaveDialog} onCancel={event => { event.preventDefault(); stay(); }} className="maasii-card max-w-md" aria-labelledby="leave-editor-title">
+        <h2 id="leave-editor-title" className="text-xl font-semibold">{t("unsavedChanges")}</h2><p className="my-4">{t("leaveHelp")}</p>
         <div className="flex flex-wrap gap-2">
-          <button type="submit" form="menu-editor-fields" value="save" disabled={!dirty || pending} className={editorButton}>
+          <button type="button" className={editorButton} onClick={() => { leaveAfterSave.current = true; leaveDialog.current?.close(); (document.getElementById("menu-editor-fields") as HTMLFormElement).requestSubmit(); }}>{t("saveAndLeave")}</button>
+          <button type="button" className={editorButton} onClick={leave}>{t("discardAndLeave")}</button>
+          <button type="button" className={editorButton} onClick={stay}>{t("stay")}</button>
+        </div>
+      </dialog>
+      {recovery && <section className="maasii-card mb-4" role="status"><h2 className="font-semibold">{t("recoveryFound")}</h2>
+        <p>{t(recovery.revision === saved.revision ? "recoveryHelp" : "recoveryConflict")}</p>
+        <button type="button" className={editorButton} onClick={() => { setMenu(recovery.menu); setInherit(recovery.inherit); setSaved(previous => ({ ...previous, revision: recovery.revision })); recoveryPending.current = false; setRecovery(undefined); }}>{t("restoreDraft")}</button>
+        <button type="button" className={editorButton} onClick={() => { try { sessionStorage.removeItem(recoveryKey); } catch {} recoveryPending.current = false; setRecovery(undefined); }}>{t("discardRecovery")}</button>
+      </section>}
+      {recoveryUnavailable && <p role="status">{t("recoveryUnavailable")}</p>}
+      <div className="mb-4">
+          <h1 className="font-sans text-3xl">{venue ? t("venueHeading", { venue: saved.venueName ?? "" }) : t("heading", { brand: saved.brand.name })}</h1>
+          <p className="mt-1 text-sm text-ink-muted">{lastPublish ? t("lastPublish", { date: lastPublish }) : t("neverPublished")}</p>
+      </div>
+      <header className="flex flex-wrap items-center justify-between">
+          <p className="text-sm font-semibold">{t(dirty ? "unsavedChanges" : saved.hasUnpublishedChanges ? "savedUnpublished" : "upToDate")}</p>
+        <div className="flex flex-wrap gap-2">
+          <button type="submit" form="menu-editor-fields" value="save" disabled={!dirty || pending} className={dirty ? "maasii-button disabled:opacity-45" : editorButton}>
             {t("save")}
           </button>
-          <button type="submit" form="menu-editor-fields" value="publish" disabled={pending || needsReview || (venue ? dirty || !saved.hasUnpublishedChanges : !dirty && !saved.hasUnpublishedChanges)} className="min-h-11 rounded-md bg-ink px-4 text-sm font-semibold text-paper disabled:opacity-45">
+          <button type="submit" form="menu-editor-fields" value="publish" disabled={pending || needsReview || (dirty || !saved.hasUnpublishedChanges)} className={dirty ? editorButton : "min-h-11 rounded-xl bg-ink px-4 text-sm font-semibold text-paper disabled:opacity-45"}>
             {t("publish")}
           </button>
         </div>
@@ -245,62 +368,83 @@ export function MenuEditor({
         <div className="w-full empty:hidden" aria-live="polite">
           {aiPending && <p className="text-sm text-ink-muted">{t("requestingAssistance")}</p>}
           {status && <p className="text-sm text-ink-muted">{t(status)}</p>}
-          {error && <p role="alert" className="text-sm font-medium text-red-800">{errors(error)}</p>}
+          {error && <p role="alert" tabIndex={-1} ref={errorNotice} className="text-sm font-medium text-red-800">{errors(error)}</p>}
+          {error === "menuDraftChanged" && <div className="mt-3 flex flex-wrap gap-3">
+            <button type="button" className={editorButton} onClick={() => window.open(location.href, "_blank", "noopener")}>{t("compareLatest")}</button>
+            <button type="button" className={editorButton} onClick={() => {
+              if (!window.confirm(t("reloadConfirm"))) return;
+              bypassGuard.current = true;
+              try { sessionStorage.removeItem(recoveryKey); } catch {}
+              location.reload();
+            }}>{t("reloadLatest")}</button>
+          </div>}
+        </div>
+        <div role="tablist" aria-label={t("nav")} className="mt-1 grid w-full grid-cols-2 gap-2 lg:hidden">
+          {panelTabs.map((panel) => (
+            <button
+              key={panel}
+              id={`menu-${panel}-tab`}
+              type="button"
+              role="tab"
+              aria-selected={tab === panel}
+              aria-controls={`menu-${panel}-panel`}
+              tabIndex={tab === panel ? 0 : -1}
+              className={`${editorButton} aria-selected:bg-ink aria-selected:text-paper`}
+              onClick={() => setTab(panel)}
+              onKeyDown={(event) => {
+                if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+                event.preventDefault();
+                const next = event.key === "Home" ? "edit" : event.key === "End" ? "preview" : tab === "edit" ? "preview" : "edit";
+                setTab(next);
+                document.getElementById(`menu-${next}-tab`)?.focus();
+              }}
+            >
+              {t(panel)}
+            </button>
+          ))}
         </div>
       </header>
-
-      <div role="tablist" aria-label={t("nav")} className="mt-4 grid grid-cols-2 gap-2 lg:hidden">
-        {panelTabs.map((panel) => (
-          <button
-            key={panel}
-            id={`menu-${panel}-tab`}
-            type="button"
-            role="tab"
-            aria-selected={tab === panel}
-            aria-controls={`menu-${panel}-panel`}
-            tabIndex={tab === panel ? 0 : -1}
-            className={`${editorButton} aria-selected:bg-ink aria-selected:text-paper`}
-            onClick={() => setTab(panel)}
-            onKeyDown={(event) => {
-              if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-              event.preventDefault();
-              const next = event.key === "Home" ? "edit" : event.key === "End" ? "preview" : tab === "edit" ? "preview" : "edit";
-              setTab(next);
-              document.getElementById(`menu-${next}-tab`)?.focus();
-            }}
-          >
-            {t(panel)}
-          </button>
-        ))}
-      </div>
 
       <div className="mt-5 grid items-start gap-8 lg:grid-cols-2">
         <div id="menu-edit-panel" role="tabpanel" aria-labelledby="menu-edit-tab" className={tab === "edit" ? "" : "hidden lg:block"}>
           <section aria-label={t("edit")}>
+            <label hidden={!!openedDish} className="mb-5 block"><span className="text-sm font-semibold">{t("findDish")}</span><input type="search" value={query} onChange={e => setQuery(e.target.value)} className="mt-2 min-h-12 w-full rounded-xl border border-ink/30 bg-white px-4" /></label>
             <form id="menu-editor-fields" onSubmit={submit} onInvalid={(event) => {
-              setTab("edit");
-              const details = (event.target as HTMLElement).closest("details");
-              if (details) details.open = true;
+              setTab("edit"); setQuery("");
+              const target = event.target as HTMLElement;
+              const dish = target.closest<HTMLElement>("[data-edit-dish]");
+              if (dish?.dataset.editDish) setOpenedDish(dish.dataset.editDish);
+              let parent = target.parentElement;
+              while (parent) { if (parent instanceof HTMLDetailsElement) parent.open = true; parent = parent.parentElement; }
+              requestAnimationFrame(() => target.focus());
             }}>
               <fieldset disabled={pending} className="space-y-5">
-                {!venue && <div className="space-y-2 rounded-xl border border-rule bg-white/35 p-4">
+                {openedDish && <button type="button" className={editorButton} onClick={() => {
+                  if (!(document.getElementById("menu-editor-fields") as HTMLFormElement).reportValidity()) return;
+                  const previous = openedDish; setOpenedDish(undefined);
+                  requestAnimationFrame(() => document.getElementById(`edit-${previous}`)?.focus());
+                }}>{t("backToDishes")}</button>}
+                <div hidden={!!openedDish} className="editor-maintenance">
+                {!venue && <details className="maasii-card"><summary className="min-h-11 font-semibold">{t("importPhotos")}</summary>
                   <p id="menu-import-help" className="text-sm text-ink-muted">{t("importHelp", { count: maxImportPhotos })}</p>
                   <Field ref={importInput} label={t("menuPhotos")} type="file" accept={artwork.accept} multiple
                     aria-describedby="menu-import-help" onChange={(event) => setImportCount(event.currentTarget.files?.length ?? 0)} />
                   <button type="button" className={editorButton} disabled={importCount === 0} onClick={importPhotos}>
                     {t("importPhotos")}
                   </button>
-                </div>}
+                </details>}
                 <button type="button" className={editorButton} onClick={() => changeSections([
                   ...menu.sections,
                   { sectionId: crypto.randomUUID(), name: emptyText, dishes: [] },
                 ])}>
                   {t("addSection")}
                 </button>
+                </div>
                 {menu.sections.map((section, sectionIndex) => (
-                  <fieldset key={section.sectionId} className="min-w-0 rounded-xl border border-rule bg-white/35 px-4 pb-4">
-                    <legend className="px-2 text-sm font-semibold">{t("section", { number: sectionIndex + 1 })}</legend>
-                    <div className="mt-2 grid grid-cols-2 gap-3">
+                  <fieldset key={section.sectionId} hidden={!!openedDish && !section.dishes.some(dish => dish.dishId === openedDish)} className="editor-section min-w-0">
+                    <legend className="text-lg font-semibold">{section.name[locale] || named(section.name) || t("section", { number: sectionIndex + 1 })}</legend>
+                    <details hidden={!!openedDish} className="editor-maintenance"><summary className="min-h-11 font-semibold">{t("sectionSettings")}</summary>
+                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {dishLanguages.map((language) => {
                         const label = t(language === "am" ? "sectionAm" : "sectionEn");
                         return (
@@ -328,13 +472,16 @@ export function MenuEditor({
                         {t("removeSection")}
                       </button>}
                     </div>
-                    <div className="mt-4 divide-y divide-rule border-t border-rule">
+                    </details>
+                    <div className="mt-4 space-y-3">
                       {section.dishes.map((dish, dishIndex) => (
+                        <div key={dish.dishId} hidden={(!!openedDish && openedDish !== dish.dishId) || (!openedDish && !!query && !`${dish.name.am} ${dish.name.en} ${dish.description.am} ${dish.description.en}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()))}>
                         <DishFields
-                          key={dish.dishId}
                           dish={dish}
                           priceReset={priceReset[dish.dishId]}
-                          open={openedDish === dish.dishId || undefined}
+                          open={openedDish === dish.dishId}
+                          onOpen={() => setOpenedDish(dish.dishId)}
+                          scope={venue ? t(!inherited.has(dish.dishId) ? "localDish" : inherit.includes(dish.dishId) ? "restorePreview" : JSON.stringify(dish) === JSON.stringify(inherited.get(dish.dishId)) ? "matchesBrand" : "localOverride") : undefined}
                           index={dishIndex}
                           count={section.dishes.length}
                           acceptArtwork={artwork.accept}
@@ -344,9 +491,9 @@ export function MenuEditor({
                           onMove={venue ? undefined : (step) => updateSection(sectionIndex, { dishes: move(section.dishes, dishIndex, step) })}
                           onFavourite={(checked) => setFavourite(dish.dishId, checked)}
                           onArchive={() => archiveDish(section, dish)}
-                          onDiscardImport={() => updateSection(sectionIndex, {
+                          onDiscardImport={() => { setOpenedDish(undefined); updateSection(sectionIndex, {
                             dishes: section.dishes.filter((candidate) => candidate.dishId !== dish.dishId),
-                          })}
+                          }); }}
                           onSuggest={venue ? undefined : () => requestAi({ sectionId: section.sectionId, dishId: dish.dishId })}
                           onInherit={inherited.has(dish.dishId) ? () => {
                             updateSection(sectionIndex, { dishes: section.dishes.map((current) =>
@@ -355,13 +502,16 @@ export function MenuEditor({
                             setOpenedDish(dish.dishId);
                             setPriceReset((keys) => ({ ...keys, [dish.dishId]: (keys[dish.dishId] ?? 0) + 1 }));
                           } : undefined}
+                          onVideo={(file) => uploadVideo(file, (videoAssetId) => updateSection(sectionIndex, {
+                            dishes: section.dishes.map(candidate => candidate.dishId === dish.dishId ? { ...candidate, videoAssetId } : candidate),
+                          }))}
                           onPhoto={(file) => uploadPhoto(file, (photoUrl) => updateSection(sectionIndex, {
                             dishes: section.dishes.map((candidate) => candidate.dishId === dish.dishId ? { ...candidate, photoUrl } : candidate),
                           }))}
-                        />
+                        /></div>
                       ))}
                     </div>
-                    <button type="button" className={`${editorButton} mt-4`} onClick={() => {
+                    <button type="button" hidden={!!openedDish} className={`${editorButton} mt-4`} onClick={() => {
                       const dishId = crypto.randomUUID();
                       setOpenedDish(dishId);
                       updateSection(sectionIndex, {
@@ -375,7 +525,7 @@ export function MenuEditor({
                     </button>
                   </fieldset>
                 ))}
-                {menu.archivedDishes.length > 0 && (
+                {!openedDish && menu.archivedDishes.length > 0 && (
                   <section className="rounded-xl border border-rule bg-white/35 p-4">
                     <h2 className="font-semibold">{t("archivedDishes")}</h2>
                     <ul className="mt-2 divide-y divide-rule">
@@ -460,9 +610,11 @@ function ImportReview({ kind, missingPrice, onKeep, onDiscard }: {
   );
 }
 
-function DishFields({ dish, open, priceReset, index, count, acceptArtwork, onChange, onMove, onFavourite, onArchive, onDiscardImport, onSuggest, onInherit, onPhoto }: {
+function DishFields({ dish, open, onOpen, scope, priceReset, index, count, acceptArtwork, onChange, onMove, onFavourite, onArchive, onDiscardImport, onSuggest, onInherit, onPhoto, onVideo }: {
   dish: Dish;
-  open?: boolean;
+  open: boolean;
+  onOpen: () => void;
+  scope?: string;
   priceReset?: number;
   index: number;
   count: number;
@@ -474,18 +626,36 @@ function DishFields({ dish, open, priceReset, index, count, acceptArtwork, onCha
   onDiscardImport: () => void;
   onSuggest?: () => void;
   onInherit?: () => void;
-  onPhoto: (file: File) => void;
+  onPhoto: (file: File) => Promise<keyof Messages["StaffErrors"] | undefined>;
+  onVideo: (file: File) => Promise<keyof Messages["StaffErrors"] | undefined>;
 }) {
   const t = useTranslations("MenuEditor");
   const locale = useLocale();
+  const errors = useTranslations("StaffErrors");
+  const [upload, setUpload] = useState<{ file: File; kind: "photo" | "video"; pending?: boolean; error?: keyof Messages["StaffErrors"] }>();
+  async function sendFile(file: File, kind: "photo" | "video") {
+    setUpload({ file, kind, pending: true });
+    const error = await (kind === "photo" ? onPhoto(file) : onVideo(file));
+    setUpload({ file, kind, error });
+    requestAnimationFrame(() => document.getElementById(`${kind}-status-${dish.dishId}`)?.scrollIntoView({ block: "nearest" }));
+  }
+  function uploadStatus(kind: "photo" | "video") {
+    return upload?.kind === kind && <div id={`${kind}-status-${dish.dishId}`} className={`mt-2 text-sm ${upload.error ? "text-red-800" : "text-ink-muted"}`} role={upload.error ? "alert" : "status"}>
+      <p className="break-words">{upload.file.name}: {upload.pending ? t("uploading") : upload.error ? errors(upload.error) : t("uploadedDraft")}</p>
+      {upload.error && <button type="button" className={editorButton} onClick={() => void sendFile(upload.file, kind)}>{t("retryUpload")}</button>}
+    </div>;
+  }
   return (
-    <details open={open} className="min-w-0">
-      <summary className="min-h-11 cursor-pointer py-3 font-medium">
-        {dish.name[locale].trim() || named(dish.name) || t("untitledDish")}
-        {dish.imported && <span className="ml-2 text-xs text-amber-900">{" "}{t("imported")}</span>}
-        {missingTranslation(dish) && <span className="ml-2 text-xs text-amber-900">{" "}{t("missingTranslation")}</span>}
+    <details data-edit-dish={dish.dishId} open={open} className="min-w-0 editor-dish">
+      <summary id={`edit-${dish.dishId}`} className="flex min-h-14 cursor-pointer items-center justify-between gap-3 py-3 font-medium" onClick={event => { event.preventDefault(); onOpen(); }}>
+        <span><span>{dish.name[locale].trim() || named(dish.name) || t("untitledDish")}</span>
+          {scope && <small className="block text-ink-muted">{scope}</small>}
+          {dish.imported && <small className="block text-amber-900">{t("imported")}</small>}
+          {missingTranslation(dish) && <small className="block text-amber-900">{t("missingTranslation")}</small>}
+        </span>
+        <Price santim={dish.priceSantim} />
       </summary>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {dishLanguages.map((language) => (
           <div key={language} className="min-w-0">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">{t(language)}</p>
@@ -497,21 +667,6 @@ function DishFields({ dish, open, priceReset, index, count, acceptArtwork, onCha
               })} />
             {dish.suggestedName === language && <SuggestionReview label={t(language === "am" ? "dishNameAm" : "dishNameEn")}
               onAccept={() => onChange({ suggestedName: undefined })} />}
-            <label className="mt-3 block text-sm font-medium">
-              {t("description")}
-              <textarea
-                aria-label={t(language === "am" ? "descriptionAm" : "descriptionEn")}
-                lang={language}
-                value={dish.description[language]}
-                onChange={(event) => onChange({
-                  description: { ...dish.description, [language]: event.target.value },
-                  suggestedDescription: dish.suggestedDescription === language ? undefined : dish.suggestedDescription,
-                })}
-                className="mt-1 min-h-20 w-full rounded-md border border-ink/30 bg-white p-2 text-base font-normal"
-              />
-            </label>
-            {dish.suggestedDescription === language && <SuggestionReview label={t(language === "am" ? "descriptionAm" : "descriptionEn")}
-              onAccept={() => onChange({ suggestedDescription: undefined })} />}
           </div>
         ))}
       </div>
@@ -538,14 +693,14 @@ function DishFields({ dish, open, priceReset, index, count, acceptArtwork, onCha
       </div>
       {!dish.photoUrl && <p className="mt-1 text-xs text-ink-muted">{t("needsPhoto")}</p>}
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        {dish.photoUrl && (
+      {dish.photoUrl && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={dish.photoUrl} alt="" loading="lazy" decoding="async" className="size-20 rounded-md object-cover" />
+          <img src={dish.photoUrl} alt="" loading="lazy" decoding="async" className="size-20 rounded-xl object-cover" />
         )}
-        <input id={`photo-${dish.dishId}`} type="file" accept={acceptArtwork} className="peer sr-only" onChange={(event) => {
+        <input id={`photo-${dish.dishId}`} type="file" accept={acceptArtwork} className="peer sr-only" aria-invalid={upload?.kind === "photo" && !!upload.error} aria-describedby={`photo-status-${dish.dishId}`} onChange={(event) => {
           const file = event.currentTarget.files?.[0];
           event.currentTarget.value = "";
-          if (file) onPhoto(file);
+          if (file) void sendFile(file, "photo");
         }} />
         <label htmlFor={`photo-${dish.dishId}`} className={`${editorButton} inline-flex cursor-pointer items-center peer-focus-visible:outline-2`}>
           {t(dish.photoUrl ? "replacePhoto" : "uploadPhoto")}
@@ -556,7 +711,36 @@ function DishFields({ dish, open, priceReset, index, count, acceptArtwork, onCha
           </button>
         )}
       </div>
-      <fieldset className="mt-5 min-w-0 space-y-3">
+      {uploadStatus("photo")}
+      <details className="mt-4"><summary className="min-h-11 font-semibold">{t("description")}</summary>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{dishLanguages.map(language => <div key={language}>
+            <label className="mt-3 block text-sm font-medium">
+              {t("description")}
+              <textarea
+                aria-label={t(language === "am" ? "descriptionAm" : "descriptionEn")}
+                lang={language}
+                value={dish.description[language]}
+                onChange={(event) => onChange({
+                  description: { ...dish.description, [language]: event.target.value },
+                  suggestedDescription: dish.suggestedDescription === language ? undefined : dish.suggestedDescription,
+                })}
+                className="mt-1 min-h-20 w-full rounded-xl border border-ink/30 bg-white p-2 text-base font-normal"
+              />
+            </label>
+            {dish.suggestedDescription === language && <SuggestionReview label={t(language === "am" ? "descriptionAm" : "descriptionEn")}
+              onAccept={() => onChange({ suggestedDescription: undefined })} />}
+
+        </div>)}</div>
+      </details>
+        <details className="mt-4"><summary className="min-h-11 font-semibold">{t("servingVideo")}</summary>
+        <Field label={t("servingVideo")} type="file" accept="video/mp4" aria-invalid={upload?.kind === "video" && !!upload.error} aria-describedby={`video-status-${dish.dishId}`} onChange={event => { const file = event.target.files?.[0]; if (file) void sendFile(file, "video"); event.target.value = ""; }} />
+        <p className="mt-2 text-sm text-ink-muted">{t("videoHelp")}</p>
+        {dish.videoAssetId && <><video src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/dish-videos/${dish.videoAssetId}.mp4`} poster={dish.photoUrl} muted playsInline controls preload="metadata" className="mt-3 max-h-60 w-full rounded-xl" />
+          <button type="button" className={editorButton} onClick={() => onChange({ videoAssetId: undefined })}>{t("removeVideo")}</button></>}
+      {uploadStatus("video")}
+      </details>
+      <details className="mt-5"><summary className="min-h-11 font-semibold">{t("optionGroups")} ({dish.optionGroups.length})</summary>
+      <fieldset className="min-w-0 space-y-3">
         <legend className="text-sm font-semibold">{t("optionGroups")}</legend>
         {dish.optionGroups.map((group, groupIndex) => (
           <OptionGroupFields key={group.optionGroupId} group={group} index={groupIndex} count={dish.optionGroups.length}
@@ -574,12 +758,14 @@ function DishFields({ dish, open, priceReset, index, count, acceptArtwork, onCha
         })}>
           {t("addGroup")}
         </button>
-      </fieldset>
-      <div className="mt-3 flex flex-wrap gap-2 pb-3">
+      </fieldset></details>
+      <details className="mt-3"><summary className="min-h-11 font-semibold">{t("dishSettings")}</summary>
+      <div className="flex flex-wrap gap-2 pb-3">
         {onMove && <MoveButtons index={index} count={count} onMove={onMove} />}
         {onInherit && <button type="button" className={editorButton} onClick={onInherit}>{t("inheritDish")}</button>}
         {!dish.imported && <button type="button" className={editorButton} onClick={onArchive}>{t("archiveDish")}</button>}
       </div>
+      </details>
       {dish.imported && <ImportReview kind="dish" missingPrice={dish.imported === "missing_price"}
         onKeep={() => onChange({ imported: undefined })} onDiscard={onDiscardImport} />}
     </details>
@@ -597,9 +783,9 @@ function OptionGroupFields({ group, index, count, onChange, onMove, onRemove }: 
   const t = useTranslations("MenuEditor");
   const locale = useLocale();
   return (
-    <fieldset className="min-w-0 space-y-3 rounded-md border border-rule p-3">
+    <fieldset className="min-w-0 space-y-3 rounded-xl border border-rule p-3">
       <legend className="px-2 text-sm font-semibold">{group.name[locale].trim() || named(group.name) || t("untitledGroup")}</legend>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {dishLanguages.map((language) => (
           <Field key={language} label={t(language === "am" ? "groupNameAm" : "groupNameEn")} lang={language}
             value={group.name[language]} onChange={(event) => onChange({ name: { ...group.name, [language]: event.target.value } })} />
@@ -611,7 +797,7 @@ function OptionGroupFields({ group, index, count, onChange, onMove, onRemove }: 
           <select value={group.kind} onChange={(event) => {
             const kind = event.target.value === "add_extras" ? "add_extras" : "choose_one";
             onChange({ kind, required: false });
-          }} className="mt-1 block min-h-11 rounded-md border border-ink/30 bg-white px-3 text-base font-normal">
+          }} className="mt-1 block min-h-11 rounded-xl border border-ink/30 bg-white px-3 text-base font-normal">
             <option value="choose_one">{t("chooseOne")}</option>
             <option value="add_extras">{t("addExtras")}</option>
           </select>
@@ -632,9 +818,9 @@ function OptionGroupFields({ group, index, count, onChange, onMove, onRemove }: 
           onChange({ choices: group.choices.map((entry, i) => i === choiceIndex ? { ...entry, ...patch } : entry) });
         }
         return (
-          <fieldset key={choice.choiceId} className="min-w-0 space-y-3 rounded-md border border-rule p-3">
+          <fieldset key={choice.choiceId} className="min-w-0 space-y-3 rounded-xl border border-rule p-3">
             <legend className="px-2 text-sm font-medium">{choice.name[locale].trim() || named(choice.name) || t("untitledChoice")}</legend>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {dishLanguages.map((language) => (
                 <Field key={language} label={t(language === "am" ? "choiceNameAm" : "choiceNameEn")} lang={language}
                   value={choice.name[language]} onChange={(event) => changeChoice({ name: { ...choice.name, [language]: event.target.value } })} />

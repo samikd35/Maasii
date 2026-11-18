@@ -21,7 +21,7 @@ export default async function JoinWaiterPage({ params }: PageProps<"/join/[token
     const reason = code?.status === "used" ? "waiterJoinUsed" : code ? "waiterJoinExpired" : "waiterJoinInvalid";
     return (
       <StaffEntry>
-        <h1 className="font-display text-3xl">{t("joinTitle")}</h1>
+        <h1 className="font-sans text-3xl">{t("joinTitle")}</h1>
         <p className="mt-3" role="alert">{errors(reason)}</p>
       </StaffEntry>
     );
@@ -30,7 +30,7 @@ export default async function JoinWaiterPage({ params }: PageProps<"/join/[token
   const staff = await getTranslations("Staff");
   return (
     <StaffEntry>
-      <h1 className="font-display text-3xl">{t("joinVenue", { venue: code.venueName })}</h1>
+      <h1 className="font-sans text-3xl">{t("joinVenue", { venue: code.venueName })}</h1>
       {code.waiterName && <p className="mt-3">{t("joinAgain", { name: code.waiterName })}</p>}
       <ActionForm action={join.bind(null, token)} className="mt-6 space-y-4">
         {!code.waiterName && <Field name="name" label={staff("name")} autoComplete="name" maxLength={80} required />}

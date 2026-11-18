@@ -12,8 +12,10 @@ function pool(): pg.Pool {
     if (!connectionString) {
       throw new Error("DATABASE_URL is not set. Run `pnpm db:start`, which writes .env.local.");
     }
+    const ca = process.env.SUPABASE_DB_CA;
     globalForPool.maasiiPool = new pg.Pool({
       connectionString,
+      ssl: ca ? { ca, rejectUnauthorized: true } : undefined,
       max: 5,
       idleTimeoutMillis: 10_000,
       allowExitOnIdle: true,

@@ -132,11 +132,12 @@ test("a guest can find and copy current payment details before ordering, without
 
   await page.getByRole("link", { name: "Menu", exact: true }).click();
   await expect(page).toHaveURL((url) => url.pathname === `${venuePath}/menu`);
-  await page.getByRole("button", { name: "Omelette", exact: true }).click();
+  await page.getByRole("button", { name: "Choose Omelette", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Add to order" }).click();
   const draft = page.getByRole("button", { name: /Your Draft/ });
   await expect(draft).toBeVisible();
-  await page.getByRole("link", { name: "Payment details" }).click();
+  await page.getByRole("link", { name: "More", exact: true }).click();
+  await page.getByRole("link", { name: /Payment details/ }).click();
   await expect(page.getByText("Public Test Bank")).toBeVisible();
   await page.getByRole("link", { name: "Menu", exact: true }).click();
   await expect(draft).toBeVisible();
@@ -149,10 +150,11 @@ test("a guest can find and copy current payment details before ordering, without
       save.call(this, key, value);
     };
   });
-  await page.getByRole("button", { name: "Omelette", exact: true }).click();
+  await page.getByRole("button", { name: "Choose Omelette", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Add to order" }).click();
   await expect(draft).toContainText("2 dishes");
-  await page.getByRole("link", { name: "Payment details" }).click();
+  await page.getByRole("link", { name: "More", exact: true }).click();
+  await page.getByRole("link", { name: /Payment details/ }).click();
   await page.getByRole("link", { name: "Menu", exact: true }).click();
   await expect(draft).toContainText("2 dishes");
 

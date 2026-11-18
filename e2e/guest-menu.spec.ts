@@ -2,7 +2,6 @@ import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 import { publishMenu, updateBranding } from "@/core";
 import { bilosMenu, LANCHA_LINK_TOKEN } from "../scripts/seed/bilos";
-import { SABA_LINK_TOKEN } from "../scripts/seed/saba";
 import { scenario } from "../tests/support/scenario";
 
 const bilosMenuLink = `/v/${LANCHA_LINK_TOKEN}/menu`;
@@ -56,70 +55,43 @@ test("the Addis Ababa fast puts every labelled fasting dish in the first section
   await expect(firstSection.getByRole("listitem").filter({ hasText: "Vegan Oatmeal" })).toContainText("Fasting");
 });
 
-test("one House favourite appears above the first section and opens its dish", async ({ page }) => {
-  const s = await scenario().publishedMenu({
-    sections: [{
-      name: "Cakes",
-      dishes: [{
-        name: "Almond Cake", priceSantim: 20_000, photoUrl: "/brands/bilos/almond-cake.webp", houseFavourite: true,
-      }],
-    }],
-  }).build();
-  await page.goto(`/v/${s.venue.linkToken}/menu`);
-
+test("the configured House favourite appears on Home", async ({ page }) => {
+  const s = await scenario().publishedMenu({ sections: [{ name: "Cakes", dishes: [{ name: "Almond Cake", priceSantim: 20_000, photoUrl: "/brands/bilos/almond-cake.webp", houseFavourite: true }] }] }).build();
+  await page.goto(`/v/${s.venue.linkToken}`);
   const card = page.getByRole("article", { name: "House favourite" });
-  await expect(card).toHaveCount(1);
+  await expect(card).toContainText("Almond Cake");
   await expect(card.locator("img")).toHaveAttribute("src", "/brands/bilos/almond-cake.webp");
-  const firstSection = page.getByRole("region", { name: "Cakes" });
-  expect((await card.boundingBox())!.y).toBeLessThan((await firstSection.boundingBox())!.y);
-  await card.getByRole("button", { name: "Almond Cake" }).click();
+  await page.getByRole("navigation", { name: "Venue pages" }).getByRole("link", { name: "Menu", exact: true }).click();
+  await page.getByRole("button", { name: "Choose Almond Cake", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveAccessibleName("Almond Cake");
-
-  await page.goto(bilosMenuLink);
-  await expect(card).toHaveCount(0);
 });
 
-test("each seeded Brand shows its own artwork, display font and readable colours", async ({ page }) => {
+test("the seeded Bilo's Menu uses its logo and readable Brand colours", async ({ page }) => {
   await page.goto(bilosMenuLink);
 
   const heading = page.getByRole("heading", { level: 1 });
   const brand = page.getByRole("banner");
   const language = brand.getByRole("button", { name: "EN", exact: true });
-  const cover = page.locator("main img");
-  await expect(cover).toHaveAttribute("src", "/brands/bilos/almond-cake.webp");
-  await expect.poll(() => cover.evaluate((photo) => (photo as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  await expect(brand.getByRole("img", { name: "Bilo's Pastry" })).toBeVisible();
   await expect(brand).toHaveCSS("border-top-color", "rgb(236, 103, 40)");
   const bilosColour = await heading.evaluate((el) => getComputedStyle(el).color);
-  const bilosFont = await heading.evaluate((el) => getComputedStyle(el).fontFamily);
   expect(bilosColour).not.toBe("rgb(236, 103, 40)");
   await expect(language).toHaveCSS("background-color", bilosColour);
 
-  await page.getByRole("button", { name: "Omelette" }).click();
+  await page.getByRole("button", { name: "Choose Omelette", exact: true }).click();
   await expect(page.getByRole("button", { name: "Add to order" })).toHaveCSS("background-color", bilosColour);
   await page.getByRole("button", { name: "Add to order" }).click();
   await expect(page.getByRole("button", { name: /Your Draft/ })).toHaveCSS("background-color", bilosColour);
-
-  await page.goto(`/v/${SABA_LINK_TOKEN}/menu`);
-  await expect(brand.getByText("Saba House")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Buna" })).toBeVisible();
-  await expect(brand).toHaveCSS("border-top-color", "rgb(86, 143, 105)");
-  const sabaColour = await heading.evaluate((el) => getComputedStyle(el).color);
-  expect(sabaColour).not.toBe(bilosColour);
-  await expect(language).toHaveCSS("background-color", sabaColour);
-  expect(await heading.evaluate((el) => getComputedStyle(el).fontFamily)).not.toBe(bilosFont);
 });
 
-test("dish prices line up in one right-aligned column", async ({ page }) => {
+test("dish prices keep numbers and currency together without shrinking", async ({ page }) => {
   await page.goto(bilosMenuLink);
-
-  const rows = page.getByRole("region", { name: "Breakfast" }).getByRole("listitem");
-  const rowBox = (await rows.first().boundingBox())!;
-  const priceRightEdges = await rows.getByTestId("price").evaluateAll((prices) =>
-    prices.map((price) => Math.round(price.getBoundingClientRect().right)),
-  );
-
-  expect(new Set(priceRightEdges).size).toBe(1);
-  expect(Math.abs(priceRightEdges[0] - (rowBox.x + rowBox.width))).toBeLessThanOrEqual(24);
+  const prices = page.getByTestId("price");
+  for (const price of await prices.all()) {
+    await expect(price).toHaveCSS("white-space", "nowrap");
+    await expect(price).toHaveCSS("flex-shrink", "0");
+    expect(await price.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+  }
 });
 
 test("a section chip jumps to its section", async ({ page }) => {
@@ -150,7 +122,7 @@ test("the menu is printed in ink on warm paper with touch targets of at least 44
     const style = getComputedStyle(body);
     return { background: style.backgroundColor, text: style.color };
   });
-  expect(colours).toEqual({ background: "rgb(251, 247, 240)", text: "rgb(28, 25, 23)" });
+  expect(colours).toEqual({ background: "rgb(250, 247, 242)", text: "rgb(37, 40, 34)" });
 
   const targets = page.locator("a, button, input:not([type=hidden]), select, textarea, [role=button]");
   const sizes = await targets.evaluateAll((elements) =>

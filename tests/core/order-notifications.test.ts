@@ -179,6 +179,28 @@ test("device notifications follow Order routing, retry without duplicate deliver
   expect(attempts).toEqual([]);
 });
 
+test("a scoped notification run leaves other Waiters' registrations and queued deliveries intact", async () => {
+  const { s, three, sam, hana, at, send } = await service();
+  const waiterIds = [sam.waiterId];
+  const samPush = pushSubscription("scoped-sam");
+  const hanaPush = pushSubscription("scoped-hana");
+  await expect(setWaiterPushSubscription(hana.actor, {
+    subscription: hanaPush, unlockToken: hana.unlockToken,
+  }, { now: at, waiterIds })).rejects.toMatchObject({ code: "not_allowed" });
+  await setWaiterPushSubscription(hana.actor, { subscription: hanaPush, unlockToken: hana.unlockToken }, { now: at });
+  await setWaiterPushSubscription(sam.actor, { subscription: samPush, unlockToken: sam.unlockToken }, { now: at, waiterIds });
+  await send(three.id);
+  const endpoints: string[] = [];
+  const sendPush = async ({ subscription }: OrderNotification) => {
+    endpoints.push(subscription.endpoint);
+    return "sent" as const;
+  };
+  await sendOrderNotifications(systemActor, sendPush, { now: at, venueId: s.venue.id, waiterIds });
+  expect(endpoints).toEqual([samPush.endpoint]);
+  await sendOrderNotifications(systemActor, sendPush, { now: at, venueId: s.venue.id });
+  expect(endpoints).toEqual([samPush.endpoint, hanaPush.endpoint]);
+});
+
 test("a provider can retire an expired device subscription", async () => {
   const { s, one, sam, at, send } = await service();
   const unlockToken = sam.unlockToken;

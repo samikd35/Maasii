@@ -24,7 +24,7 @@ export default async function BrandingPage({ params }: PageProps<"/manage/brands
         {staff("manage")}
       </Link>
       <p className="mt-2 text-sm text-ink-muted">{brand.name}</p>
-      <h1 className="mt-1 font-display text-3xl">{t("heading")}</h1>
+      <h1 className="mt-1 font-sans text-3xl">{t("heading")}</h1>
       <NextIntlClientProvider messages={{ StaffBranding, StaffSocialLinks, StaffForms, StaffErrors, GuestMenu, Ordering, Price }}>
         <BrandingForm
           brand={brand}

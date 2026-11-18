@@ -39,11 +39,7 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
   const common = await getTranslations("Staff");
   const waiter = await getTranslations("StaffWaiter");
   const paymentOptions = await getTranslations("PaymentOptions");
-  const shifts = await getTranslations("Shifts");
-  const menu = await getTranslations("VenueMenu");
   const billing = await getTranslations("Bills");
-  const closing = await getTranslations("Closing");
-  const floor = await getTranslations("Floor");
   const reviews = await getTranslations("Reviews");
   const insights = await getTranslations("Insights");
 
@@ -53,29 +49,11 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
         {t("allVenues")}
       </Link>
       <p className="mt-2 text-sm text-ink-muted">{brand.name}</p>
-      <h1 className="font-display text-3xl">{venue.name}</h1>
+      <h1 className="font-sans text-3xl">{venue.name}</h1>
       <div className="mt-2 flex flex-wrap gap-x-5">
-        <Link href={`/manage/venues/${venue.id}/floor`} className="inline-flex min-h-11 items-center text-sm font-medium underline">
-          {floor("title")}
-        </Link>
         {isOwner && <Link href={`/manage/venues/${venue.id}/insights`} className="inline-flex min-h-11 items-center text-sm font-medium underline">
           {insights("title")}
         </Link>}
-        <Link href={`/manage/venues/${venue.id}/closing`} className="inline-flex min-h-11 items-center text-sm font-medium underline">
-          {closing("title")}
-        </Link>
-        <Link
-          href={`/manage/venues/${venue.id}/shifts`}
-          className="inline-flex min-h-11 items-center text-sm font-medium underline"
-        >
-          {shifts("title")}
-        </Link>
-        <Link
-          href={`/manage/venues/${venue.id}/menu`}
-          className="inline-flex min-h-11 items-center text-sm font-medium underline"
-        >
-          {menu("title")}
-        </Link>
         <Link
           href={`/manage/venues/${venue.id}/payment-options`}
           className="inline-flex min-h-11 items-center text-sm font-medium underline"
@@ -127,9 +105,9 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
             {staff.waiters.map(({ id, name }) => (
               <li key={id} className="flex flex-wrap items-center justify-between gap-2 border-b border-rule py-2">
                 <span className="min-w-0 break-words">{name}</span>
-                <ActionForm action={removeVenueWaiter.bind(null, venue.id, id)}>
-                  <SubmitButton variant="quiet">{waiter("removeNamed", { name })}</SubmitButton>
-                </ActionForm>
+                <details><summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">{waiter("manageAccess", { name })}</summary><ActionForm action={removeVenueWaiter.bind(null, venue.id, id)} confirmMessage={waiter("removeConsequence", { name })}>
+                  <SubmitButton variant="destructive">{waiter("removeNamed", { name })}</SubmitButton>
+                </ActionForm></details>
               </li>
             ))}
           </ul>
@@ -138,7 +116,7 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
           {staff.waiters.length > 0 && (
             <label className="block text-sm font-medium">
               {waiter("waiterToConnect")}
-              <select name="waiterId" className="mt-1 block min-h-11 w-full rounded-md border border-ink/30 bg-white px-3 text-base">
+              <select name="waiterId" className="mt-1 block min-h-11 w-full rounded-xl border border-ink/30 bg-white px-3 text-base">
                 <option value="">{waiter("newWaiter")}</option>
                 {staff.waiters.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
               </select>
@@ -148,8 +126,8 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
         </ActionForm>
       </section>
 
-      <section aria-labelledby="venue-link" className="mt-8">
-        <SectionHeading id="venue-link">{t("venueLink")}</SectionHeading>
+      <details role="region" aria-labelledby="venue-link" className="mt-8">
+        <summary className="min-h-11 font-semibold"><SectionHeading id="venue-link">{t("venueLink")}</SectionHeading></summary>
         <p className="mt-2 text-sm text-ink-muted">{t("venueLinkHelp")}</p>
         <CopyField label={t("venueLink")} value={link.url} />
         {/* A plain <img>: the QR is a private, per-request PNG, not something to optimise. */}
@@ -165,22 +143,22 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
           <a
             href={`data:text/plain;charset=utf-8,${encodeURIComponent(link.url + "\n")}`}
             download={`${venue.linkToken}-link.txt`}
-            className="inline-flex min-h-11 items-center rounded-md border border-ink/30 px-4 font-medium"
+            className="inline-flex min-h-11 items-center rounded-xl border border-ink/30 px-4 font-medium"
           >
             {t("downloadVenueLink")}
           </a>
           <a
             href={`/manage/venues/${venue.id}/qr?download=1`}
             download={link.qrFileName}
-            className="inline-flex min-h-11 items-center rounded-md border border-ink/30 px-4 font-medium"
+            className="inline-flex min-h-11 items-center rounded-xl border border-ink/30 px-4 font-medium"
           >
             {t("downloadQr")}
           </a>
         </div>
-      </section>
+      </details>
 
-      <section aria-labelledby="tables" className="mt-10">
-        <SectionHeading id="tables">{t("tables")}</SectionHeading>
+      <details role="region" aria-labelledby="tables" className="mt-10">
+        <summary className="min-h-11 font-semibold"><SectionHeading id="tables">{t("tables")}</SectionHeading></summary>
         {tables.length === 0 ? (
           <p className="py-3 text-ink-muted">{t("noTables")}</p>
         ) : (
@@ -195,10 +173,10 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
           <Field label={t("toTable")} name="to" type="number" inputMode="numeric" min={1} className="w-28" />
           <SubmitButton>{t("addTables")}</SubmitButton>
         </ActionForm>
-      </section>
+      </details>
 
-      <section aria-labelledby="managers" className="mt-10">
-        <SectionHeading id="managers">{t("managers")}</SectionHeading>
+      <details role="region" aria-labelledby="managers" className="mt-10">
+        <summary className="min-h-11 font-semibold"><SectionHeading id="managers">{t("managers")}</SectionHeading></summary>
         {staff.managers.length === 0 ? (
           <p className="py-3 text-ink-muted">{t("noManager")}</p>
         ) : (
@@ -230,7 +208,7 @@ export default async function VenuePage({ params }: PageProps<"/manage/venues/[v
             <SubmitButton>{t("inviteManager")}</SubmitButton>
           </ActionForm>
         )}
-      </section>
+      </details>
     </>
   );
 }

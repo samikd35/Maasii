@@ -4,6 +4,7 @@
 // Prices and checks come from the Maasii core's browser-safe rules; this file only renders them
 // and keeps the Draft in the phone's local storage.
 import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import {
   MAX_NOTE_LENGTH,
@@ -18,7 +19,20 @@ import {
   type PricedDraft,
   type PricedDraftLine,
 } from "@/core/browser";
-import { DraftSlipContents, draftSlipClass } from "@/ui/guest-menu-parts";
+import { DraftSlipContents, draftSlipClass } from "@/ui/draft-slip";
+import { ServingPhoto } from "@/ui/serving-photo";
+function PhotoDetail({ photoUrl, name }: { photoUrl: string | null; name: string }) {
+  return photoUrl ? <ServingPhoto src={photoUrl} alt={name} className="aspect-4/3 max-h-80 w-full object-cover" /> : null;
+}
+function ServingMedia(props: { photoUrl: string | null; videoUrl?: string | null; name: string; playLabel: string }) {
+  const [Player, setPlayer] = useState<typeof import("@/ui/guest-serving-media").ServingMedia>();
+  useEffect(() => {
+    let mounted = true;
+    void import("@/ui/guest-serving-media").then(module => { if (mounted) setPlayer(() => module.ServingMedia); }).catch(() => {});
+    return () => { mounted = false; };
+  }, []);
+  return Player ? <Player {...props} /> : <PhotoDetail {...props} />;
+}
 import { formatBirr, Price } from "@/ui/price";
 import { draftKey, hasUnsavedDraft, readDraft, useDraft, writeDraft, type Line } from "./draft-store";
 import type { SlipService } from "./order-service";
@@ -27,22 +41,13 @@ type SheetRequest = { dishId: string } | { lineId: string } | { draft: true; tar
 
 const newLineId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
-// ---- Opening a dish from its server-rendered row -----------------------------------------------
-
+// One shared controller keeps server-rendered dish rows small.
 let openSheet: ((dishId: string) => void) | undefined;
-
-/** An invisible button over a dish row that opens the dish sheet. */
 export function OpenDishButton({ dishId, labelledBy, describedBy }: { dishId: string; labelledBy: string; describedBy?: string }) {
-  return (
-    <button
-      type="button"
-      aria-haspopup="dialog"
-      aria-labelledby={labelledBy}
-      aria-describedby={describedBy}
-      onClick={() => openSheet?.(dishId)}
-      className="absolute inset-0 w-full cursor-pointer focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
-    />
-  );
+  return <button type="button" aria-haspopup="dialog" aria-labelledby={labelledBy} aria-describedby={describedBy}
+    ref={button => { if (button) button.dataset.dishId = dishId; }}
+    onClick={event => { event.currentTarget.focus({ preventScroll: true }); openSheet?.(dishId); }}
+    className="dish-choose focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink" />;
 }
 
 // ---- The island --------------------------------------------------------------------------------
@@ -62,18 +67,20 @@ function sendBrowsingEvent(venueLinkToken: string, pageLoadId: string, dishId?: 
   }).catch(() => {});
 }
 
-export function Ordering({ venueLinkToken, sections, recordBrowsing, preview = false, orderService, initialView }: {
+export function Ordering({ venueLinkToken, sections, recordBrowsing, preview = false, orderService, initialView, initialDish }: {
   venueLinkToken: string;
   sections: DraftMenu["sections"];
   recordBrowsing: boolean;
   preview?: boolean;
   orderService?: boolean;
   initialView?: "order" | "bill";
+  initialDish?: string;
 }) {
   const t = useTranslations("Ordering");
+  const router = useRouter();
   const key = draftKey(venueLinkToken);
   const lines = useDraft(preview ? undefined : key);
-  const [sheet, setSheet] = useState<SheetRequest | null>(() => initialView ? { draft: true, target: initialView } : null);
+  const [sheet, setSheet] = useState<SheetRequest | null>(() => initialView ? { draft: true, target: initialView } : initialDish ? { dishId: initialDish } : null);
   const storageUnavailable = hasUnsavedDraft(key);
   const [announcement, setAnnouncement] = useState("");
   const [Service, setService] = useState<typeof import("./order-service").default>();
@@ -108,9 +115,7 @@ export function Ordering({ venueLinkToken, sections, recordBrowsing, preview = f
         sendBrowsingEvent(venueLinkToken, browsingPage.pageLoadId, dishId);
       }
     };
-    return () => {
-      openSheet = undefined;
-    };
+    return () => { openSheet = undefined; };
   }, [recordBrowsing, venueLinkToken]);
 
   const menu: DraftMenu = { sections };
@@ -169,7 +174,7 @@ export function Ordering({ venueLinkToken, sections, recordBrowsing, preview = f
     const hasSlip = lines.length > 0 || !!service?.tableLabel || serviceFailed || showSlip;
     return hasSlip && (
       <>
-        <div className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-xl bg-linear-to-t from-paper via-paper/90 to-transparent px-3 pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="draft-dock fixed inset-x-0 z-20 mx-auto max-w-xl px-3 py-2">
           <button
             ref={slipButton}
             type="button"
@@ -203,7 +208,10 @@ export function Ordering({ venueLinkToken, sections, recordBrowsing, preview = f
                 )}
               </div>
             )}
-            onClose={() => setSheet(null)}
+            onClose={() => {
+              setSheet(null);
+              if (initialView) router.replace(location.pathname + location.hash, { scroll: false });
+            }}
             onEdit={(lineId) => setSheet({ lineId })}
             onQuantity={(lineId, quantity) => save(lines.map((l) => (l.lineId === lineId ? { ...l, quantity } : l)), "")}
             onRemove={(line) => {
@@ -243,18 +251,32 @@ export function Ordering({ venueLinkToken, sections, recordBrowsing, preview = f
 
 function Sheet({
   labelledBy,
+  dismissOnBack = false,
   invoker,
   onClose,
   footer,
   children,
 }: {
   labelledBy: string;
+  dismissOnBack?: boolean;
   invoker?: RefObject<HTMLButtonElement | null>;
   onClose: () => void;
   footer?: ReactNode;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (!dismissOnBack) return;
+    const key = crypto.randomUUID();
+    history.pushState({ ...history.state, maasiiDish: key }, "");
+    const dialog = ref.current!;
+    const back = () => dialog.close();
+    window.addEventListener("popstate", back);
+    return () => {
+      window.removeEventListener("popstate", back);
+      if (history.state?.maasiiDish === key) history.back();
+    };
+  }, [dismissOnBack]);
   useLayoutEffect(() => {
     const dialog = ref.current!;
     // Lazy service loading can replace the slip button. Establish the current invoker
@@ -361,6 +383,7 @@ function DishSheet({
 
   return (
     <Sheet
+      dismissOnBack
       labelledBy={headingId}
       onClose={onClose}
       footer={
@@ -388,10 +411,7 @@ function DishSheet({
         </>
       }
     >
-      {dish.photoUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={dish.photoUrl} alt="" decoding="async" className="aspect-4/3 w-full bg-paper-deep object-cover" />
-      )}
+      {dish.videoUrl ? <ServingMedia photoUrl={dish.photoUrl} videoUrl={dish.videoUrl} name={dish.name} playLabel={t("playVideo")} /> : <PhotoDetail photoUrl={dish.photoUrl} name={dish.name} />}
       <div className="px-5 pt-4">
         <SheetHeading id={headingId} onClose={onClose}>
           {dish.name}
@@ -510,6 +530,7 @@ function DraftSheet({
         <SheetHeading id={headingId} onClose={onClose}>
           {service?.tableLabel ? `${t("yourTable")} · ${service.tableLabel}` : t("yourTable")}
         </SheetHeading>
+        {service?.notices}
         {lines.length > 0 && (
           <>
             <h3 className="mt-4 border-b border-ink/70 pb-1.5 text-sm font-semibold tracking-wide uppercase">{t("draftHeading")}</h3>
@@ -531,6 +552,7 @@ function DraftSheet({
             </ul>
           </>
         )}
+        {service?.tableChoices}
         {service?.orders}
       </div>
     </Sheet>

@@ -40,11 +40,13 @@ export type OrderNotification = {
 };
 
 export async function setWaiterPushSubscription(
-  actor: Actor, input: { subscription: unknown; unlockToken?: string }, { now = new Date() }: { now?: Date } = {},
+  actor: Actor, input: { subscription: unknown; unlockToken?: string },
+  { now = new Date(), waiterIds }: { now?: Date; waiterIds?: string[] } = {},
 ): Promise<void> {
   const subscription = parseInput(subscriptionInput, input.subscription);
   await inTransaction(actor, async (tx) => {
-    await requireOrderWaiter(tx, actor, input.unlockToken, now);
+    const waiter = await requireOrderWaiter(tx, actor, input.unlockToken, now);
+    if (waiterIds && !waiterIds.includes(waiter.id)) throw new MaasiiError("not_allowed", "Push is not configured for this Waiter.");
     await tx.query("select app.register_waiter_push($1, $2)", [subscription.endpoint, subscription.keys]);
   });
 }
@@ -77,10 +79,11 @@ type DeliveryResult = "sent" | "expired" | "retry";
 
 export async function sendOrderNotifications(
   actor: Actor, send: (notification: OrderNotification) => Promise<DeliveryResult>,
-  { now = new Date(), venueId }: { now?: Date; venueId?: string } = {},
+  { now = new Date(), venueId, waiterIds }: { now?: Date; venueId?: string; waiterIds?: string[] } = {},
 ): Promise<void> {
   if (actor.kind !== "system") throw new MaasiiError("not_allowed", "Only the notification job sends push messages.");
   const venue = parseInput(z.uuid().optional(), venueId);
+  const waiters = parseInput(z.array(z.uuid()).optional(), waiterIds);
   const lease = randomUUID();
 
   // Claim and commit before contacting providers. A crashed worker leaves rows due again in one minute.
@@ -98,6 +101,7 @@ export async function sendOrderNotifications(
          join app.visits v on v.id = o.visit_id
          left join app.staff_preferences l on l.user_id = m.user_id
          where ($3::uuid is null or o.venue_id = $3)
+           and ($4::uuid[] is null or m.id = any($4))
            and q.next_attempt_at <= $2 and v.closed_at is null and m.active and d.failed_attempts < 5
            and ((q.reason = 'bill-reminder' and v.bill_reminded_at is not null and v.bill_prepared_at is not null)
              or (q.reason <> 'bill-reminder' and o.state = 'sent'))
@@ -107,7 +111,7 @@ export async function sendOrderNotifications(
        update app.order_push_deliveries q set lease_id = $1, next_attempt_at = $2::timestamptz + interval '1 minute'
        from due where q.id = due.id
        returning q.id as "deliveryId", due."orderId", due."tableId", due."tableNumber", due.language, due.reason, due.subscription`,
-      [lease, now, venue ?? null],
+      [lease, now, venue ?? null, waiters ?? null],
     );
     return rows;
   });

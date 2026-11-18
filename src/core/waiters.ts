@@ -177,6 +177,7 @@ export async function joinWaiter(
 type WaiterDevice = {
   active: boolean;
   sessionId: string | null;
+  waiterId: string;
   name: string;
   venueId: string;
   venueName: string;
@@ -188,7 +189,7 @@ type WaiterDevice = {
 
 export type WaiterSession =
   | { status: "locked" | "rejoin" }
-  | { status: "unlocked"; name: string; venue: { id: string; name: string }; hasPush: boolean; dishes: ({ id: string } & Bilingual)[] };
+  | { status: "unlocked"; name: string; waiterId: string; venue: { id: string; name: string }; hasPush: boolean; dishes: ({ id: string } & Bilingual)[] };
 
 /** Reads the enrolled device for this verified Auth session, before or after PIN unlock. */
 export async function getWaiterSession(
@@ -199,7 +200,7 @@ export async function getWaiterSession(
   if (actor.kind !== "staff") return null;
   return inTransaction(systemActor, async (tx) => {
     const { rows } = await tx.query<WaiterDevice>(
-      `select m.active, d.session_id as "sessionId", m.name,
+      `select m.active, d.session_id as "sessionId", m.name, m.id as "waiterId",
               v.id as "venueId", v.name as "venueName",
               d.failed_attempts as attempts, d.unlock_hash as "unlockHash", d.unlocked_until as "unlockedUntil",
               exists (select 1 from app.waiter_push_subscriptions p where p.session_id = d.session_id) as "hasPush"
@@ -220,7 +221,7 @@ export async function getWaiterSession(
     const venue = await findVenue(tx, device.venueId);
     const published = await readPublishedMenu(tx, { venueLinkToken: venue.linkToken }, now);
     const dishes = published?.menuSections.flatMap((section) => section.dishes.map((dish) => ({ id: dish.dishId, ...dish.name }))) ?? [];
-    return { status: "unlocked", name: device.name, venue: { id: device.venueId, name: device.venueName }, hasPush: device.hasPush, dishes };
+    return { status: "unlocked", name: device.name, waiterId: device.waiterId, venue: { id: device.venueId, name: device.venueName }, hasPush: device.hasPush, dishes };
   });
 }
 

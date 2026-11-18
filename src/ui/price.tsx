@@ -7,13 +7,13 @@ export function formatBirr(santim: number): string {
   return birr.format(santim / 100);
 }
 
-/** An ETB price, set as a figure with the currency underneath, as on a printed menu. */
+/** An ETB price, set as an indivisible figure and adjacent currency. */
 export function Price({ santim }: { santim: number }) {
   const t = useTranslations("Price");
   return (
-    <data value={santim / 100} data-testid="price" className="flex flex-col items-end leading-none">
+    <data value={santim / 100} data-testid="price" className="inline-flex shrink-0 items-baseline gap-1 whitespace-nowrap leading-none">
       <span className="text-base font-semibold tabular-nums">{formatBirr(santim)}</span>{" "}
-      <span className="mt-1 text-[0.6875rem] font-medium tracking-wide text-ink-muted">{t("currency")}</span>
+      <span className="text-xs font-medium tracking-wide text-ink-muted">{t("currency")}</span>
     </data>
   );
 }

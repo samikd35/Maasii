@@ -1,10 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
+import { updateBranding } from "@/core";
 import { bilosMenu, LANCHA_LINK_TOKEN } from "../scripts/seed/bilos";
-import { SABA_LINK_TOKEN } from "../scripts/seed/saba";
 import { scenario } from "../tests/support/scenario";
 
 const bilosMenuLink = `/v/${LANCHA_LINK_TOKEN}/menu`;
-const sabaMenuLink = `/v/${SABA_LINK_TOKEN}/menu`;
 
 const sectionChips = (page: Page) => page.getByRole("navigation", { name: /Menu sections|የምናሌ ክፍሎች/ }).getByRole("link");
 const dishRow = (page: Page, name: string) => page.getByRole("listitem").filter({ has: page.getByRole("heading", { name }) });
@@ -100,8 +99,16 @@ test.describe("on a phone set to Amharic", () => {
     expect(withoutNames).not.toMatch(/[A-Za-z]/);
   });
 
-  for (const [link, familyName] of [[bilosMenuLink, "Noto Sans Ethiopic"], [sabaMenuLink, "Noto Serif Ethiopic"]]) {
+  for (const familyName of ["Noto Sans Ethiopic", "Noto Serif Ethiopic"]) {
     test(`Amharic headings and body text are set in ${familyName}`, async ({ page }) => {
+      let link = bilosMenuLink;
+      if (familyName === "Noto Serif Ethiopic") {
+        const s = await scenario().publishedMenu().build();
+        await updateBranding(s.owner.actor, {
+          brandId: s.brand.id, colour: "#568F69", displayFont: "noto-serif-ethiopic",
+        });
+        link = `/v/${s.venue.linkToken}/menu`;
+      }
       await page.goto(link);
       await expect(page.getByRole("heading", { level: 1 })).toHaveText("ምናሌያችን");
       await page.evaluate(() => document.fonts.ready);
@@ -131,13 +138,6 @@ test.describe("on a phone set to Amharic", () => {
     expect(bytes.ethiopicFonts).toBe(1);
     expect(bytes.total).toBeLessThan(250 * 1024);
   });
-
-  test("Saba House's Amharic menu weighs under 250 KB and downloads one Ethiopic font", async ({ page }) => {
-    const bytes = await weighMenu(page, sabaMenuLink);
-    console.log(`Saba House Amharic menu weight before photos: ${(bytes.total / 1024).toFixed(1)} KB`);
-    expect(bytes.ethiopicFonts).toBe(1);
-    expect(bytes.total).toBeLessThan(250 * 1024);
-  });
 });
 
 test.describe("on a phone set to another language", () => {
@@ -161,14 +161,6 @@ test("the English Venue homepage stays within the guest budget", async ({ page }
   const bytes = await weighMenu(page, `/v/${LANCHA_LINK_TOKEN}`);
   console.log(`English Venue homepage before photos: ${(bytes.total / 1024).toFixed(1)} KB`);
   expect(bytes.fonts).toBe(0);
-  expect(bytes.total).toBeLessThan(250 * 1024);
-});
-
-test("Saba House's English menu weighs under 250 KB and only downloads its Latin font", async ({ page }) => {
-  const bytes = await weighMenu(page, sabaMenuLink);
-  console.log(`Saba House English menu weight before photos: ${(bytes.total / 1024).toFixed(1)} KB`);
-  expect(bytes.ethiopicFonts).toBe(0);
-  expect(bytes.fonts).toBeGreaterThan(0);
   expect(bytes.total).toBeLessThan(250 * 1024);
 });
 

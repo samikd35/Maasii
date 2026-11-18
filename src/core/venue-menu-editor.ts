@@ -1,8 +1,9 @@
+import { validateDishVideos } from "./dish-videos";
 import { isDeepStrictEqual } from "node:util";
 import { z } from "zod";
 import { requireVenueManager } from "./access";
 import type { Actor } from "./actor";
-import { brandArtworkBucket, prepareBrandArtwork, uploadBrandArtwork } from "./brand-artwork";
+import { uploadServingPhoto } from "./brand-artwork";
 import type { Brand } from "./brands";
 import { inTransaction, type Tx } from "./db";
 import { MaasiiError } from "./errors";
@@ -18,7 +19,7 @@ const edit = target.extend({
   publish: z.boolean(),
 });
 type Dish = MenuDraftContent["sections"][number]["dishes"][number];
-const fields = ["priceSantim", "fasting", "photoUrl", "houseFavourite", "optionGroups"] as const;
+const fields = ["priceSantim", "fasting", "photoUrl", "videoAssetId", "houseFavourite", "optionGroups"] as const;
 
 async function venueContext(tx: Tx, venueId: string) {
   const { rows: [venue] } = await tx.query<{
@@ -87,7 +88,7 @@ function validateIdentity(menu: MenuDraftContent) {
 function localPhoto(venue: Awaited<ReturnType<typeof venueContext>>, venueId: string, url: string) {
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
   const prefix = `${base}/storage/v1/object/public/brand-artwork/${venue.brand.id}/venues/${venueId}/`;
-  return Boolean(base && url.startsWith(prefix) && /^dish-[\da-f-]+\.webp$/.test(url.slice(prefix.length)));
+  return Boolean(base && url.startsWith(prefix) && /^dish-[\da-f-]+(?:-detail)?\.webp$/.test(url.slice(prefix.length)));
 }
 
 export async function saveVenueMenu(actor: Actor, input: z.input<typeof edit>, { now = new Date() } = {}) {
@@ -103,6 +104,7 @@ export async function saveVenueMenu(actor: Actor, input: z.input<typeof edit>, {
     const { venue, base, changes, revision: current } = await editorState(tx, venueId);
     if (revision !== current) throw menuDraftChanged();
 
+    await validateDishVideos(tx, venue.brand.id, venueId, [...submitted.sections.flatMap(s => s.dishes), ...submitted.archivedDishes.map(e => e.dish)]);
     const inherited = new Map(base.flatMap((section) => section.dishes.map((dish) => [dish.dishId, dish] as const)));
     const effective = mergeVenueMenu(base, changes);
     const previous = new Map([...effective.sections.flatMap((s) => s.dishes), ...effective.archivedDishes.map((e) => e.dish)]
@@ -185,6 +187,5 @@ export async function uploadVenueDishPhoto(actor: Actor, input: { venueId: strin
     await requireVenueManager(tx, actor, venueId);
     return (await venueContext(tx, venueId)).brand.id;
   });
-  const bytes = await prepareBrandArtwork(photo, 960, 960);
-  return uploadBrandArtwork(brandArtworkBucket(), `${brandId}/venues/${venueId}/dish-${crypto.randomUUID()}.webp`, bytes);
+  return uploadServingPhoto(photo, `${brandId}/venues/${venueId}/dish-${crypto.randomUUID()}`);
 }

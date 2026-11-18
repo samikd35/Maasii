@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 import { deriveBrandTheme, displayFonts, type DisplayFont } from "@/core/browser";
 import type { Brand } from "@/core";
 import type { FormState } from "@/lib/session";
-import { DraftSlipContents, draftSlipClass, GuestDishRow, GuestMenuHeader, GuestMenuIntro } from "@/ui/guest-menu-parts";
+import { GuestDishRow, GuestMenuHeader } from "@/ui/guest-menu-parts";
+import { DraftSlipContents, draftSlipClass } from "@/ui/draft-slip";
 import { brandThemeStyle, displayFontClasses } from "@/ui/guest-theme";
 import { ActionForm, SubmitButton } from "@/ui/staff-forms";
 
@@ -18,6 +19,7 @@ export function BrandingForm({ brand, save, accept, maxFileBytes }: {
   maxFileBytes: number;
 }) {
   const t = useTranslations("StaffBranding");
+  const menuText = useTranslations("GuestMenu");
   const [colour, setColour] = useState(brand.colour);
   const [font, setFont] = useState(brand.displayFont);
   const [logo, setLogo] = useArtwork();
@@ -65,7 +67,7 @@ export function BrandingForm({ brand, save, accept, maxFileBytes }: {
               type="color"
               value={colour.toLowerCase()}
               onChange={(event) => setColour(event.currentTarget.value)}
-              className="mt-1 block h-11 w-20 cursor-pointer rounded-md border border-ink/30 bg-white p-1"
+              className="mt-1 block h-11 w-20 cursor-pointer rounded-xl border border-ink/30 bg-white p-1"
             />
           </label>
           {theme.accent !== theme.readable && (
@@ -83,7 +85,7 @@ export function BrandingForm({ brand, save, accept, maxFileBytes }: {
               name="displayFont"
               value={font}
               onChange={(event) => setFont(event.currentTarget.value as DisplayFont)}
-              className="mt-1 block min-h-11 w-full rounded-md border border-ink/30 bg-white px-3 text-base font-normal"
+              className="mt-1 block min-h-11 w-full rounded-xl border border-ink/30 bg-white px-3 text-base font-normal"
             >
               {displayFonts.map((face) => <option key={face} value={face}>{t(face)}</option>)}
             </select>
@@ -97,7 +99,12 @@ export function BrandingForm({ brand, save, accept, maxFileBytes }: {
             style={brandThemeStyle(theme)}
           >
             <GuestMenuHeader brand={{ name: brand.name, logoUrl: logo?.url ?? brand.logoUrl }} />
-            <GuestMenuIntro label={brand.name} coverUrl={cover?.url ?? brand.coverUrl} heading="h3" />
+            {(cover?.url ?? brand.coverUrl) && <figure className="px-5 pt-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={cover?.url ?? brand.coverUrl ?? undefined} alt={t("cover")} className="aspect-[3/1] w-full rounded-xl object-cover" />
+              <figcaption className="mt-1 text-xs text-ink-muted">{t("cover")}</figcaption>
+            </figure>}
+            <div className="px-5 pt-4"><p className="text-sm text-ink-muted">{brand.name}</p><h3 className="mt-1 text-3xl font-semibold text-brand-readable">{menuText("heading")}</h3></div>
             <ul className="px-5 pt-4">
               <GuestDishRow dish={{ id: "preview", name: t("exampleDish"), description: t("exampleDescription"), fasting: false, priceSantim }} />
             </ul>
@@ -139,7 +146,7 @@ function ArtworkField({ name, label, accept, fileName, onChange }: {
       />
       <label
         htmlFor={`brand-${name}`}
-        className="inline-flex min-h-11 cursor-pointer items-center rounded-md border border-ink/30 px-3 text-sm font-medium peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2"
+        className="inline-flex min-h-11 cursor-pointer items-center rounded-xl border border-ink/30 px-3 text-sm font-medium peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2"
       >
         {label}
       </label>

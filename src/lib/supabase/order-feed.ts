@@ -27,8 +27,9 @@ export function watchOrders<T extends OrderFeed>(
     const sequence = ++nextRead;
     try {
       const response = await fetch(url, { cache: "no-store" });
-      if (closed || sequence < lastApplied) return;
+      if (closed || sequence < lastApplied) { await response.body?.cancel(); return; }
       if (!response.ok) {
+        lastApplied = sequence;
         onError?.(response.status);
         return;
       }
@@ -39,7 +40,7 @@ export function watchOrders<T extends OrderFeed>(
       onData(data);
       if (connection && !unsubscribe && !connecting) void connect(connection.topic);
     } catch {
-      if (!closed) onError?.();
+      if (!closed && sequence >= lastApplied) { lastApplied = sequence; onError?.(); }
     }
   }
 

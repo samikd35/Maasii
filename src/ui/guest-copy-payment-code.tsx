@@ -20,9 +20,9 @@ export function GuestCopyPaymentCode({ code, labels }: {
   }
   return (
     <>
-      <p dir="ltr" className="break-all text-start font-mono select-text">{code}</p>
+      <p dir="ltr" className="break-all text-start font-mono text-lg select-text">{code}</p>
       <button type="button" onClick={() => void copy()}
-        className="min-h-11 min-w-11 rounded-md border border-ink/40 px-3 font-medium">
+        className="min-h-11 w-full rounded-xl border border-control-border px-3 font-medium">
         {labels.copyCode}
       </button>
       <p role="status">{status}</p>

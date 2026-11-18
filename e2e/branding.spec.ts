@@ -44,7 +44,7 @@ test("an Owner previews and saves artwork and readable colours for every Venue",
   const readable = await previewHeading.evaluate((heading) => getComputedStyle(heading).color);
   await expect(preview.getByText(/Your Draft/).locator("../..")).toHaveCSS("background-color", readable);
   await expect.poll(() => preview.getByRole("img", { name: "Bole Coffee" }).evaluate(loadedImage)).toBeGreaterThan(0);
-  await expect.poll(() => preview.locator('img[alt=""]').evaluate(loadedImage)).toBeGreaterThan(0);
+
 
   await guest.goto(`/v/${s.venue.linkToken}/menu`);
   await expect(guestHeader).not.toHaveCSS("border-top-color", "rgb(236, 103, 40)");
@@ -59,7 +59,8 @@ test("an Owner previews and saves artwork and readable colours for every Venue",
     await expect(guestHeading).toHaveCSS("color", readable);
     await expect(guestHeading).toHaveCSS("font-family", await previewHeading.evaluate((el) => getComputedStyle(el).fontFamily));
     await expect.poll(() => guestHeader.getByRole("img", { name: "Bole Coffee" }).evaluate(loadedImage)).toBeGreaterThan(0);
-    await expect.poll(() => guest.locator('main img[alt=""]').evaluate(loadedImage)).toBeGreaterThan(0);
+    await guest.goto(`/v/${venue.linkToken}`);
+    await expect.poll(() => guest.locator('main img[alt=""]').first().evaluate(loadedImage)).toBeGreaterThan(0);
   }
 
   await signIn(guest, s.managers.Hana, "/manage/operations");

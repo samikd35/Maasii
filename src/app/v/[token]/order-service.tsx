@@ -28,6 +28,8 @@ export type SlipService = {
   status?: string;
   locked: boolean;
   canChangeTable?: boolean;
+  notices?: ReactNode;
+  tableChoices?: ReactNode;
   controls: ReactNode;
   orders: ReactNode;
 };
@@ -67,6 +69,8 @@ export default function OrderService({
   const [loadError, setLoadError] = useState(false);
   const [orders, setOrders] = useState<LiveOrder[]>([]);
   const [choosing, setChoosing] = useState<"send" | "move">();
+  const [selectedTable, setSelectedTable] = useState<Table>();
+  const tableChoices = useRef<HTMLFieldSetElement>(null);
   const refresh = useRef<() => Promise<void>>(async () => {});
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<"chooseAgain" | "draftChanged" | "unavailable" | "requestConflict" | "billPrepared" | "orderTableBillPrepared" | "tableChoiceLocked">();
@@ -196,52 +200,73 @@ export default function OrderService({
     return order.state === "accepted" ? t("accepted", { name: order.acceptedByName ?? "" }) : t(order.state);
   };
   const isAvailable = feed?.available ?? false;
+  const showTableChoices = Boolean(choosing && feed?.available && !sending && !device.pending);
+  useEffect(() => {
+    if (showTableChoices) tableChoices.current?.focus();
+  }, [showTableChoices]);
 
   return render({
     tableLabel: table ? t("table", { number: table.number }) : undefined,
     status: visit?.bill ? t(visit.closedAt ? "billPaid" : "billReady") : latest ? status(latest) : undefined,
     locked: !!device.pending || sending,
     canChangeTable: visit?.canChangeTable && isAvailable,
-    controls: (
+    notices: (
       <>
         {error && error !== "billPrepared" && <p role="alert" className="mt-2 text-sm">{t(error)}</p>}
-        {billIsPrepared && <p role="status" className="mt-2 text-sm">{t("billPrepared")}</p>}
+        {billIsPrepared && lines.length > 0 && <p role="status" className="mt-2 text-sm">{t("billPrepared")}</p>}
         {feed && !isAvailable && error !== "unavailable" && <p className="mt-2 text-sm">{t("unavailable")}</p>}
-        {loadError && !feed && <p role="status" className="mt-2 text-sm">{t("serviceUnavailable")}</p>}
+        {loadError && <p role="status" className="maasii-card mt-2 text-sm">{t(feed ? "staleStatus" : "serviceUnavailable")}</p>}
+      </>
+    ),
+    tableChoices: showTableChoices && feed && (
+      <fieldset ref={tableChoices} tabIndex={-1} className="pb-4">
+        <legend className="text-sm font-semibold">{t("choose")}</legend>
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          {feed.tables.filter(({ id }) => choosing === "send" || id !== table?.id).map((table) => (
+            <button key={table.id} type="button" onClick={() => setSelectedTable(table)} aria-pressed={selectedTable?.id === table.id}
+              className="table-choice min-h-11 rounded-lg border border-control-border px-1 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-ink">
+              {selectedTable?.id === table.id && <span aria-hidden>✓ </span>}{t("table", { number: table.number })}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+    ),
+    controls: (
+      <>
         {sending ? <p role="status" className="mt-2 text-sm">{t("sending")}</p>
           : device.pending ? (
-            <button type="button" onClick={() => void send(device.pending!.table)} className={`${sendButton} mt-2`}>
+            <div className="maasii-card mt-3"><p role="status">{t("uncertain")}</p><button type="button" onClick={() => void send(device.pending!.table)} className={`${sendButton} mt-2`}>
               {t("retry")}
-            </button>
-          ) : choosing && isAvailable ? (
-            <fieldset className="mt-3">
-              <legend className="text-sm font-semibold">{t("choose")}</legend>
-              {feed ? (
-                <div className="mt-2 grid grid-cols-3 gap-2">
-                  {feed.tables.filter(({ id }) => choosing === "send" || id !== table?.id).map((table) => (
-                    <button key={table.id} type="button" onClick={() => void (choosing === "move" ? changeTable(table) : send(table))}
-                      className="min-h-11 rounded-lg border border-rule px-1 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-ink">
-                      {t("table", { number: table.number })}
-                    </button>
-                  ))}
-                </div>
-              ) : <p role="status" className="mt-2 text-sm">{t("serviceUnavailable")}</p>}
-            </fieldset>
+            </button></div>
+          ) : showTableChoices ? (
+              <button type="button" className={`${sendButton} mt-3`} disabled={!selectedTable || loadError || (choosing === "send" && (invalidDraft || billIsPrepared))}
+                onClick={() => selectedTable && void (choosing === "move" ? changeTable(selectedTable) : send(selectedTable))}>
+                {selectedTable ? t(choosing === "move" ? "confirmMove" : "sendToTable", { number: selectedTable.number }) : t("choose")}
+              </button>
           ) : lines.length > 0 && (
-            <button type="button" disabled={!isAvailable || invalidDraft || billIsPrepared}
-              onClick={() => device.table && !visit?.closedAt ? void send(device.table) : setChoosing("send")}
+            <button type="button" disabled={!isAvailable || invalidDraft || billIsPrepared || loadError}
+              onClick={() => { setSelectedTable(device.table && !visit?.closedAt ? device.table : undefined); setChoosing("send"); }}
               className={`${sendButton} mt-2`}>
-              {t("send")}
+              {t("chooseTableStep")}
             </button>
           )}
         {visit?.canChangeTable && !sending && !device.pending && !choosing && isAvailable && (
-          <button type="button" onClick={() => setChoosing("move")} className="mt-2 min-h-11 px-2 text-sm font-semibold underline">
+          <button type="button" onClick={() => { setSelectedTable(undefined); setChoosing("move"); }} className="mt-2 min-h-11 px-2 text-sm font-semibold underline">
             {t("changeTable")}
           </button>
         )}
       </>
     ),
     orders: orders.length > 0 && (<>
+      {orders.some(order => order.state === "sent") && <section className="maasii-card mt-3" role="status">
+        <h3 className="font-semibold">{t("awaitingAcceptance")}</h3>
+        <BillTotal label={t("submittedTotal")} totalSantim={orders.filter(order => order.state === "sent").reduce((total, order) => total + order.lines.reduce((sum, line) => sum + line.quantity * line.unitPriceSantim, 0), 0)} />
+        <p className="mt-2 text-sm text-ink-muted">{t("pendingBillHelp")}</p>
+      </section>}
+      {visit?.bill ? (
+        <GuestBill bill={visit.bill} paid={!!visit.closedAt} options={visit.paymentOptions} target={target} />
+      ) : visit && !visit.closedAt && orders.some(order => order.visitId === visit.id && order.state === "accepted") && <BillTotal totalSantim={visit.totalSantim} label={t("acceptedTotal")} />}
+
       <section className="pb-4">
         <h3 className="mt-4 border-b border-ink/70 pb-1.5 text-sm font-semibold uppercase">{t("orders")}</h3>
         <ol>
@@ -275,9 +300,6 @@ export default function OrderService({
         </ol>
       </section>
       {!!visit?.discountSantim && <p className="text-sm">{t("billDiscount", { amount: formatBirr(visit.discountSantim) })}</p>}
-      {visit?.bill ? (
-        <GuestBill bill={visit.bill} paid={!!visit.closedAt} options={visit.paymentOptions} target={target} />
-      ) : visit && !visit.closedAt && <BillTotal totalSantim={visit.totalSantim} label={t("billTotal")} />}
       {feed?.review && feed.review.visitId === visit?.id && (
         <GuestReviews
           key={feed.review.visitId}
@@ -315,10 +337,13 @@ function GuestBill({ bill, options, paid, target }: {
   return (
     <>
       <section aria-label={t("bill")} className="pb-1">
-        <h3 ref={heading} tabIndex={target === "bill" ? -1 : undefined} className="border-b border-ink/70 pb-1.5 text-sm font-semibold uppercase">{t("bill")}</h3>
-        <p className="my-2 text-sm text-ink-muted">{t("notTaxReceipt")}</p>
-        {paid && <p role="status" className="mb-2 text-sm font-semibold">{t("billPaid")}</p>}
-        <ul className="space-y-2 pb-3">
+        <div className="rounded-2xl bg-paper-deep p-4">
+          <h3 ref={heading} tabIndex={target === "bill" ? -1 : undefined} className="text-xl font-semibold">{t("bill")}</h3>
+          <p role="status" className="my-2 text-sm font-semibold">{t(paid ? "billPaid" : "awaitingPaymentConfirmation")}</p>
+          <BillTotal totalSantim={bill.totalSantim} label={t("billTotal")} />
+          <p className="text-sm text-ink-muted">{t("notTaxReceipt")}</p>
+        </div>
+        <ul className="space-y-2 py-3">
           {bill.lines.map((line, index) => (
             <li key={index} className="flex items-center justify-between gap-3 text-sm">
               <span>{line.quantity} × {line.name[locale] || line.name[locale === "am" ? "en" : "am"]}</span>
@@ -326,7 +351,6 @@ function GuestBill({ bill, options, paid, target }: {
             </li>
           ))}
         </ul>
-        <BillTotal totalSantim={bill.totalSantim} label={t("billTotal")} />
       </section>
       {options.length > 0 && (
         <section aria-label={t("paymentOptions")} className="pb-5">

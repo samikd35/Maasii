@@ -20,18 +20,29 @@
     "sections": "የምናሌ ክፍሎች",
     "fastingSection": "የጾም ምግቦች",
     "houseFavourite": "የቤታችን ተወዳጅ",
-    "comingSoon": "ምናሌው በቅርቡ ይዘጋጃል። እባክዎ ሰራተኞቻችንን ይጠይቁ።"
+    "comingSoon": "ምናሌው በቅርቡ ይዘጋጃል። እባክዎ ሰራተኞቻችንን ይጠይቁ።",
+    "search": "ምግብ ወይም ግብዓት ይፈልጉ",
+    "all": "ሁሉም ምግቦች",
+    "noResults": "ምግብ አልተገኘም። ሌላ ቃል ወይም ክፍል ይሞክሩ።"
   },
   "GuestNavigation": {
     "pages": "የቦታው ገጾች",
     "home": "መነሻ",
     "menu": "ምናሌ",
-    "feedback": "አስተያየቶች",
+    "feedback": "የግል አስተያየት",
     "payment": "የክፍያ መረጃ",
     "social": "ማኅበራዊ ሚዲያ",
     "choose": "ምን ማድረግ ይፈልጋሉ?",
     "continueOrder": "ትዕዛዝዎን ይቀጥሉ",
-    "viewBill": "ሂሳብዎን ይመልከቱ"
+    "viewBill": "ሂሳብዎን ይመልከቱ",
+    "more": "ተጨማሪ",
+    "table": "የእርስዎ ጠረጴዛ",
+    "welcome": "ዛሬ ምን ይፈልጋሉ?",
+    "explore": "ምናሌውን ይመልከቱ",
+    "fresh": "ከወጥ ቤታችን",
+    "automaticVideo": "የምግብ ቪዲዮዎችን በራስ-ሰር አጫውት",
+    "videoPreferenceHelp": "ለዚህ የአሳሽ ጊዜ። የእንቅስቃሴ እና የዳታ ቅንብሮች ቅድሚያ አላቸው። ቪዲዮ ማጫወት አማራጭ ነው።",
+    "houseFavourite": "የቤቱ ምርጥ"
   },
   "GuestPayment": {
     "heading": "የክፍያ መረጃ",
@@ -82,7 +93,9 @@
     "editToFix": "ምርጫዎን ያስተካክሉ ወይም ምግቡን ያስወግዱ።",
     "added": "{dish} ወደ ትዕዛዝ ረቂቅዎ ተጨምሯል።",
     "updated": "{dish} በትዕዛዝ ረቂቅዎ ተስተካክሏል።",
-    "removed": "{dish} ከትዕዛዝ ረቂቅዎ ተወግዷል።"
+    "removed": "{dish} ከትዕዛዝ ረቂቅዎ ተወግዷል።",
+    "playVideo": "የምግቡን ቪዲዮ አጫውት",
+    "chooseDish": "ይምረጡ"
   },
   "Staff": {
     "manage": "አስተዳደር",
@@ -181,7 +194,19 @@
     "managers": "አስተዳዳሪዎች",
     "noManager": "ገና አስተዳዳሪ የለም።",
     "inviteHeading": "አስተዳዳሪ ለመጋበዝ",
-    "inviteManager": "አስተዳዳሪ ይጋብዙ"
+    "inviteManager": "አስተዳዳሪ ይጋብዙ",
+    "serviceRunning": "አገልግሎት እየተሰጠ ነው",
+    "serviceStopped": "አገልግሎት ለመጀመር ፈረቃ ይክፈቱ",
+    "assignedWaiters": "የተመደቡ አስተናጋጆች",
+    "unassignedTables": "ያልተመደቡ ጠረጴዛዎች",
+    "pendingTables": "ተቀባይነት የሚጠብቁ ጠረጴዛዎች",
+    "receiptDifferences": "የደረሰኝ ልዩነቶች",
+    "venueSetup": "የቦታ ዝግጅት",
+    "startServiceAction": "አገልግሎት ይጀምሩ",
+    "assignTablesAction": "ያልተመደቡ ጠረጴዛዎችን ይመድቡ",
+    "reviewOrdersAction": "የሚጠብቁ ትዕዛዞችን ይመልከቱ",
+    "reviewReceiptsAction": "የደረሰኝ ልዩነቶችን ይመልከቱ",
+    "viewFloorAction": "የአገልግሎት ሁኔታን ይክፈቱ"
   },
   "Shifts": {
     "title": "ፈረቃዎች",
@@ -380,7 +405,36 @@
     "archivedDishes": "በማኅደር ያሉ ምግቦች",
     "restoreDish": "{dish} መልስ",
     "missingTranslation": "ትርጉም ይጎድላል",
-    "translationCount": "{count} ምግብ ትርጉም ይጎድለዋል።"
+    "translationCount": "{count} ምግብ ትርጉም ይጎድለዋል።",
+    "unsavedChanges": "ያልተቀመጡ ለውጦች",
+    "savedUnpublished": "ረቂቁ ተቀምጧል · አልታተመም",
+    "leaveHelp": "ከመውጣትዎ በፊት ለውጦቹን ያስቀምጡ ወይም ያስወግዱ።",
+    "saveAndLeave": "አስቀምጥና ውጣ",
+    "discardAndLeave": "አስወግድና ውጣ",
+    "stay": "ማስተካከል ቀጥል",
+    "recoveryFound": "ያልተጠናቀቁ ለውጦችን መልስ",
+    "recoveryHelp": "በዚህ ትር የነበሩ ለውጦች አሉ። ይመልሱ ወይም በተቀመጠው ረቂቅ ይቀጥሉ።",
+    "recoveryConflict": "የተቀመጠው ምናሌ ተቀይሯል። የተመለሱ ለውጦች አዲሱን ያለማረጋገጫ አይተኩም።",
+    "restoreDraft": "ለውጦችን መልስ",
+    "discardRecovery": "የተቀመጠውን ረቂቅ ተጠቀም",
+    "recoveryUnavailable": "ይህ አሳሽ የማግኛ ቅጂ ማስቀመጥ አይችልም። ከመውጣትዎ በፊት ያስቀምጡ።",
+    "findDish": "ምግብ ይፈልጉ",
+    "sectionSettings": "የክፍል ቅንብሮች",
+    "servingVideo": "የምግብ ቪዲዮ · አማራጭ",
+    "videoHelp": "ድምፅ የሌለው H.264 MP4 · 2–5 ሰከንድ · እስከ 720px እና 1 MiB። የምግብ ፎቶ ያስፈልጋል። መጫን ማተም አይደለም።",
+    "removeVideo": "ቪዲዮ አስወግድ",
+    "compareLatest": "የቅርብ ጊዜውን በሌላ ትር ያወዳድሩ",
+    "reloadLatest": "የቅርብ ጊዜውን ይጫኑ",
+    "reloadConfirm": "ያልተቀመጡ ለውጦችን ትተው የቅርብ ጊዜውን ምናሌ ይጫኑ?",
+    "backToDishes": "← ሁሉም ምግቦች",
+    "localDish": "የዚህ ቦታ ምግብ",
+    "uploading": "በመጫን ላይ…",
+    "uploadedDraft": "ወደ ረቂቁ ተጭኗል። ለእንግዶች ለማሳየት ያስቀምጡና ያትሙ።",
+    "retryUpload": "እንደገና ጫን",
+    "dishSettings": "የምግብ ቅንብሮች",
+    "restorePreview": "የብራንድ መመለሻ ቅድመ እይታ · ለማረጋገጥ ያስቀምጡ",
+    "matchesBrand": "ከብራንድ ዝርዝሮች ጋር ይዛመዳል",
+    "localOverride": "በብራንድ ምግብ ላይ የቦታ ለውጦች"
   },
   "StaffErrors": {
     "venueMenuConflict": "ይህ ለውጥ ከታተመው የቦታ ምናሌ ጋር ይጋጫል። የብራንዱን ምናሌ ከማተምዎ በፊት የቦታውን ምናሌ ያስተካክሉ።",
@@ -441,7 +495,8 @@
     "waiterJoinUsed": "ይህ የመቀላቀያ QR ጥቅም ላይ ውሏል። አስተዳዳሪዎን አዲስ QR ይጠይቁ።",
     "waiterJoinExpired": "የዚህ መቀላቀያ QR ጊዜ አልፏል። አስተዳዳሪዎን አዲስ QR ይጠይቁ።",
     "waiterRejoin": "አስተዳዳሪዎን አዲስ የመቀላቀያ QR ይጠይቁ።",
-    "wrongPin": "ያስገቡት PIN ትክክል አይደለም።"
+    "wrongPin": "ያስገቡት PIN ትክክል አይደለም።",
+    "invalidDishVideo": "ድምፅ የሌለው H.264 MP4፣ 2–5 ሰከንድ፣ እስከ 720px እና 1 MiB ይጠቀሙ።"
   },
   "StaffWaiter": {
     "waiters": "አስተናጋጆች",
@@ -461,7 +516,12 @@
     "unlock": "ይክፈቱ",
     "lock": "ይቆልፉ",
     "rejoinHeading": "ስልክዎን ያገናኙ",
-    "menu": "ምናሌ"
+    "menu": "ምናሌ",
+    "removeConsequence": "{name} ይወገድ? በሁሉም የተመዘገቡ ስልኮች መዳረሻው ይቋረጣል። ለመመለስ አዲስ ምዝገባ ያስፈልጋል።",
+    "queue": "የጠረጴዛ ትዕዛዞች",
+    "searchMenu": "ምግብ ይፈልጉ",
+    "noMatches": "ከፍለጋዎ ጋር የሚዛመድ ምግብ የለም።",
+    "manageAccess": "የ{name}ን መዳረሻ ያስተዳድሩ"
   },
   "StaffOrders": {
     "quickAdd": "ፈጣን መጨመሪያ",
@@ -514,7 +574,10 @@
     "notificationDenied": "በአሳሽዎ ቅንብሮች ውስጥ ለMaasii ማሳወቂያዎችን ይፍቀዱ።",
     "notificationUnsupported": "ይህ አሳሽ ማሳወቂያዎችን መቀበል አይችልም። በiPhone ላይ Maasiiን ጭነው ከመነሻ ገጽዎ ይክፈቱ።",
     "notificationDismissed": "ማሳወቂያ ለመላክ ፈቃድ አልተሰጠም። እንደገና ለመሞከር «ማሳወቂያዎችን ያብሩ» የሚለውን ይምረጡ።",
-    "notificationError": "ማሳወቂያዎችን ማብራት አልተቻለም። እንደገና ይሞክሩ።"
+    "notificationError": "ማሳወቂያዎችን ማብራት አልተቻለም። እንደገና ይሞክሩ።",
+    "noShift": "አገልግሎት አልጀመረም። ኃላፊዎን ፈረቃ እንዲከፍቱ ይጠይቁ።",
+    "noAssignments": "የተመደበልዎት ጠረጴዛ የለም። ኃላፊዎን ይጠይቁ።",
+    "quietTables": "ትዕዛዝ የሌላቸው ጠረጴዛዎች"
   },
   "Floor": {
     "title": "የጠረጴዛዎች ወቅታዊ ሁኔታ",
@@ -547,7 +610,12 @@
     "quantity": "{dish} በ{period}፡ ከቀዳሚው ሳምንት {previous} ወደ {current} የተቀበሉ ምግቦች ቀንሷል።",
     "visits": "መሻሻል ይፈልጋል ያሉት ከ{previous} ({previousTotal} ግምገማዎች) ወደ {current} ({currentTotal} ግምገማዎች) አድጓል።",
     "insufficient": "ለግኝት በቂ መረጃ ገና የለም። ለአንድ ምግብ ከፍተኛው ግምገማ {dishReviews}። በአንድ ክፍል የቀድሞ ከፍተኛ መጠን {previousQuantity}። የጉብኝት ግምገማዎች በዚህ ሳምንት {currentVisits}፣ በቀድሞው {previousVisits}።",
-    "evidence": "ማስረጃ ይመልከቱ"
+    "evidence": "ማስረጃ ይመልከቱ",
+    "gettingStarted": "ትዕዛዞች እና የግል አስተያየቶች ሲሰበሰቡ የመጀመሪያው ግኝት ይታያል። አገልግሎት ይጀምሩ።",
+    "startService": "አገልግሎት አዘጋጅ",
+    "liveVenues": "{count} ቦታዎች በአገልግሎት ላይ",
+    "collectingEvidence": "አገልግሎት በሂደት ላይ ነው። አስተማማኝ ሳምንታዊ ግኝት ለማግኘት ጉብኝቶችን ያጠናቅቁና የእንግዶችን አስተያየት ይሰብስቡ።",
+    "viewOperations": "አገልግሎትን ይመልከቱ"
   },
   "Insights": {
     "evidence": "የሳምንታዊ ግኝት ማስረጃ",

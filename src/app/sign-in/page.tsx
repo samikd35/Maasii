@@ -21,7 +21,7 @@ export default async function SignInPage() {
 
   return (
     <StaffEntry>
-      <h1 className="font-display text-3xl">{t("heading")}</h1>
+      <h1 className="font-sans text-3xl">{t("heading")}</h1>
       <p className="mt-2 text-ink-muted">{t("intro")}</p>
       <ActionForm action={signIn} className="mt-8 space-y-4">
         <Field label={staff("emailOrPhone")} name="contact" autoComplete="username" required />

@@ -7,7 +7,7 @@ export function Field({ label, className, ...input }: { label: string } & Compon
       {label}
       <input
         {...input}
-        className="mt-1 min-h-11 w-full rounded-md border border-ink/30 bg-white px-3 text-base font-normal"
+        className="mt-1 min-h-11 w-full rounded-xl border border-ink/30 bg-white px-3 text-base font-normal"
       />
     </label>
   );

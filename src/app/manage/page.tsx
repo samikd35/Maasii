@@ -25,7 +25,7 @@ export default async function ManageHome({ searchParams }: PageProps<"/manage">)
 
   return (
     <>
-      <h1 className="font-display text-3xl">{access.name ? t("greeting", { name: access.name }) : t("yourVenues")}</h1>
+      <h1 className="font-sans text-3xl">{access.name ? t("greeting", { name: access.name }) : t("yourVenues")}</h1>
 
       {(owned.length > 0 || access.venues.length > 0) && (
         <Link href="/manage/operations" className="mt-4 me-4 inline-flex min-h-11 items-center font-semibold underline">
@@ -62,10 +62,11 @@ export default async function ManageHome({ searchParams }: PageProps<"/manage">)
             </Link>
           </div>
           <VenueList venues={brand.venues} />
+          <details className="mt-4"><summary className="min-h-11 cursor-pointer py-3 font-medium">{t("addVenue")}</summary>
           <ActionForm action={addVenue.bind(null, brand.id)} className="mt-4 flex flex-wrap items-end gap-3">
             <Field label={t("venueName")} name="name" required className="min-w-0 flex-1" />
             <SubmitButton>{t("addVenue")}</SubmitButton>
-          </ActionForm>
+          </ActionForm></details>
         </section>
       ))}
 

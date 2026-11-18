@@ -8,7 +8,7 @@ for (const fallback of [false, true]) {
     const s = await scenario().publishedMenu().build();
     if (fallback) await page.addInitScript(() => { delete (HTMLDialogElement.prototype as { closedBy?: string }).closedBy; });
     await page.goto(`/v/${s.venue.linkToken}/menu`);
-    const open = page.getByRole("button", { name: "Omelette", exact: true });
+    const open = page.getByRole("button", { name: "Choose Omelette", exact: true });
     const sheet = page.getByRole("dialog");
     await open.focus();
     await page.keyboard.press("Enter");
@@ -38,7 +38,7 @@ for (const fallback of [false, true]) {
     const slip = page.getByRole("button", { name: /Your Draft/ });
     await slip.focus();
     await page.keyboard.press("Enter");
-    await expect(sheet.getByRole("button", { name: "Send", exact: true })).toBeVisible();
+    await expect(sheet.getByRole("button", { name: "Choose your table", exact: true })).toBeVisible();
     await sheet.getByRole("button", { name: "Edit", exact: true }).click();
     await sheet.getByRole("button", { name: "Save changes" }).click();
     await expect(sheet.getByRole("heading", { name: "Your table" })).toBeVisible();
@@ -50,7 +50,7 @@ for (const fallback of [false, true]) {
 test("a failed ordering download offers recovery without losing the Draft", async ({ page }) => {
   const s = await scenario().publishedMenu().build();
   await page.goto(`/v/${s.venue.linkToken}/menu`);
-  await page.getByRole("button", { name: "Omelette", exact: true }).click();
+  await page.getByRole("button", { name: "Choose Omelette", exact: true }).click();
   await page.getByRole("button", { name: "Add to order" }).click();
   await page.route("**/_next/static/chunks/*.js", (route) => route.abort("failed"));
   await page.getByRole("button", { name: /Your Draft/ }).click();
@@ -59,7 +59,7 @@ test("a failed ordering download offers recovery without losing the Draft", asyn
   await page.getByRole("button", { name: "Reload to retry" }).click();
   await page.getByRole("button", { name: /Your Draft/ }).click();
   await expect(page.getByRole("dialog").getByText("Omelette", { exact: true })).toBeVisible();
-  await expect(page.getByRole("dialog").getByRole("button", { name: "Send", exact: true })).toBeVisible();
+  await expect(page.getByRole("dialog").getByRole("button", { name: "Choose your table", exact: true })).toBeVisible();
 });
 
 test("the menu reflows at 320px and enlarged text, prioritizes its cover and enforces script security", async ({ page, request }) => {
@@ -95,11 +95,12 @@ test("the menu reflows at 320px and enlarged text, prioritizes its cover and enf
 });
 
 test("the cover is eager and background scroll is contained on Chromium", async ({ page, browserName }) => {
-  await page.goto("/v/bilos-lancha/menu");
+  await page.goto("/v/bilos-lancha");
   const cover = page.locator('img[fetchpriority="high"]');
   await expect(cover).toHaveCount(1);
   await expect(cover).not.toHaveAttribute("loading", "lazy");
-  await page.getByRole("button", { name: "Omelette", exact: true }).click();
+  await page.goto("/v/bilos-lancha/menu");
+  await page.getByRole("button", { name: "Choose Omelette", exact: true }).click();
   const sheet = page.getByRole("dialog");
   await expect(sheet).toHaveCSS("overscroll-behavior", "contain");
   if (browserName === "chromium") {
@@ -138,7 +139,7 @@ test("ordering recovery never reloads an unsaved Draft when storage is denied", 
     Storage.prototype.setItem = () => { throw new DOMException("Denied", "SecurityError"); };
   });
   await page.goto(`/v/${s.venue.linkToken}/menu`);
-  await page.getByRole("button", { name: "Omelette", exact: true }).click();
+  await page.getByRole("button", { name: "Choose Omelette", exact: true }).click();
   await page.getByRole("button", { name: "Add to order" }).click();
   await page.route("**/_next/static/chunks/*.js", (route) => route.abort("failed"));
   await page.getByRole("button", { name: /Your Draft/ }).click();

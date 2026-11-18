@@ -27,7 +27,7 @@ export default async function QuickAddPage({ params }: PageProps<"/staff/tables/
         <Link href={`/staff/tables/${tableId}`} className="inline-flex min-h-11 items-center font-medium underline">
           {t("table", { number: menu.table.number })}
         </Link>
-        <h1 className="font-display text-3xl">{t("quickAdd")}</h1>
+        <h1 className="font-sans text-3xl">{t("quickAdd")}</h1>
         <NextIntlClientProvider messages={{ StaffOrders, StaffErrors, Price }}>
           <QuickAdd {...menu} />
         </NextIntlClientProvider>

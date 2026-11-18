@@ -7,7 +7,7 @@ import type { FormState } from "@/lib/session";
 import { Field } from "@/ui/field";
 import { ActionForm, SubmitButton } from "@/ui/staff-forms";
 
-const buttonClass = "min-h-11 rounded-md border border-ink/30 px-3 text-sm font-medium disabled:opacity-60";
+const buttonClass = "min-h-11 rounded-xl border border-ink/30 px-3 text-sm font-medium disabled:opacity-60";
 
 export function SocialLinksForm({ links, limits, save }: {
   links: SocialLink[];
@@ -42,7 +42,7 @@ export function SocialLinksForm({ links, limits, save }: {
 
   return (
     <div className="mt-10 border-t border-rule pt-5">
-      <h2 id={id} className="font-display text-2xl">{t("heading")}</h2>
+      <h2 id={id} className="font-sans text-2xl">{t("heading")}</h2>
       <p className="mt-1 text-sm text-ink-muted">{t("brandHelp")}</p>
       <ActionForm action={submit} aria-labelledby={id} className="mt-4 space-y-4">
         {!rows.length && <p className="text-sm text-ink-muted">{t("empty")}</p>}

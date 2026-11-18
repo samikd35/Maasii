@@ -31,7 +31,7 @@ export default async function InvitationPage({ params }: PageProps<"/invite/[tok
     const reason = invitation?.status;
     return (
       <StaffEntry>
-        <h1 className="font-display text-3xl">{t("heading")}</h1>
+        <h1 className="font-sans text-3xl">{t("heading")}</h1>
         <p className="mt-3">{errors(reason ? unusable[reason] : "invitationNotFound")}</p>
         <Link href="/sign-in" className="mt-6 inline-flex min-h-11 items-center font-semibold underline">
           {staff("goToSignIn")}
@@ -44,7 +44,7 @@ export default async function InvitationPage({ params }: PageProps<"/invite/[tok
   return (
     <StaffEntry>
       <p className="text-sm text-ink-muted">Maasii</p>
-      <h1 className="mt-1 font-display text-3xl">{t("join", { place })}</h1>
+      <h1 className="mt-1 font-sans text-3xl">{t("join", { place })}</h1>
       <p className="mt-3">
         {t.rich(invitation.role === "owner" ? "ownerIntro" : "managerIntro", {
           name: invitation.name,

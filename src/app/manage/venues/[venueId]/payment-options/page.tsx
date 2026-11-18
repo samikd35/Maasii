@@ -52,7 +52,7 @@ export default async function PaymentOptionsPage({ params }: PageProps<"/manage/
       <Link href={`/manage/venues/${venueId}`} className="inline-flex min-h-11 items-center text-sm font-medium underline">
         {venue.name}
       </Link>
-      <h1 className="font-display text-3xl">{t("title")}</h1>
+      <h1 className="font-sans text-3xl">{t("title")}</h1>
 
       {options.length === 0 && <p className="mt-4 text-ink-muted">{t("empty")}</p>}
       {options.map((option) => (
@@ -77,7 +77,7 @@ function OptionRow({ option, isOwner }: { option: PaymentOption; isOwner: boolea
   const manage = useTranslations("StaffManage");
   const target = { venueId: option.venueId, paymentOptionId: option.id, revision: option.revision };
   return (
-    <article aria-labelledby={`payment-${option.id}`} className="mt-4 rounded-md border border-rule p-4">
+    <article aria-labelledby={`payment-${option.id}`} className="mt-4 rounded-xl border border-rule p-4">
       <h2 id={`payment-${option.id}`} className="text-lg font-semibold break-words">{option.provider ?? t(option.kind)}</h2>
       <PaymentOptionValues option={option} />
       {isOwner && (

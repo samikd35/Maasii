@@ -1,8 +1,9 @@
+import { validateDishVideos } from "./dish-videos";
 import { isDeepStrictEqual } from "node:util";
 import { z } from "zod";
 import { requireBrandOwner } from "./access";
 import type { Actor } from "./actor";
-import { brandArtworkBucket, prepareBrandArtwork, uploadBrandArtwork } from "./brand-artwork";
+import { prepareBrandArtwork, uploadServingPhoto } from "./brand-artwork";
 import { deriveBrandTheme } from "./brand-theme";
 import type { Brand } from "./brands";
 import { inTransaction, type Tx } from "./db";
@@ -65,12 +66,14 @@ const draftDishInput = z.object({
   priceSantim: santim,
   fasting: z.boolean().default(false),
   photoUrl: z.string().trim().min(1).optional(),
+  videoAssetId: z.uuid().optional(),
   houseFavourite: z.boolean().default(false),
   optionGroups: z.array(draftOptionGroupInput).default([]),
 });
 
 const dishInput = draftDishInput.omit({ imported: true, suggestedName: true, suggestedDescription: true })
   .extend({ name: bilingualNameInput, optionGroups: z.array(optionGroupInput).default([]) })
+  .refine((dish) => !dish.videoAssetId || !!dish.photoUrl, { message: "A serving video needs a photo poster." })
   .refine((dish) => !dish.houseFavourite || dish.photoUrl !== undefined, { message: "The House favourite needs a photo." });
 
 const sectionInput = z.object({
@@ -193,10 +196,11 @@ async function writeMenuVersion(
   tx: Tx,
   actor: Actor,
   brandId: string,
-  { sections }: MenuDraftContent,
+  { sections, archivedDishes }: MenuDraftContent,
   now: Date,
   importedMenu?: z.output<typeof menuInput>,
 ): Promise<PublishedMenuVersion> {
+  await validateDishVideos(tx, brandId, null, [...sections.flatMap(s => s.dishes), ...archivedDishes.map(e => e.dish)]);
   const { rows: venueRevisions } = await tx.query<{ changes: VenueMenuChanges }>(
     `select distinct on (r.venue_id) r.changes
      from app.venue_menu_revisions r join app.venues v on v.id = r.venue_id
@@ -251,12 +255,12 @@ async function writeMenuVersion(
   await tx.query(
     `insert into app.menu_version_dishes
        (menu_version_id, dish_id, section_id, position,
-        name_en, name_am, description_en, description_am, price_santim, fasting, photo_url, house_favourite)
+        name_en, name_am, description_en, description_am, price_santim, fasting, photo_url, house_favourite, video_asset_id)
      select $1, d.id, d.section_id, d.position, d.name_en, d.name_am, d.description_en, d.description_am,
-            d.price, d.fasting, d.photo_url, d.house_favourite
+            d.price, d.fasting, d.photo_url, d.house_favourite, d.video_asset_id
      from unnest($2::uuid[], $3::uuid[], $4::int[], $5::text[], $6::text[], $7::text[], $8::text[],
-                 $9::int[], $10::boolean[], $11::text[], $12::boolean[])
-       as d (id, section_id, position, name_en, name_am, description_en, description_am, price, fasting, photo_url, house_favourite)`,
+                 $9::int[], $10::boolean[], $11::text[], $12::boolean[], $13::uuid[])
+       as d (id, section_id, position, name_en, name_am, description_en, description_am, price, fasting, photo_url, house_favourite, video_asset_id)`,
     [
       version.id,
       dishes.map((d) => d.dishId),
@@ -270,6 +274,7 @@ async function writeMenuVersion(
       dishes.map((d) => d.fasting),
       dishes.map((d) => d.photoUrl ?? null),
       dishes.map((d) => d.houseFavourite),
+      dishes.map((d) => d.videoAssetId ?? null),
     ],
   );
   await tx.query(
@@ -366,9 +371,7 @@ async function ensureIdentities(
 export async function uploadDishPhoto(actor: Actor, input: { brandId: string; photo: File }): Promise<string> {
   const { brandId, photo } = parseInput(z.object({ brandId: z.uuid(), photo: z.file() }), input);
   await inTransaction(actor, (tx) => requireBrandOwner(tx, actor, brandId));
-  const bytes = await prepareBrandArtwork(photo, 960, 960);
-  // ponytail: immutable URLs preserve old Menu versions. Prune unreferenced uploads if storage grows.
-  return uploadBrandArtwork(brandArtworkBucket(), `${brandId}/dish-${crypto.randomUUID()}.webp`, bytes);
+  return uploadServingPhoto(photo, `${brandId}/dish-${crypto.randomUUID()}`);
 }
 
 type MenuDraftContext = {
@@ -535,6 +538,7 @@ export async function saveMenuDraft(
     const existing = savedDraft(context);
     const content = assignIdentities({ ...menu, archivedDishes: menu.archivedDishes ?? existing?.archivedDishes ?? context.publishedArchive });
     checkArchive(content);
+    await validateDishVideos(tx, brandId, null, [...content.sections.flatMap(s => s.dishes), ...content.archivedDishes.map(e => e.dish)]);
     if (isDeepStrictEqual(content, await readBrandMenu(tx, context))) {
       await tx.query("update app.brand_menu_drafts set revision = null, content = null where brand_id = $1", [brandId]);
       return context.versionId;
@@ -609,6 +613,8 @@ export type GuestMenuDish = {
   priceSantim: number;
   fasting: boolean;
   photoUrl: string | null;
+  thumbnailUrl?: string | null;
+  videoUrl?: string | null;
   optionGroups: GuestOptionGroup[];
 };
 export type GuestMenuSection = { id: string; name: string; dishes: GuestMenuDish[] };
@@ -644,6 +650,7 @@ type DishRow = LocalizedRow & {
   price_santim: number;
   fasting: boolean;
   photo_url: string | null;
+  video_asset_id: string | null;
   house_favourite: boolean;
 };
 type GroupRow = LocalizedRow & { dish_id: string; kind: GuestOptionGroup["kind"]; required: boolean };
@@ -660,7 +667,7 @@ const menuContentColumns = `
   (select coalesce(jsonb_agg(d order by position), '[]') from (
     select d.dish_id as id, d.section_id, d.name_en, d.name_am, d.description_en, d.description_am,
            coalesce(case when scope.local_changes is null then settings.price_santim end, d.price_santim) as price_santim,
-           d.fasting, d.photo_url, d.house_favourite, d.position
+           d.fasting, d.photo_url, d.video_asset_id, d.house_favourite, d.position
     from app.menu_version_dishes d
     left join app.venue_dish_settings settings on settings.venue_id = scope.venue_id and settings.dish_id = d.dish_id
     where d.menu_version_id = scope.menu_version_id
@@ -771,6 +778,7 @@ function menuSectionsFromRows({ sections, dishes, groups, choices }: MenuRows): 
       priceSantim: dish.price_santim,
       fasting: dish.fasting,
       ...(dish.photo_url ? { photoUrl: dish.photo_url } : {}),
+      ...(dish.video_asset_id ? { videoAssetId: dish.video_asset_id } : {}),
       houseFavourite: dish.house_favourite,
       optionGroups: groups.filter((group) => group.dish_id === dish.id).map((group) => ({
         optionGroupId: group.id,

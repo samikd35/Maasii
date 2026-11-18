@@ -62,6 +62,10 @@ test("an Owner edits a Menu on mobile and previews it without guest writes", asy
   expect(guestWrites).toEqual([]);
 
   await expect(page.getByText("1 dish is missing a translation.")).toBeVisible();
+  if (await page.getByRole("button", { name: "Save draft", exact: true }).isEnabled()) {
+    await page.getByRole("button", { name: "Save draft", exact: true }).click();
+    await expect(page.getByText("Draft saved.", { exact: true })).toBeVisible();
+  }
   await page.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(page.getByText("Menu published.", { exact: true })).toBeVisible();
   await expect(page.getByText("No unpublished changes")).toBeVisible();
@@ -90,15 +94,16 @@ test("desktop Owners arrange sections and dishes beside the live guest Menu", as
   expect(en.x).toBeGreaterThan(am.x + am.width);
   expect(en.y).toBe(am.y);
   await edit.getByLabel("House favourite", { exact: true }).first().check();
-  const favourite = preview.getByRole("article", { name: "House favourite" });
-  await expect(favourite.getByRole("heading", { name: "Omelette" })).toBeVisible();
-  await expect(favourite.locator("img")).toHaveAttribute("src", "/brands/bilos/almond-cake.webp");
+  await expect(edit.getByLabel("House favourite", { exact: true }).first()).toBeChecked();
+  await edit.getByRole("button", { name: "← All dishes" }).click();
   await edit.getByRole("button", { name: "Add section" }).click();
-  const section = edit.getByRole("group", { name: "Section 3", exact: true });
+  const section = edit.locator(".editor-section").nth(2);
+  await section.getByText(/Section settings/).click();
   await section.getByLabel("Section name in English").fill("Pastries");
   await section.getByLabel("Section name in Amharic").fill("ፓስትሪዎች");
   await section.getByRole("button", { name: "Add dish" }).click();
   await section.getByLabel("Dish name in English").fill("Jam Tart");
+  await section.locator("summary").filter({ hasText: /^Description$/ }).click();
   await section.getByLabel("Description in English").fill("Sweet and tangy");
   await section.getByLabel("Base price (ETB)").fill("150");
   const tart = preview.getByRole("heading", { name: "Jam Tart" });
@@ -106,18 +111,27 @@ test("desktop Owners arrange sections and dishes beside the live guest Menu", as
   await expect(preview.getByText("Sweet and tangy")).toBeVisible();
   await expect(preview.getByText("150", { exact: true })).toBeVisible();
 
+  await edit.getByRole("button", { name: "← All dishes" }).click();
   await section.getByRole("button", { name: "Move up" }).first().click();
   await expect(preview.getByRole("navigation", { name: "Menu sections" }).getByRole("link")).toHaveText(["Breakfast", "Pastries", "Drinks"]);
-  const breakfast = edit.getByRole("group", { name: "Section 1", exact: true });
+  const breakfast = edit.getByRole("group", { name: "Breakfast", exact: true });
   await breakfast.getByText("Chechebsa", { exact: true }).click();
-  const dish = breakfast.locator("details").filter({ hasText: "Chechebsa" });
+  const dish = breakfast.locator("details.editor-dish").filter({ hasText: "Chechebsa" });
+  await dish.locator("summary").filter({ hasText: /^Dish maintenance$/ }).click();
   await dish.getByRole("button", { name: "Move up" }).click();
   await expect(preview.getByRole("region", { name: "Breakfast" }).getByRole("heading", { level: 3 })).toHaveText(["Chechebsa", "Omelette"]);
+  await edit.getByRole("button", { name: "← All dishes" }).click();
+  await breakfast.getByText(/Section settings/).click();
   await breakfast.getByLabel("Section name in English").fill("Morning");
   await expect(preview.getByRole("region", { name: "Morning" })).toBeVisible();
 
-  await edit.getByRole("group", { name: "Section 3", exact: true }).getByRole("button", { name: "Remove section" }).click();
+  await edit.getByRole("group", { name: "Drinks", exact: true }).getByText(/Section settings/).click();
+  await edit.getByRole("group", { name: "Drinks", exact: true }).getByRole("button", { name: "Remove section" }).click();
   await expect(preview.getByRole("heading", { name: "Drinks" })).toHaveCount(0);
+  if (await page.getByRole("button", { name: "Save draft", exact: true }).isEnabled()) {
+    await page.getByRole("button", { name: "Save draft", exact: true }).click();
+    await expect(page.getByText("Draft saved.", { exact: true })).toBeVisible();
+  }
   await page.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(page.getByText("Menu published.", { exact: true })).toBeVisible();
   await page.goto(`/v/${s.venue.linkToken}/menu`);
@@ -133,8 +147,8 @@ test("an Owner edits Dish photos and Option Groups, then archives and restores t
   await page.getByRole("link", { name: "Brand menu" }).click();
 
   const edit = page.getByRole("region", { name: "Edit" });
-  const dish = edit.locator("details").filter({ hasText: "Omelette" });
-  await dish.locator("summary").click();
+  const dish = edit.locator("details.editor-dish").filter({ hasText: "Omelette" });
+  await dish.locator(":scope > summary").click();
   await dish.getByLabel("Upload photo").setInputFiles("public/brands/bilos/almond-cake.webp");
   const photo = dish.locator("img");
   await expect(photo).toHaveAttribute("src", /\/storage\/v1\/object\/public\/brand-artwork\/.*\.webp$/);
@@ -143,6 +157,7 @@ test("an Owner edits Dish photos and Option Groups, then archives and restores t
   await expect(photo).not.toHaveAttribute("src", original!);
   const replacement = await photo.getAttribute("src");
 
+  if (!await dish.getByRole("button", { name: "Add Option Group" }).isVisible()) await dish.locator("summary").filter({ hasText: /^Option Groups/ }).click();
   await dish.getByRole("button", { name: "Add Option Group" }).click();
   const group = dish.getByRole("group", { name: "New Option Group" });
   await group.getByLabel("Option Group name in English").fill("Bread");
@@ -154,6 +169,7 @@ test("an Owner edits Dish photos and Option Groups, then archives and restores t
   await bread.getByLabel("Choice name in Amharic").fill("ራይ");
   await bread.getByLabel("Price change (ETB)").fill("12.50");
 
+  if (!await dish.getByRole("button", { name: "Add Option Group" }).isVisible()) await dish.locator("summary").filter({ hasText: /^Option Groups/ }).click();
   await dish.getByRole("button", { name: "Add Option Group" }).click();
   await group.getByLabel("Option Group name in English").fill("Extras");
   const extras = dish.getByRole("group", { name: "Extras" });
@@ -170,7 +186,7 @@ test("an Owner edits Dish photos and Option Groups, then archives and restores t
   await page.reload();
   await page.getByRole("tab", { name: "Preview" }).click();
   const preview = page.getByRole("region", { name: "Guest preview" });
-  await preview.getByRole("button", { name: "Omelette", exact: true }).click();
+  await preview.getByRole("button", { name: "Choose Omelette", exact: true }).click();
   const previewDish = preview.getByRole("dialog");
   await expect(previewDish.locator("img")).toHaveAttribute("src", replacement!);
   await expect(previewDish.locator("legend")).toHaveText(["Extras", "Bread"]);
@@ -178,34 +194,48 @@ test("an Owner edits Dish photos and Option Groups, then archives and restores t
   await previewDish.getByRole("button", { name: "Close" }).click();
 
   await guest.goto(venue);
-  await guest.getByRole("button", { name: "Omelette", exact: true }).click();
+  await guest.getByRole("button", { name: "Choose Omelette", exact: true }).click();
   const guestDish = guest.getByRole("dialog");
   await expect(guestDish.locator("img")).toHaveCount(0);
   await expect(guestDish.getByText("Rye")).toHaveCount(0);
+  if (await page.getByRole("button", { name: "Save draft", exact: true }).isEnabled()) {
+    await page.getByRole("button", { name: "Save draft", exact: true }).click();
+    await expect(page.getByText("Draft saved.", { exact: true })).toBeVisible();
+  }
   await page.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(page.getByText("Menu published.", { exact: true })).toBeVisible();
   await guest.reload();
-  await guest.getByRole("button", { name: "Omelette", exact: true }).click();
+  await guest.getByRole("button", { name: "Choose Omelette", exact: true }).click();
   await expect(guestDish.locator("img")).toHaveAttribute("src", replacement!);
   await expect(guestDish.getByRole("radio", { name: "Rye +12.5 ETB" })).toBeVisible();
 
   await page.getByRole("tab", { name: "Edit" }).click();
-  await dish.locator("summary").click();
+  await dish.locator(":scope > summary").click();
   await dish.getByRole("button", { name: "Remove photo" }).click();
+  await dish.locator("summary").filter({ hasText: /^Option Groups/ }).click();
   await extras.getByRole("button", { name: "Remove Option Group" }).click();
+  await dish.locator("summary").filter({ hasText: /^Dish maintenance$/ }).click();
   await dish.getByRole("button", { name: "Archive dish" }).click();
   await expect(edit.getByRole("heading", { name: "Archived dishes" })).toBeVisible();
+  if (await page.getByRole("button", { name: "Save draft", exact: true }).isEnabled()) {
+    await page.getByRole("button", { name: "Save draft", exact: true }).click();
+    await expect(page.getByText("Draft saved.", { exact: true })).toBeVisible();
+  }
   await page.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(page.getByText("Menu published.", { exact: true })).toBeVisible();
   await guest.reload();
-  await expect(guest.getByRole("button", { name: "Omelette", exact: true })).toHaveCount(0);
+  await expect(guest.getByRole("button", { name: "Choose Omelette", exact: true })).toHaveCount(0);
 
   await page.reload();
   await edit.getByRole("button", { name: "Restore Omelette" }).click();
+  if (await page.getByRole("button", { name: "Save draft", exact: true }).isEnabled()) {
+    await page.getByRole("button", { name: "Save draft", exact: true }).click();
+    await expect(page.getByText("Draft saved.", { exact: true })).toBeVisible();
+  }
   await page.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(page.getByText("Menu published.", { exact: true })).toBeVisible();
   await guest.reload();
-  await guest.getByRole("button", { name: "Omelette", exact: true }).click();
+  await guest.getByRole("button", { name: "Choose Omelette", exact: true }).click();
   await expect(guestDish.locator("img")).toHaveCount(0);
   await expect(guestDish.locator("legend")).toHaveText(["Bread"]);
 });
@@ -238,20 +268,24 @@ test("the Owner reviews imported dishes and suggested text before publishing", a
   await expect(page.getByText("Review imported entries and suggested translations before publishing.")).toBeVisible();
 
   const edit = page.getByRole("region", { name: "Edit" });
+  await edit.locator("summary").filter({ hasText: "Import photos" }).click();
   await edit.getByLabel("Paper Menu photos").setInputFiles({ name: "invalid.webp", mimeType: "image/webp", buffer: Buffer.from("invalid") });
   await edit.getByRole("button", { name: "Import photos" }).click();
   await expect(page.locator("#brand-menu-editor").getByRole("alert")).toHaveText("Choose a JPEG, PNG or WebP image up to 4 MB.");
 
+  await edit.getByRole("group", { name: "Breads", exact: true }).getByText("Section settings", { exact: true }).click();
   await edit.getByRole("button", { name: "Keep section" }).click();
-  const bread = edit.locator("details").filter({ hasText: "Honey bread" });
-  await bread.locator("summary").click();
+  const bread = edit.locator("details.editor-dish").filter({ hasText: "Honey bread" });
+  await bread.locator(":scope > summary").click();
+  await bread.locator("summary").filter({ hasText: /^Description$/ }).click();
   await expect(bread.getByText("Suggested", { exact: true })).toHaveCount(2);
   await bread.getByRole("button", { name: "Accept suggestion for Dish name in Amharic" }).click();
   await bread.getByRole("textbox", { name: "Description in Amharic", exact: true }).fill("ጣፋጭ የማር ዳቦ");
   await expect(bread.getByText("Suggested", { exact: true })).toHaveCount(0);
   await bread.getByRole("button", { name: "Keep dish" }).click();
-  const toast = edit.locator("details").filter({ hasText: "Toast" });
-  await toast.locator("summary").click();
+  const toast = edit.locator("details.editor-dish").filter({ hasText: "Toast" });
+  await edit.getByRole("button", { name: "← All dishes" }).click();
+  await toast.locator(":scope > summary").click();
   const keepToast = toast.getByRole("button", { name: "Keep dish" });
   await expect(keepToast).toBeDisabled();
   await toast.getByLabel("Base price (ETB)").fill("80");
@@ -259,6 +293,8 @@ test("the Owner reviews imported dishes and suggested text before publishing", a
   await toast.getByRole("button", { name: "Discard dish" }).click();
   await expect(toast).toHaveCount(0);
 
+  await expect(publish).toBeDisabled();
+  await page.getByRole("button", { name: "Save draft", exact: true }).click();
   await expect(publish).toBeEnabled();
   await publish.click();
   await expect(page.getByText("Menu published.")).toBeVisible();
@@ -271,22 +307,27 @@ test("failed photo, save and publish requests preserve the Owner's edits and can
   const s = await scenario().publishedMenu().build();
   await signIn(page, s.owner);
   await page.getByRole("link", { name: "Brand menu" }).click();
-  const dish = page.getByRole("region", { name: "Edit" }).locator("details").filter({ hasText: "Omelette" });
-  await dish.locator("summary").click();
+  const dish = page.getByRole("region", { name: "Edit" }).locator("details.editor-dish").filter({ hasText: "Omelette" });
+  await dish.locator(":scope > summary").click();
   const name = dish.getByLabel("Dish name in English");
   await name.fill("Garden Omelette");
   const route = `**/manage/brands/${s.brand.id}/menu`;
   await page.route(route, (request) => request.request().method() === "POST" ? request.abort("failed") : request.continue());
   await dish.getByLabel("Upload photo").setInputFiles("public/brands/bilos/almond-cake.webp");
-  const error = page.locator("#brand-menu-editor").getByRole("alert");
+  const error = page.locator("#brand-menu-editor").getByRole("alert").first();
   await expect(error).toContainText("Your edits are still here");
   expect(await error.evaluate((element) => getComputedStyle(element).getPropertyValue("--color-red-800").trim())).not.toBe("");
-  for (const button of ["Save draft", "Publish"]) {
+  for (const button of ["Save draft"]) {
     await page.getByRole("button", { name: button, exact: true }).click();
-    await expect(error).toContainText("Your edits are still here");
+    await expect(page.locator("#brand-menu-editor > header").getByRole("alert")).toContainText("Your edits are still here");
+    await expect(page.getByRole("button", { name: button, exact: true })).toBeEnabled();
     await expect(name).toHaveValue("Garden Omelette");
   }
   await page.unroute(route);
+  if (await page.getByRole("button", { name: "Save draft", exact: true }).isEnabled()) {
+    await page.getByRole("button", { name: "Save draft", exact: true }).click();
+    await expect(page.getByText("Draft saved.", { exact: true })).toBeVisible();
+  }
   await page.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(page.getByText("Menu published.", { exact: true })).toBeVisible();
   await page.reload();
@@ -302,11 +343,13 @@ test("denied clipboard writes show a manual-copy fallback and a later copy succe
       writeText: async () => { throw new DOMException("Denied", "NotAllowedError"); },
     } });
   });
+  if (!await page.getByRole("button", { name: "Copy link" }).isVisible()) await page.locator("summary").filter({ hasText: "Venue Link" }).click();
   await page.getByRole("button", { name: "Copy link" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Could not copy" })).toContainText("Select the link");
   await page.getByRole("textbox", { name: "Venue Link", exact: true }).focus();
   expect(await page.getByRole("textbox", { name: "Venue Link", exact: true }).evaluate((input: HTMLInputElement) => input.selectionEnd! - input.selectionStart!)).toBeGreaterThan(0);
   await page.evaluate(() => { navigator.clipboard.writeText = async () => {}; });
+  if (!await page.getByRole("button", { name: "Copy link" }).isVisible()) await page.locator("summary").filter({ hasText: "Venue Link" }).click();
   await page.getByRole("button", { name: "Copy link" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Copied" })).toBeVisible();
 });

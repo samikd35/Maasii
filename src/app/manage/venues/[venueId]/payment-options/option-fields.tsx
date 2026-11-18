@@ -35,7 +35,7 @@ export function OptionFields({
           name="kind"
           value={kind}
           onChange={(event) => setKind(event.target.value as PaymentOptionKind)}
-          className="mt-1 min-h-11 w-full rounded-md border border-ink/30 bg-white px-3 text-base font-normal"
+          className="mt-1 min-h-11 w-full rounded-xl border border-ink/30 bg-white px-3 text-base font-normal"
         >
           {kinds.map((value) => <option key={value} value={value}>{t(value)}</option>)}
         </select>
@@ -53,7 +53,7 @@ export function OptionFields({
         spellCheck={false}
       />
       {option && next !== previous && (
-        <fieldset className="min-w-0 space-y-2 rounded-md border border-rule px-3 pb-2">
+        <fieldset className="min-w-0 space-y-2 rounded-xl border border-rule px-3 pb-2">
           <legend className="px-1 text-sm font-semibold">{t("confirmAccount")}</legend>
           <dl className="grid grid-cols-2 gap-3 text-sm">
             <div className="min-w-0">

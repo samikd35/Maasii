@@ -108,9 +108,9 @@ test("staff installs a scoped worker, hears and sees an incoming Order, and open
     });
     await waiter.getByRole("heading", { name: "My tables" }).click();
     const order = await send(one.id);
-    const incoming = waiter.getByText("New Order", { exact: true });
+    const incoming = waiter.getByText(/^New Order ·/);
     await expect(incoming).toBeVisible({ timeout: 12_000 });
-    await expect(incoming.locator("..")).toHaveCSS("background-color", "rgb(243, 236, 224)");
+    await expect(incoming.locator("..").getByRole("button", { name: "Accept", exact: true })).toBeVisible();
     await expect(waiter.locator("body")).toHaveAttribute("data-order-chime", "played");
     const path = `/staff/tables/${order.tableId}`;
     const worker = staff.serviceWorkers()[0];

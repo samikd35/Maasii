@@ -1,6 +1,6 @@
 "use server";
 
-import { getVenueMenuDraft, saveVenueMenu, uploadVenueDishPhoto, type MenuDraftContent } from "@/core";
+import { uploadVenueDishVideo, getVenueMenuDraft, saveVenueMenu, uploadVenueDishPhoto, type MenuDraftContent } from "@/core";
 import { forForm, requireStaff } from "@/lib/session";
 import { revalidatePath } from "next/cache";
 
@@ -25,4 +25,13 @@ export async function prepareVenueDishPhoto(venueId: string, form: FormData) {
   let photoUrl: string | undefined;
   const result = await forForm(async () => { photoUrl = await uploadVenueDishPhoto(actor, { venueId, photo }); });
   return { photoUrl, error: result?.error };
+}
+
+export async function prepareVenueDishVideo(venueId: string, form: FormData) {
+  const actor = await requireStaff();
+  const video = form.get("video");
+  if (!(video instanceof File)) return { error: "invalidDishVideo" as const };
+  let videoAssetId: string | undefined;
+  const result = await forForm(async () => { videoAssetId = (await uploadVenueDishVideo(actor, { venueId, video })).id; });
+  return { videoAssetId, error: result?.error };
 }

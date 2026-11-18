@@ -13,7 +13,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
     <>
       <StaffHeader home="/admin" label={t("platformAdmin")} />
       <StaffFormMessages>
-        <main className="mx-auto max-w-2xl px-5 pt-6 pb-16">{children}</main>
+        <main className="staff-workspace mx-auto max-w-2xl px-5 pt-6 pb-16">{children}</main>
       </StaffFormMessages>
     </>
   );

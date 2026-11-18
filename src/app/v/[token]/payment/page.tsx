@@ -26,14 +26,14 @@ export default async function GuestPaymentPage({ params }: PageProps<"/v/[token]
   return (
     <GuestVenuePage context={details} current="payment">
       <p className="mt-2 text-sm text-ink-muted">{brand.name} · {venue.name}</p>
-      <h1 className="mt-1 font-display text-4xl leading-tight text-brand-readable">{t("heading")}</h1>
+      <h1 className="mt-1 text-3xl font-semibold">{t("heading")}</h1>
       {options.length ? (
         <>
           <p className="mt-3 text-sm text-ink-muted">{t("instructions")}</p>
           <GuestPaymentOptions options={options} />
         </>
       ) : (
-        <p className="mt-3 text-ink-muted">{t("empty")}</p>
+        <p className="maasii-card mt-4">{t("empty")}</p>
       )}
     </GuestVenuePage>
   );

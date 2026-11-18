@@ -35,7 +35,7 @@ export default async function VenueMenuPage({ params }: PageProps<"/manage/venue
       <Link href={`/manage/venues/${venueId}`} className="inline-flex min-h-11 items-center text-sm font-medium underline">
         {venue.name}
       </Link>
-      <h1 className="font-display text-3xl">{t("title")}</h1>
+      <h1 className="font-sans text-3xl">{t("title")}</h1>
       <Link href={`/manage/venues/${venueId}/menu/edit`} className="mt-3 inline-flex min-h-11 items-center font-semibold underline">{t("editMenu")}</Link>
       {sections.length === 0 ? (
         <p className="mt-4 text-ink-muted">{t("empty")}</p>

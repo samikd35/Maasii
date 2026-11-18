@@ -1,10 +1,11 @@
 /* Paper & Ink: warm paper, dark ink, hairline rules. */
 @theme {
-  --color-paper: #fbf7f0;
-  --color-paper-deep: #f3ece0;
-  --color-ink: #1c1917;
-  --color-ink-muted: #57534e;
-  --color-rule: #e4dccd;
+  --color-paper: #faf7f2;
+  --color-paper-deep: #f0eee7;
+  --color-ink: #252822;
+  --color-ink-muted: #686b63;
+  --color-control-border: #74796d;
+  --color-rule: #e8e7df;
   --color-brand-accent: var(--color-rule);
   --color-brand-readable: var(--color-ink);
 
@@ -14,5 +15,5 @@
 @theme inline {
   /* Resolve the font at the element so a Brand can select its own Ethiopic face. */
   --font-sans: var(--font-ethiopic), var(--font-system);
-  --font-display: var(--font-ethiopic), var(--font-display-latin, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif);
+  --font-display: var(--font-ethiopic), var(--font-system);
 }

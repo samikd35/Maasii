@@ -34,7 +34,8 @@ async function acceptOnNewPhone(browser: Browser, link: string, password: string
 
 test("staff screens default to Amharic and remember their own language choice", async ({ page }) => {
   const venueLink = `/v/${LANCHA_LINK_TOKEN}`;
-  await page.goto("/sign-in");
+  await page.goto("/");
+  await page.getByRole("link", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("heading", { name: "ወደ Maasii ይግቡ" })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("lang", "am");
   await chooseEnglish(page);
@@ -81,11 +82,13 @@ test("an Owner creates a Venue, sets up its Tables, downloads its Venue Link and
 
   await signIn(page, s.owner.email, s.owner.password);
   await expect(page.getByRole("link", { name: /Lancha/ })).toBeVisible();
+  await page.locator("summary").filter({ hasText: /^Add venue$/ }).click();
   await page.getByLabel("Venue name").fill("Bole");
   await page.getByRole("button", { name: "Add venue" }).click();
   await page.getByRole("link", { name: /Bole/ }).click();
   await expect(page.getByRole("heading", { name: "Bole", level: 1 })).toBeVisible();
 
+  await page.locator("summary").filter({ hasText: "Tables" }).click();
   const tables = page.getByRole("region", { name: "Tables" });
   await tables.getByLabel("From table").fill("1");
   await tables.getByLabel("To table").fill("4");
@@ -104,6 +107,7 @@ test("an Owner creates a Venue, sets up its Tables, downloads its Venue Link and
   await two.getByRole("button", { name: "Reactivate" }).click();
   await expect(two).not.toContainText("Not in use");
 
+  await page.locator("summary").filter({ hasText: "Venue Link" }).click();
   const venueLink = page.getByRole("region", { name: "Venue Link" });
   const linkInput = venueLink.getByLabel("Venue Link", { exact: true });
   await expect(linkInput).toHaveValue(/\/v\/bilos-pastry-bole-[a-z0-9]{4}$/);
@@ -121,6 +125,7 @@ test("an Owner creates a Venue, sets up its Tables, downloads its Venue Link and
   expect(download.suggestedFilename()).toMatch(/^bilos-pastry-bole-[a-z0-9]{4}-qr\.png$/);
   expect(await download.failure()).toBeNull();
 
+  await page.locator("summary").filter({ hasText: "Managers" }).click();
   const managers = page.getByRole("region", { name: "Managers" });
   await managers.getByLabel("Name").fill("Hana");
   await managers.getByLabel("Email or phone").fill(managerPhone);
@@ -130,11 +135,13 @@ test("an Owner creates a Venue, sets up its Tables, downloads its Venue Link and
   const hana = await acceptOnNewPhone(browser, link, "hana-at-bole-2026");
   await hana.getByRole("link", { name: /Bole/ }).click();
   await expect(hana.getByRole("heading", { name: "Bole", level: 1 })).toBeVisible();
+  await hana.locator("summary").filter({ hasText: "Tables" }).click();
   const managerTables = hana.getByRole("region", { name: "Tables" });
   await expect(managerTables.getByRole("listitem")).toHaveCount(4);
   await managerTables.getByLabel("From table").fill("5");
   await managerTables.getByRole("button", { name: "Add tables" }).click();
   await expect(managerTables.getByRole("listitem")).toHaveCount(5);
+  await hana.locator("summary").filter({ hasText: "Venue Link" }).click();
   await expect(hana.getByRole("link", { name: "Download Venue Link" })).toBeVisible();
   await expect(hana.getByRole("link", { name: "Download QR image" })).toBeVisible();
   await expect(hana.getByRole("button", { name: "Invite manager" })).toHaveCount(0);
@@ -246,6 +253,7 @@ test("a Manager enrolls a Waiter by QR and removes their access on two phones", 
   await signIn(page, s.managers.Hana.email, s.managers.Hana.password);
   await page.getByRole("link", { name: /Lancha/ }).click();
   const waiters = page.getByRole("region", { name: "Waiters" });
+  await page.locator("summary").filter({ hasText: "Venue Link" }).click();
   const qr = waiters.getByRole("img", { name: "Waiter join QR" });
   const showQr = waiters.getByRole("button", { name: "Show join QR" });
   await showQr.click();
@@ -262,6 +270,8 @@ test("a Manager enrolls a Waiter by QR and removes their access on two phones", 
   await first.getByLabel("Choose a 4-digit PIN").fill("0427");
   await first.getByRole("button", { name: "Join venue" }).click();
   await expect(first.getByRole("heading", { level: 1 })).toHaveText("Lancha");
+  await first.getByRole("link", { name: "Menu", exact: true }).click();
+  await first.getByRole("searchbox").fill("Omelette");
   for (const name of ["Omelette", "ኦምሌት"]) {
     await expect(first.getByText(name, { exact: true })).toBeVisible();
   }
@@ -304,6 +314,8 @@ test("a Manager enrolls a Waiter by QR and removes their access on two phones", 
   await expect(second.getByRole("heading", { level: 1 })).toHaveText("Lancha");
   await expect(second.locator("html")).toHaveAttribute("lang", "en");
 
+  page.once("dialog", dialog => dialog.accept());
+  await waiters.getByText("Manage Sam’s access", { exact: true }).click();
   await waiters.getByRole("button", { name: "Remove Sam" }).click();
   await expect(waiters.getByRole("button", { name: "Remove Sam" })).toHaveCount(0);
   for (const phone of [reopened, second]) {

@@ -33,3 +33,12 @@ export async function uploadBrandArtwork(bucket: ReturnType<typeof brandArtworkB
   if (error) throw error;
   return bucket.getPublicUrl(path).data.publicUrl;
 }
+
+/** Both renditions have immutable names; existing photos keep their original URLs. */
+export async function uploadServingPhoto(photo: File, prefix: string) {
+  const detail = await prepareBrandArtwork(photo, 960, 960);
+  const thumbnail = await sharp(detail).resize({ width: 320, height: 320, fit: "inside", withoutEnlargement: true }).webp({ quality: 75 }).toBuffer();
+  const bucket = brandArtworkBucket();
+  await uploadBrandArtwork(bucket, `${prefix}-thumb.webp`, thumbnail);
+  return uploadBrandArtwork(bucket, `${prefix}-detail.webp`, detail);
+}

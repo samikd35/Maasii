@@ -16,7 +16,7 @@ export default async function FloorPage({ params }: PageProps<"/manage/venues/[v
   return (
     <>
       <Link href={`/manage/venues/${venueId}`} className="inline-flex min-h-11 items-center text-sm font-medium underline">{t("back")}</Link>
-      <h1 className="font-display text-3xl">{t("title")}</h1>
+      <h1 className="font-sans text-3xl">{t("title")}</h1>
       <LiveFloor venueId={venueId} floor={floor} />
       <RefreshFloor />
     </>

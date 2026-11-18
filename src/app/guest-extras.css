@@ -11,3 +11,7 @@
 @source "./v/[token]/guest-reviews.tsx";
 @source "../ui/guest-payment-options.tsx";
 @source "../ui/guest-copy-payment-code.tsx";
+
+@source "./v/[token]/more";
+
+.table-choice[aria-pressed=true] { background:var(--color-brand-readable); color:white; border-color:var(--color-brand-readable); box-shadow:0 0 0 2px var(--color-brand-readable); }

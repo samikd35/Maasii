@@ -11,7 +11,7 @@ export function SoldOutSwitch({ label, status, soldOut }: { label: string; statu
       aria-checked={soldOut}
       aria-label={label}
       disabled={pending}
-      className="group flex min-h-11 min-w-11 items-center gap-2 rounded-md border border-rule px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60"
+      className="group flex min-h-11 min-w-11 items-center gap-2 rounded-xl border border-rule px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60"
     >
       <span
         aria-hidden="true"

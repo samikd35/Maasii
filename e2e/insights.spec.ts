@@ -61,6 +61,8 @@ test("an Owner sees the Weekly Finding with its Orders and sees the Live floor d
 
   await page.context().setExtraHTTPHeaders({ "x-maasii-test-now": "2026-11-11T09:00:00Z" });
   await page.goto("/manage");
-  await expect(page.getByRole("region", { name: "Live floor" }).getByRole("link", { name: "Table 1" })).toBeVisible();
+  await expect(finding).toBeVisible();
+  await page.getByRole("link", { name: /Venues in service/ }).click();
+  await expect(page.locator("[data-live-floor]").getByRole("link", { name: "Table 1" })).toBeVisible();
   await expect(finding).toHaveCount(0);
 });

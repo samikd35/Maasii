@@ -11,7 +11,7 @@ import { LanguageSwitch } from "./language-switch";
 export function StaffHeader({ home, label }: { home: string; label: string }) {
   const t = useTranslations("Staff");
   return (
-    <header className="border-b border-rule">
+    <header className="staff-header">
       <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-x-3 px-5 py-1">
         <Link href={home} className="inline-flex min-h-11 items-center font-display text-xl font-semibold">
           Maasii <span className="ml-2 text-sm font-normal text-ink-muted">{label}</span>
@@ -37,7 +37,7 @@ export async function StaffFormMessages({ children }: { children: ReactNode }) {
 export function StaffEntry({ children }: { children: ReactNode }) {
   return (
     <StaffFormMessages>
-      <main className="mx-auto max-w-sm px-5 pt-5 pb-12">
+      <main className="staff-entry mx-auto max-w-sm px-5 pt-5 pb-12">
         <div className="mb-5 flex justify-end">
           <LanguageSwitch area="staff" action={setStaffLanguage} />
         </div>

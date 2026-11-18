@@ -37,7 +37,7 @@ export async function LiveFloor({ venueId, floor }: { venueId: string; floor: Fl
         {floor.tables.length === 0 && <p className="py-3 text-ink-muted">{t("noneOpen")}</p>}
         <ul className="mt-2 flex flex-col gap-2 md:grid md:grid-cols-3">
           {floor.tables.map((table) => (
-            <li key={table.id} id={`floor-visit-${table.visitId}`} className="rounded-md border border-rule px-3 py-2">
+            <li key={table.id} id={`floor-visit-${table.visitId}`} className="rounded-xl border border-rule px-3 py-2">
               <Link href={`${venue}/closing#visit-${table.visitId}`} prefetch={false} className="inline-flex min-h-11 items-center font-semibold underline">
                 {bill("table", { number: table.number })}
               </Link>

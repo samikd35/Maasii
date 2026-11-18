@@ -27,7 +27,7 @@ export default async function AdminBrandPage({ params }: PageProps<"/admin/brand
       <Link href="/admin" className="inline-flex min-h-11 items-center text-sm font-medium underline">
         {t("allBrands")}
       </Link>
-      <h1 className="mt-2 font-display text-3xl">{brand.name}</h1>
+      <h1 className="mt-2 font-sans text-3xl">{brand.name}</h1>
       {/* A document navigation reaches the audit transaction on every open. */}
       <a
         href={`/admin/brands/${brand.id}/support`}
