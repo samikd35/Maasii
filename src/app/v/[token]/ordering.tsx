@@ -270,16 +270,20 @@ function Sheet({
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     if (!dismissOnBack) return;
-    const key = crypto.randomUUID();
-    history.pushState({ ...history.state, maasiiDish: key }, "");
+    if (history.state?.maasiiDish !== labelledBy) {
+      history.pushState({ ...history.state, maasiiDish: labelledBy }, "");
+    }
     const dialog = ref.current!;
     const back = () => dialog.close();
     window.addEventListener("popstate", back);
     return () => {
       window.removeEventListener("popstate", back);
-      if (history.state?.maasiiDish === key) history.back();
+      // React can replay effects while leaving the same dialog in the document.
+      queueMicrotask(() => {
+        if (!dialog.isConnected && history.state?.maasiiDish === labelledBy) history.back();
+      });
     };
-  }, [dismissOnBack]);
+  }, [dismissOnBack, labelledBy]);
   useLayoutEffect(() => {
     const dialog = ref.current!;
     // Lazy service loading can replace the slip button. Establish the current invoker
@@ -312,7 +316,10 @@ function Sheet({
       ref={ref}
       closedby="any"
       aria-labelledby={labelledBy}
-      onClose={onClose}
+      onClose={(event) => {
+        // A queued close event can arrive after the layout effect reopened the dialog.
+        if (!event.currentTarget.open) onClose();
+      }}
       className="fixed inset-x-0 top-auto bottom-0 m-0 mx-auto max-h-[92dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-2xl bg-paper p-0 text-ink shadow-2xl backdrop:bg-ink/45 open:flex"
     >
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>

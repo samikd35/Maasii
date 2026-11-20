@@ -13,6 +13,13 @@ for (const fallback of [false, true]) {
     await open.focus();
     await page.keyboard.press("Enter");
     await expect(sheet).toBeVisible();
+    // A development effect replay can reopen the sheet before its queued close event arrives.
+    await sheet.evaluate((dialog: HTMLDialogElement) => new Promise<void>((resolve) => {
+      dialog.addEventListener("close", () => resolve(), { once: true });
+      dialog.close();
+      dialog.showModal();
+    }));
+    await expect(sheet).toBeVisible();
     await page.keyboard.press("Tab");
     expect(await sheet.evaluate((dialog) => dialog.contains(document.activeElement))).toBe(true);
     await page.keyboard.press("Escape");
