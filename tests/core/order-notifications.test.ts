@@ -73,7 +73,7 @@ test("an Order escalates at two minutes only while Sent, and any on-duty Waiter 
   await escalateOrders(systemActor, { now: almost, venueId: s.venue.id });
   expect(await orders(hana, almost)).toMatchObject([{ id: handled.id, escalatedAt: null }]);
 
-  await prepareBill(sam.actor, billTarget, { now: almost });
+  await expect(prepareBill(sam.actor, billTarget, { now: almost })).rejects.toMatchObject({ reason: "billOrdersWaiting" });
   await Promise.all([escalateOrders(systemActor, { now: due, venueId: s.venue.id }), escalateOrders(systemActor, { now: due, venueId: s.venue.id })]);
   expect(await orders(hana, due)).toMatchObject([
     { id: pending.id, state: "sent", escalatedAt: due }, { id: handled.id, state: "accepted", escalatedAt: null },
@@ -82,9 +82,6 @@ test("an Order escalates at two minutes only while Sent, and any on-duty Waiter 
   expect(await orders(mimi, due)).toEqual([]);
   const detail = await getMyTableOrders(hana.actor, { tableId: one.id, unlockToken: hana.unlockToken }, { now: due });
   expect(detail).toMatchObject({ tableNumber: one.number, bills: [], billVisitIds: [], orders: [{ id: pending.id }] });
-  await expect(acceptOrder(hana.actor, { orderId: pending.id, unlockToken: hana.unlockToken }, { now: due }))
-    .rejects.toMatchObject({ reason: "billPrepared" });
-  await reopenBill(sam.actor, billTarget, { now: due });
   const accepted = await acceptOrder(hana.actor, { orderId: pending.id, unlockToken: hana.unlockToken }, { now: due });
   expect(accepted).toMatchObject({ state: "accepted", acceptedByName: "Hana", escalatedAt: due });
 });

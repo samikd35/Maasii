@@ -12,7 +12,7 @@ import { requireOrderWaiter } from "./waiters";
 
 const id = z.uuid().transform((value) => value.toLowerCase());
 const tableTarget = z.object({ tableId: id, unlockToken: z.string().optional() });
-const quickOrder = tableTarget.extend({ requestId: id, lines: orderLines });
+const quickOrder = tableTarget.extend({ requestId: id, lines: orderLines, expectedVisitId: id.nullable().optional() });
 const correction = z.object({
   orderId: id,
   lineIndex: z.number().int().min(0).max(99),
@@ -22,8 +22,10 @@ const correction = z.object({
 });
 
 async function assignedTable(tx: Tx, venueId: string, tableId: string) {
-  const { rows: [table] } = await tx.query<{ id: string; number: number; venueLinkToken: string; venueName: string }>(
-    `select t.id, t.number, v.link_token as "venueLinkToken", v.name as "venueName" from app.tables t join app.venues v on v.id = t.venue_id
+  const { rows: [table] } = await tx.query<{ id: string; number: number; venueLinkToken: string; venueName: string; visitId: string | null; prepared: boolean }>(
+    `select t.id, t.number, v.link_token as "venueLinkToken", v.name as "venueName", visit.id as "visitId", visit.bill_prepared_at is not null as prepared
+     from app.tables t join app.venues v on v.id = t.venue_id
+     left join app.visits visit on visit.table_id = t.id and visit.closed_at is null
      where t.id = $1 and t.venue_id = $2 and t.active and app.waiter_serves_order_table(t.venue_id, t.id)`,
     [tableId, venueId],
   );
@@ -43,12 +45,12 @@ export async function getWaiterQuickAdd(actor: Actor, input: z.input<typeof tabl
     const dishes = published?.menuSections.flatMap((section) => section.dishes.map(({ dishId, name, optionGroups, priceSantim }) =>
       ({ dishId, name, optionGroups, priceSantim }))) ?? [];
     const recent = [...new Set(rows.flatMap(({ lines }) => lines.filter(({ dropReason }) => !dropReason).map(({ dishId }) => dishId)))].slice(0, 8);
-    return { table: { id: table.id, number: table.number }, dishes, recent, scope: `${table.venueName} · ${waiter.name}` };
+    return { table: { id: table.id, number: table.number }, waiterId: waiter.id, visitId: table.visitId, dishes, recent, scope: `${table.venueName} · ${waiter.name}` };
   });
 }
 
 export async function addWaiterOrder(actor: Actor, input: z.input<typeof quickOrder>, { now = new Date() } = {}) {
-  const { tableId, unlockToken, requestId, lines } = parseInput(quickOrder, input);
+  const { tableId, unlockToken, requestId, lines, expectedVisitId } = parseInput(quickOrder, input);
   return inTransaction(actor, async (tx) => {
     const waiter = await requireOrderWaiter(tx, actor, unlockToken, now);
     await lockVenueShifts(tx, waiter.venueId);
@@ -60,14 +62,14 @@ export async function addWaiterOrder(actor: Actor, input: z.input<typeof quickOr
     const table = await assignedTable(tx, waiter.venueId, tableId);
     const shift = await findRunningShift(tx, waiter.venueId, now);
     if (!shift) throw new MaasiiError("invalid_input", "Quick-add needs a running Shift.", "noRunningShift");
-    const { rows: [open] } = await tx.query<{ id: string; prepared: boolean }>(
-      "select id, bill_prepared_at is not null as prepared from app.visits where table_id = $1 and closed_at is null", [tableId],
-    );
-    if (open?.prepared) throw new MaasiiError("invalid_input", "Reopen the Bill before adding an Order.", "billPrepared");
+    if (table.prepared) throw new MaasiiError("invalid_input", "Reopen the Bill before adding an Order.", "billPrepared");
+    if (expectedVisitId !== undefined && expectedVisitId !== table.visitId) {
+      throw new MaasiiError("invalid_input", "The Visit changed. Open the Table again before adding a Dish.", "quickAddVisitChanged");
+    }
     const published = await readPublishedMenu(tx, table, now);
     if (!published) throw new MaasiiError("invalid_input", "This Venue has no published Menu.", "orderDraftChanged");
     const snapshots = snapshotOrderLines(published, lines);
-    const visitId = open?.id ?? (await tx.query<{ id: string }>(
+    const visitId = table.visitId ?? (await tx.query<{ id: string }>(
       "insert into app.visits (venue_id, table_id, opened_at) values ($1, $2, $3) returning id", [waiter.venueId, tableId, now],
     )).rows[0].id;
     try {

@@ -83,6 +83,16 @@ async function readBillOrders(tx: Tx, visitIds: string[]) {
   return rows;
 }
 
+async function requireDecidedOrders(tx: Tx, visitId: string) {
+  const { rowCount } = await tx.query(
+    "select 1 from app.orders where visit_id = $1 and state = 'sent' and not party_pending limit 1",
+    [visitId],
+  );
+  if (rowCount) {
+    throw new MaasiiError("invalid_input", "Decide the waiting Orders before closing this Visit.", "billOrdersWaiting");
+  }
+}
+
 export async function readGuestBillOptions(tx: Tx, venueId: string) {
   const options = await readVenuePaymentOptions(tx, venueId, { activeOnly: true });
   return options.map(({ id, kind, provider, recipientName, accountOrMerchantCode, qrImage }) =>
@@ -111,6 +121,7 @@ export async function prepareBill(actor: Actor, input: z.input<typeof billTarget
   return inTransaction(actor, async (tx) => {
     const visit = await authorizedBill(tx, actor, target, now);
     if (visit.closedAt) throw new MaasiiError("invalid_input", "The Visit is closed.");
+    await requireDecidedOrders(tx, visit.id);
     if (visit.preparedAt) return;
     const rows = await readBillOrders(tx, [visit.id]);
     const { lines, totalSantim } = billFromOrders(rows, visit);
@@ -140,6 +151,7 @@ export async function reopenBill(actor: Actor, input: z.input<typeof billTarget>
 const confirmationInput = billTarget.extend({
   paymentOptionId: z.uuid().transform((value) => value.toLowerCase()).nullable(),
   receiptAmountSantim: z.number().int().nonnegative(),
+  billSnapshot: z.object({ preparedAt: z.iso.datetime(), totalSantim: z.number().int().nonnegative() }).optional(),
 });
 
 export type PaymentConfirmation = {
@@ -171,20 +183,45 @@ function paymentConfirmation(row: ConfirmationRow): PaymentConfirmation {
   };
 }
 
+async function readPaymentConfirmation(tx: Tx, visitId: string) {
+  const { rows: [row] } = await tx.query<ConfirmationRow>(
+    `select ${confirmationFields} from app.payment_confirmations where visit_id = $1`, [visitId],
+  );
+  return row && paymentConfirmation(row);
+}
+
+export async function getBillPaymentStatus(actor: Actor, input: z.input<typeof billTarget>) {
+  const target = parseInput(billTarget, input);
+  return inTransaction(actor, async (tx) => {
+    const visit = await authorizedBill(tx, actor, target, undefined);
+    if (visit.closedAt) {
+      const confirmation = await readPaymentConfirmation(tx, visit.id);
+      if (confirmation) return { status: "recorded" as const, confirmation };
+    } else if (visit.preparedAt) {
+      await requireDecidedOrders(tx, visit.id);
+      return { status: "prepared" as const, preparedAt: visit.preparedAt, totalSantim: Number(visit.totalSantim) };
+    }
+    return { status: "unavailable" as const };
+  });
+}
+
 export async function confirmPayment(
   actor: Actor, input: z.input<typeof confirmationInput>, { now }: { now?: Date } = {},
 ): Promise<PaymentConfirmation> {
-  const { paymentOptionId, receiptAmountSantim, ...target } = parseInput(confirmationInput, input);
+  const { paymentOptionId, receiptAmountSantim, billSnapshot, ...target } = parseInput(confirmationInput, input);
   return inTransaction(actor, async (tx) => {
     const visit = await authorizedBill(tx, actor, target, now);
     if (visit.closedAt) {
-      const { rows: [prior] } = await tx.query<ConfirmationRow>(
-        `select ${confirmationFields} from app.payment_confirmations where visit_id = $1`, [visit.id],
-      );
-      if (prior) return paymentConfirmation(prior);
-      throw new MaasiiError("invalid_input", "The Visit is closed.");
+      const prior = await readPaymentConfirmation(tx, visit.id);
+      if (prior) return prior;
+      throw new MaasiiError("invalid_input", "The Visit is closed.", "billChanged");
     }
-    if (!visit.preparedAt) throw new MaasiiError("invalid_input", "Prepare the Bill before confirming payment.");
+    if (!visit.preparedAt || (billSnapshot && (
+      billSnapshot.preparedAt !== visit.preparedAt.toISOString() || billSnapshot.totalSantim !== Number(visit.totalSantim)
+    ))) {
+      throw new MaasiiError("invalid_input", "Review the current Bill before confirming payment.", "billChanged");
+    }
+    await requireDecidedOrders(tx, visit.id);
 
     let method: PaymentConfirmation["method"] = {
       paymentOptionId: null, kind: "cash", provider: null, recipientName: null, accountOrMerchantCode: null,

@@ -116,6 +116,13 @@
     "heading": "ወደ Maasii ይግቡ",
     "intro": "ለባለቤቶች እና ለአስተዳዳሪዎች። በግብዣው ላይ ያለውን ኢሜይል ወይም ስልክ ቁጥር ይጠቀሙ።"
   },
+  "StaffWorkspaceAccess": {
+    "heading": "ለመቀጠል መለያ ይቀይሩ",
+    "brandRequiresOwner": "እንደ አስተናጋጅ ገብተዋል። የብራንዱን የሥራ ገጽ ለመክፈት የባለቤት መለያ ያስፈልጋል።",
+    "venueRequiresManagerOrOwner": "እንደ አስተናጋጅ ገብተዋል። የቦታውን አስተዳደር ገጽ ለመክፈት የአስተዳዳሪ ወይም የባለቤት መለያ ያስፈልጋል።",
+    "backToWaiter": "ወደ አስተናጋጅ ገጽ ይመለሱ",
+    "switchAccount": "ይውጡ እና መለያ ይቀይሩ"
+  },
   "StaffInvitation": {
     "title": "የእርስዎ ግብዣ",
     "heading": "ግብዣ",
@@ -551,7 +558,10 @@
     "waiterJoinExpired": "የዚህ መቀላቀያ QR ጊዜ አልፏል። አስተዳዳሪዎን አዲስ QR ይጠይቁ።",
     "waiterRejoin": "አስተዳዳሪዎን አዲስ የመቀላቀያ QR ይጠይቁ።",
     "wrongPin": "ያስገቡት PIN ትክክል አይደለም።",
-    "invalidDishVideo": "ድምፅ የሌለው H.264 MP4፣ 2–5 ሰከንድ፣ እስከ 720px እና 1 MiB ይጠቀሙ።"
+    "invalidDishVideo": "ድምፅ የሌለው H.264 MP4፣ 2–5 ሰከንድ፣ እስከ 720px እና 1 MiB ይጠቀሙ።",
+    "billOrdersWaiting": "ሂሳቡን ከመዝጋትዎ በፊት የሚጠብቁትን ትዕዛዞች ይመልከቱ።",
+    "billChanged": "ሂሳቡ ተቀይሯል። የአሁኑን መጠን ለማየት እንደገና ይክፈቱት።",
+    "quickAddVisitChanged": "ጉብኝቱ ተቀይሯል። ምግብ ከማከልዎ በፊት ወደ ጠረጴዛው ይመለሱ።"
   },
   "StaffWaiter": {
     "waiters": "አስተናጋጆች",
@@ -584,9 +594,22 @@
     "backQueue": "ወደ ትዕዛዞች ይመለሱ",
     "backTables": "ወደ ጠረጴዛዎች ይመለሱ",
     "connectWaiter": "አስተናጋጅ ያገናኙ",
-    "regenerateQr": "QR እንደገና ያመንጩ"
+    "regenerateQr": "QR እንደገና ያመንጩ",
+    "alertsOff": "ማሳወቂያ ጠፍቷል",
+    "menuAll": "ሁሉም ምግቦች",
+    "menuCategories": "የምናሌ ክፍሎች"
   },
   "StaffOrders": {
+    "reviewOrder": "ትዕዛዙን ይመልከቱ",
+    "actionsAtTable": "የትዕዛዝ እርምጃዎች · ጠረጴዛ {number}",
+    "correctAtTable": "ምግቡን ያስተካክሉ · ጠረጴዛ {number}",
+    "caughtUp": "የሚጠብቅ ትዕዛዝ የለም",
+    "openMyTables": "የእኔን ጠረጴዛዎች ይክፈቱ",
+    "openTable": "ጠረጴዛውን ይክፈቱ",
+    "tableNeedsReview": "እንግዶቹን ያረጋግጡ",
+    "reconnecting": "ዳግም በማገናኘት ላይ",
+    "recentDishes": "የቅርብ ጊዜ ምግቦች",
+    "allDishes": "ሁሉም ምግቦች",
     "quickAdd": "ምግብ ያክሉ",
     "backTable": "ወደ ጠረጴዛ {number} ይመለሱ",
     "changeDish": "ምግብ ይቀይሩ",
@@ -599,7 +622,7 @@
     "addOrder": "በጠረጴዛ {number} ላይ ያክሉ",
     "guestSource": "የእንግዳ ትዕዛዝ",
     "waiterSource": "በአስተናጋጅ የተመዘገበ ትዕዛዝ",
-    "correctLine": "መስመሩን ያስተካክሉ",
+    "correctLine": "ምግቡን ያስተካክሉ",
     "correctionReason": "ምክንያት",
     "saveQuantity": "ብዛቱን ያስቀምጡ",
     "removeLine": "መስመሩን ያስወግዱ",
@@ -618,7 +641,7 @@
     "accept": "ትዕዛዙን ይቀበሉ",
     "accepting": "በመቀበል ላይ…",
     "decisionError": "ትዕዛዙን ማዘመን አልተቻለም። እንደገና ይሞክሩ።",
-    "decisions": "የትዕዛዝ አማራጮች",
+    "decisions": "ተጨማሪ አማራጮች",
     "decline": "ትዕዛዙን ውድቅ ያድርጉ",
     "declined": "ትዕዛዙ ውድቅ ሆኗል",
     "acceptedOrder": "ትዕዛዙ ተቀብሏል",
@@ -656,14 +679,25 @@
     "findTable": "የጠረጴዛ ቁጥር",
     "find": "ጠረጴዛ ይፈልጉ",
     "noTableMatch": "በዚህ ቁጥር የተመደበ ጠረጴዛ የለም።",
-    "tableWaiting": "ትዕዛዝ እየጠበቀ ነው",
-    "tableBill": "የተዘጋጀ ሂሳብ",
+    "tableWaiting": "አዲስ ትዕዛዝ",
+    "tableBill": "ሂሳቡ ዝግጁ ነው",
     "tableInUse": "በአገልግሎት ላይ",
-    "noVisit": "ክፍት ጉብኝት የለም",
+    "noVisit": "በሂደት ላይ ያለ ትዕዛዝ የለም",
     "unassignedTable": "ያልተመደበ ጠረጴዛ",
     "visitActions": "ሂሳቦች እና ክፍት ጉብኝቶች",
     "visitForTable": "የጠረጴዛ {number} ጉብኝት",
-    "acceptedOrders": "የተቀበሉ ትዕዛዞች"
+    "acceptedOrders": "የተቀበሉ ትዕዛዞች",
+    "reviewAtTable": "ትዕዛዙን ይመልከቱ · ጠረጴዛ {number}",
+    "itemUnavailable": "ምግብ አይገኝም",
+    "availabilityAtTable": "የማይገኙ ምግቦች · ጠረጴዛ {number}",
+    "soldOutScope": "አልቋል ብለው የሚጠቁሟቸው ምግቦች ከዚህ ቅርንጫፍ ምናሌም ይደበቃሉ።",
+    "reviewNewOrders": "{count} አዲስ ትዕዛዞችን ይመልከቱ",
+    "moveTo": "ወደ ጠረጴዛ {number} ያዛውሩ",
+    "quickDraftRestored": "የምግብ ረቂቅዎ ተመልሷል።",
+    "quickSubtotal": "የምግቡ ድምር",
+    "quickAddUnknown": "ምግቡ ተጨምሮ ሊሆን ይችላል። ለማረጋገጥ ይህንኑ ግቤት እንደገና ይሞክሩ።",
+    "retryAddOrder": "በጠረጴዛ {number} ላይ ለመጨመር እንደገና ይሞክሩ",
+    "addingOrder": "በጠረጴዛ {number} ላይ እየተጨመረ ነው…"
   },
   "Floor": {
     "title": "የጠረጴዛዎች ወቅታዊ ሁኔታ",
@@ -803,9 +837,11 @@
     "ratingsSummary": "{count} ምላሾች · {great} በጣም ጥሩ · {okay} መካከለኛ · {needsWork} መሻሻል ይፈልጋል"
   },
   "Bills": {
+    "recordShort": "ክፍያ ይመዝግቡ",
+    "recordedForTable": "ክፍያ ተመዝግቧል · ጠረጴዛ {number}",
     "paidQuestion": "ተከፍሏል?",
-    "previousPartyPaid": "የቀድሞዎቹ እንግዶች ከፍለዋል",
-    "sameParty": "ያው ቡድን ነው",
+    "previousPartyPaid": "የቀድሞዎቹን እንግዶች ደረሰኝ ይመዝግቡ",
+    "sameParty": "ለነባሮቹ እንግዶች ሂሳቡን እንደገና ይክፈቱ",
     "heading": "የተዘጋጁ ሂሳቦች",
     "table": "ጠረጴዛ {number}",
     "prepare": "ሂሳቡን ያዘጋጁ",
@@ -827,6 +863,18 @@
     "actions": "የሂሳብ አማራጮች",
     "cancel": "ይቅር",
     "recording": "ክፍያው እየተመዘገበ ነው…",
-    "receiptAt": "ለጠረጴዛ {number} ደረሰኝ ያስገቡ"
+    "receiptAt": "ለጠረጴዛ {number} ደረሰኝ ያስገቡ",
+    "previousReceiptAt": "የቀድሞዎቹ እንግዶች ደረሰኝ · ጠረጴዛ {number}",
+    "billTotalLabel": "ጠቅላላ ሂሳብ",
+    "runningTotalLabel": "የአሁኑ ድምር",
+    "readyCount": "{count} ሂሳብ ዝግጁ ነው",
+    "ordersWaiting": "ሂሳቡን ከመዝጋትዎ በፊት የሚጠብቁትን ትዕዛዞች ይመልከቱ።",
+    "changed": "ሂሳቡ ተቀይሯል። ይህን ቅጽ ይዝጉና የአሁኑን ሂሳብ ይመልከቱ።",
+    "checking": "ክፍያው መመዝገቡን በማረጋገጥ ላይ…",
+    "unknown": "ክፍያው መመዝገቡ አልታወቀም። ግንኙነቱ ሲመለስ ያረጋግጡ።",
+    "notRecorded": "ክፍያው አልተመዘገበም። ያስገቡትን ይፈትሹና እንደገና ይሞክሩ።",
+    "checkStatus": "የክፍያውን ሁኔታ ያረጋግጡ",
+    "recorded": "ክፍያ ተመዝግቧል",
+    "recordedDetails": "{amount} ብር · {method} · የደረሰኝ ልዩነት {difference} ብር"
   }
 }

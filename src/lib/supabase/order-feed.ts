@@ -14,6 +14,7 @@ export function watchOrders<T extends OrderFeed>(
   url: string,
   onData: (data: T) => void,
   onError?: (status?: number) => void,
+  { keepFresh = false }: { keepFresh?: boolean } = {},
 ) {
   let connection: LiveConnection | null = null;
   let live = false;
@@ -23,11 +24,13 @@ export function watchOrders<T extends OrderFeed>(
   let nextRead = 0;
   let lastApplied = 0;
   let lastSuccessful = 0;
+  let lastUpdated = 0;
 
   async function read() {
+    if (closed) return false;
     const sequence = ++nextRead;
     try {
-      const response = await fetch(url, { cache: "no-store" });
+      const response = await fetch(url, { cache: "no-store", signal: keepFresh ? AbortSignal.timeout?.(10_000) : undefined });
       if (closed || sequence < lastApplied) {
         await response.body?.cancel();
         return !closed && lastSuccessful === lastApplied;
@@ -41,6 +44,7 @@ export function watchOrders<T extends OrderFeed>(
       if (closed || sequence < lastApplied) return !closed && lastSuccessful === lastApplied;
       lastApplied = sequence;
       lastSuccessful = sequence;
+      lastUpdated = Date.now();
       connection = data.live;
       onData(data);
       if (connection && !unsubscribe && !connecting) void connect(connection.topic);
@@ -83,15 +87,28 @@ export function watchOrders<T extends OrderFeed>(
     }
   }
 
-  const timer = window.setInterval(() => { if (!live) void read(); }, 10_000);
+  const timer = window.setInterval(() => {
+    if (keepFresh && document.hidden) return;
+    if (!live || (keepFresh && Date.now() - lastUpdated >= 30_000)) void read();
+  }, 10_000);
   const online = () => { void read(); };
+  const offline = () => { onError?.(); };
+  const resume = () => { if (!document.hidden) void read(); };
   window.addEventListener("online", online);
+  if (keepFresh) {
+    window.addEventListener("offline", offline);
+    document.addEventListener("visibilitychange", resume);
+  }
   void read();
 
   function stop() {
     closed = true;
     window.clearInterval(timer);
     window.removeEventListener("online", online);
+    if (keepFresh) {
+      window.removeEventListener("offline", offline);
+      document.removeEventListener("visibilitychange", resume);
+    }
     unsubscribe?.();
   }
 

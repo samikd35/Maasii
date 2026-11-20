@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { expect, test } from "vitest";
 import {
-  acceptOrder, addPaymentOption, confirmPayment, declineOrder, flagUnconfirmedBills, getGuestOrders, getGuestPendingOrders, getGuestVisit, getMyTableOrders, getOrderService, getPreparedBills, getPublishedMenu, getVenueMenuSettings, guestActor, listVenueDishChanges,
+  acceptOrder, addPaymentOption, confirmPayment, declineOrder, flagUnconfirmedBills, getBillPaymentStatus, getGuestOrders, getGuestPendingOrders, getGuestVisit, getMyTableOrders, getOrderService, getPreparedBills, getPublishedMenu, getVenueMenuSettings, guestActor, listVenueDishChanges,
   prepareBill, publicActor, publishMenu, reassignTable, reopenBill, removeWaiter, sendOrder, setTableActive, setVenueDishPrice, startShift, systemActor, undoOrderDecision, updatePaymentOption,
 } from "@/core";
 import { createPublicAuthClient } from "@/lib/supabase/public";
@@ -171,7 +171,7 @@ test("phones at one Table share the Visit and only Accepted Orders count toward 
     .toEqual([omelette.id, chechebsa.id, later.id].sort());
 });
 
-test("a prepared Bill freezes accepted lines and blocks Send from a phone in that Visit", async () => {
+test("a Bill can be prepared once all Orders in that Visit have been decided", async () => {
   const s = await scenario().manager("Yonas").waiter("Sam").waiter("Hana").publishedMenu().build();
   const { Sam: sam, Hana: hana } = s.waiters;
   const tableId = s.venue.tables[0].id;
@@ -189,6 +189,9 @@ test("a prepared Bill freezes accepted lines and blocks Send from a phone in tha
   const target = { venueId: s.venue.id, visitId: accepted.visitId };
   const waiter = { ...target, unlockToken: sam.unlockToken };
   await expect(prepareBill(hana.actor, { ...target, unlockToken: hana.unlockToken })).rejects.toMatchObject({ code: "not_allowed" });
+  await expect(prepareBill(sam.actor, waiter)).rejects.toMatchObject({ reason: "billOrdersWaiting" });
+  await expect(prepareBill(s.managers.Yonas.actor, target)).rejects.toMatchObject({ reason: "billOrdersWaiting" });
+  await declineOrder(sam.actor, { orderId: pending.id, unlockToken: sam.unlockToken });
   await prepareBill(sam.actor, waiter);
   for (const actor of [first, second]) {
     const visit = await getGuestVisit(actor, venue);
@@ -198,7 +201,6 @@ test("a prepared Bill freezes accepted lines and blocks Send from a phone in tha
     });
     await expect(send(actor, "Macchiato", 1)).rejects.toMatchObject({ reason: "billPrepared" });
   }
-  await expect(acceptOrder(sam.actor, { orderId: pending.id, unlockToken: sam.unlockToken })).rejects.toMatchObject({ reason: "billPrepared" });
   const newPhone = await guest();
   await expect(send(newPhone, "Macchiato", 1)).resolves.toMatchObject({ partyPending: true });
   expect(await getGuestVisit(newPhone, venue)).toBeNull();
@@ -365,11 +367,14 @@ test.each([22_000, 21_989])("Payment Confirmation closes the Visit and preserves
     lines: [{ dishId: s.dishId(dish), choiceIds: [], quantity: 1, note: "" }],
   });
   const order = await send(first, "Omelette");
-  await send(second, "Macchiato");
+  const declined = await send(second, "Macchiato");
   const target = { venueId, visitId: order.visitId, unlockToken: sam.unlockToken };
   await acceptOrder(sam.actor, { orderId: order.id, unlockToken: sam.unlockToken });
+  await declineOrder(sam.actor, { orderId: declined.id, unlockToken: sam.unlockToken });
   expect((await getGuestVisit(first, venue))?.paymentOptions).toEqual([]);
   await prepareBill(sam.actor, target);
+  await expect(getBillPaymentStatus(sam.actor, target)).resolves.toMatchObject({ status: "prepared", totalSantim: 22_000 });
+  await expect(getBillPaymentStatus(sam.actor, { venueId, visitId: order.visitId })).rejects.toMatchObject({ code: "not_allowed" });
   expect((await getGuestVisit(first, venue))?.paymentOptions.map(({ id }) => id)).toEqual([firstOption.id, bank.id]);
   const input = { ...target, paymentOptionId: receiptAmountSantim === 22_000 ? null : bank.id, receiptAmountSantim };
   await expect(confirmPayment(sam.actor, { ...input, paymentOptionId: otherVenue.id })).rejects.toMatchObject({ code: "invalid_input" });
@@ -387,6 +392,7 @@ test.each([22_000, 21_989])("Payment Confirmation closes the Visit and preserves
     },
   });
   expect(replay).toEqual(paid);
+  await expect(getBillPaymentStatus(sam.actor, target)).resolves.toEqual({ status: "recorded", confirmation: paid });
   expect((await getMyTableOrders(sam.actor, { unlockToken: sam.unlockToken })).orders).toEqual([]);
   expect(await getGuestVisit(next, venue)).toBeNull();
   const newOrder = await send(next, "Chechebsa");

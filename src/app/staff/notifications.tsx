@@ -90,8 +90,8 @@ export function Notifications({ vapidKey, subscribed }: { vapidKey?: string; sub
     || status === "notificationDismissed" || status === "notificationError");
 
   return (
-    <details className="workspace-device-alerts text-sm">
-      <summary className="workspace-summary">{t("deviceAlerts")}</summary>
+    <section className="waiter-device-alerts text-sm" data-alerts-off={!!status && status !== "notificationEnabled"} aria-label={t("deviceAlerts")}>
+      <p className="font-semibold">{t("deviceAlerts")}</p>
       {canEnable && <p>{t("installHint")}</p>}
       {canEnable && (
         <button className="min-h-11 underline" type="button" disabled={busy} onClick={() => void enable()}>
@@ -99,6 +99,6 @@ export function Notifications({ vapidKey, subscribed }: { vapidKey?: string; sub
         </button>
       )}
       <p role="status">{status && status !== "available" && t(status)}</p>
-    </details>
+    </section>
   );
 }

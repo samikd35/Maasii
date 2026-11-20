@@ -59,6 +59,19 @@ test("a Waiter signs in with phone and PIN from a fresh browser", async ({ page,
   } finally {
     await other.close();
   }
+
+  await page.goto(`/manage?brand=${s.brand.id}`);
+  await expect(page.getByRole("heading", { name: "Switch accounts to continue" })).toBeVisible();
+  await expect(page.getByText("The Brand workspace requires an Owner account.", { exact: false })).toBeVisible();
+  await page.getByRole("link", { name: "Back to Waiter workspace" }).click();
+  await expect(page.getByRole("heading", { name: "Order queue" })).toBeVisible();
+
+  await page.goto(`/manage/operations?venue=${s.venue.id}`);
+  await expect(page.getByText("Venue operations requires a Manager or Owner account.", { exact: false })).toBeVisible();
+  await page.getByRole("button", { name: "Sign out and switch account" }).click();
+  await expect(page).toHaveURL(/\/sign-in$/);
+  await signIn(page, s.owner);
+  await expect(page).toHaveURL(/\/manage$/);
 });
 
 test("Staff keeps Order decisions, retries and receipt entry next to the affected work", async ({ page, baseURL }, info) => {
@@ -80,9 +93,19 @@ test("Staff keeps Order decisions, retries and receipt entry next to the affecte
   await expect(firstAccept).toBeInViewport();
   await expect(group(1).getByText("“After the food”")).toBeInViewport();
   expect((await firstAccept.boundingBox())!.height).toBeGreaterThanOrEqual(48);
+  const queueLink = page.getByRole("navigation", { name: "Waiter" }).getByRole("link", { name: "Queue" });
+  await expect(queueLink).toHaveAttribute("aria-current", "page");
   await page.screenshot({ path: info.outputPath("staff-queue.png") });
+  await page.getByRole("link", { name: "Menu", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Menu", exact: true })).toBeVisible();
+  await expect(queueLink).toHaveAccessibleDescription("4 Orders waiting");
+  await page.getByLabel("Find a dish").fill("ኦምሌት");
+  await expect(page.getByRole("main").getByTestId("price")).toHaveText("220 ETB");
+  await queueLink.click();
 
   const fourth = group(4);
+  await fourth.getByRole("button", { name: "Review order" }).click();
+  await expect(firstAccept).toHaveCount(0);
   const accept = fourth.getByRole("button", { name: "Accept Order" });
   let canRefresh = false;
   await page.route("**/staff/orders", route => {
@@ -103,23 +126,59 @@ test("Staff keeps Order decisions, retries and receipt entry next to the affecte
   await undo.click();
   await expect(fourth.getByRole("button", { name: "Accept Order" })).toBeVisible();
 
-  await group(1).getByText("Order actions", { exact: true }).click();
-  await group(1).getByRole("checkbox", { name: /Omelette sold out/ }).check();
-  await expect(group(1)).toContainText("3 dishes to accept · 2 Sold Out");
-  await group(1).getByRole("button", { name: "Accept 3 dishes" }).click();
-  const visit = queue.getByRole("heading", { name: "Visit at Table 1" }).locator("..");
-  await visit.getByRole("button", { name: "Prepare bill" }).click();
-  const enter = visit.getByRole("button", { name: "Enter receipt", exact: true });
+  await group(1).getByRole("button", { name: "Review order" }).click();
+  await group(1).getByRole("button", { name: "Item unavailable" }).click();
+  const actions = page.getByRole("dialog", { name: "Items unavailable · Table 1" });
+  await actions.getByRole("checkbox", { name: /Omelette sold out/ }).check();
+  await expect(actions).toContainText("3 dishes to accept · 2 Sold Out");
+  await actions.getByRole("button", { name: "Accept 3 dishes" }).click();
+  await expect(actions).toHaveCount(0);
+
+  await sendAt(s, 1, [{ name: "Chechebsa", quantity: 1, note: "Second round" }]);
+  await page.getByRole("link", { name: "Tables", exact: true }).click();
+  await page.getByRole("link", { name: "Table 1 New order" }).click();
+  await expect(page.getByRole("link", { name: "Review 1 new order" })).toBeInViewport();
+  await expect(page.getByRole("button", { name: "Prepare bill" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Accept Order" }).click();
+  await page.getByRole("button", { name: "Prepare bill" }).click();
+  const enter = page.getByRole("button", { name: "Enter receipt", exact: true });
   await enter.click();
-  await expect(visit.getByLabel("Method")).toBeFocused();
-  await expect(visit.getByRole("button", { name: "Reopen bill" })).toHaveCount(0);
-  await expect(visit.getByLabel("Official Receipt amount (ETB)")).toHaveValue("");
-  await visit.getByRole("button", { name: "Cancel", exact: true }).click();
+  const receipt = page.getByRole("dialog", { name: "Enter receipt for Table 1" });
+  await expect(receipt.getByLabel("Method")).toBeFocused();
+  await expect(receipt.getByRole("button", { name: "Reopen bill" })).toHaveCount(0);
+  await expect(receipt.getByLabel("Official Receipt amount (ETB)")).toHaveValue("");
+  await receipt.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(enter).toBeFocused();
+
+  await page.goto("/staff");
+  await page.getByRole("region", { name: "Prepared Bills" }).getByRole("button", { name: "Enter receipt" }).click();
+  await receipt.getByLabel("Method").selectOption({ label: "Cash" });
+  await receipt.getByLabel("Official Receipt amount (ETB)").fill("320.50");
+  await page.route("**/staff/bills", route => route.fulfill({ status: 503 }));
+  await receipt.getByRole("button", { name: "Record payment" }).click();
+  await expect(receipt.getByRole("alert")).toContainText("No payment was recorded");
+  await expect(receipt.getByLabel("Official Receipt amount (ETB)")).toHaveValue("320.50");
+  await expect(receipt.getByLabel("Method")).toHaveValue("cash");
+  await page.unroute("**/staff/bills");
+  let connected = false;
+  await page.route("**/staff/bills?**", route => connected ? route.continue() : route.abort());
+  await page.route("**/staff/bills", async route => {
+    expect((await route.fetch()).status()).toBe(200);
+    await route.abort();
+  });
+  await receipt.getByRole("button", { name: "Record payment" }).click();
+  await expect(receipt.getByRole("alert")).toContainText("The payment status is unknown");
+  await expect(receipt.getByLabel("Official Receipt amount (ETB)")).toHaveValue("320.50");
+  await expect(receipt.getByRole("button", { name: "Record payment", exact: true })).toHaveCount(0);
+  connected = true;
+  await receipt.getByRole("button", { name: "Check payment status" }).click();
+  const recorded = page.getByRole("status").filter({ hasText: "Payment recorded · Table 1" });
+  await expect(recorded).toContainText("320.5 ETB · Cash");
+  await page.unrouteAll({ behavior: "wait" });
 
   await page.getByRole("link", { name: "Tables", exact: true }).click();
   await page.getByLabel("Table number").fill("6");
-  await page.getByRole("button", { name: "Find Table", exact: true }).click();
+  await expect(page.locator(".waiter-table-grid a")).toHaveCount(1);
   await page.getByRole("link", { name: /Table 6/ }).click();
   await expect(page.getByRole("link", { name: "Add a Dish" })).toBeInViewport();
   await page.getByRole("link", { name: "Back to Tables" }).click();

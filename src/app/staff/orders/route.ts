@@ -34,7 +34,10 @@ export async function POST(request: Request) {
         order = await undoOrderDecision(actor, { ...target, decisionId: body.decisionId });
         break;
       case "quickAdd":
-        order = await addWaiterOrder(actor, { tableId: body.tableId, requestId: body.requestId, lines: body.lines, unlockToken: target.unlockToken });
+        order = await addWaiterOrder(actor, {
+          tableId: body.tableId, requestId: body.requestId, lines: body.lines,
+          expectedVisitId: body.expectedVisitId, unlockToken: target.unlockToken,
+        });
         break;
       case "correct":
         await correctWaiterOrderLine(actor, { ...target, lineIndex: body.lineIndex, quantity: body.quantity, reason: body.reason });

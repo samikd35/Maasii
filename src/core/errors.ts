@@ -54,6 +54,9 @@ type RefusalReason =
   | "serviceHours"
   | "servicePeriods"
   | "billPrepared"
+  | "billOrdersWaiting"
+  | "billChanged"
+  | "quickAddVisitChanged"
   | "orderTableBillPrepared";
 
 /** A refusal the caller can act on, as opposed to a bug or an outage. */

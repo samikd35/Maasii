@@ -116,6 +116,13 @@
     "heading": "Sign in to Maasii",
     "intro": "For owners and managers. Use the email or phone you were invited with."
   },
+  "StaffWorkspaceAccess": {
+    "heading": "Switch accounts to continue",
+    "brandRequiresOwner": "You’re signed in as a Waiter. The Brand workspace requires an Owner account.",
+    "venueRequiresManagerOrOwner": "You’re signed in as a Waiter. Venue operations requires a Manager or Owner account.",
+    "backToWaiter": "Back to Waiter workspace",
+    "switchAccount": "Sign out and switch account"
+  },
   "StaffInvitation": {
     "title": "Your invitation",
     "heading": "Invitation",
@@ -551,7 +558,10 @@
     "waiterJoinExpired": "This join QR has expired. Ask your manager for a new one.",
     "waiterRejoin": "Ask your manager for a fresh join QR.",
     "wrongPin": "That PIN is not right.",
-    "invalidDishVideo": "Use a silent H.264 MP4, 2–5 seconds, at most 720px and 1 MiB. Export a web-ready clip and try again."
+    "invalidDishVideo": "Use a silent H.264 MP4, 2–5 seconds, at most 720px and 1 MiB. Export a web-ready clip and try again.",
+    "billOrdersWaiting": "Handle the waiting orders before closing this bill.",
+    "billChanged": "The bill changed. Open it again to review the current amount.",
+    "quickAddVisitChanged": "The visit changed. Go back to the table before adding a dish."
   },
   "StaffWaiter": {
     "waiters": "Waiters",
@@ -584,9 +594,22 @@
     "backQueue": "Back to Queue",
     "backTables": "Back to Tables",
     "connectWaiter": "Connect a Waiter",
-    "regenerateQr": "Regenerate QR"
+    "regenerateQr": "Regenerate QR",
+    "alertsOff": "Alerts off",
+    "menuAll": "All dishes",
+    "menuCategories": "Menu categories"
   },
   "StaffOrders": {
+    "reviewOrder": "Review order",
+    "actionsAtTable": "Order actions · Table {number}",
+    "correctAtTable": "Correct dish · Table {number}",
+    "caughtUp": "You’re caught up",
+    "openMyTables": "Open My Tables",
+    "openTable": "Open table",
+    "tableNeedsReview": "Check party",
+    "reconnecting": "Reconnecting",
+    "recentDishes": "Recent dishes",
+    "allDishes": "All dishes",
     "quickAdd": "Add a Dish",
     "backTable": "Back to Table {number}",
     "changeDish": "Change Dish",
@@ -599,7 +622,7 @@
     "addOrder": "Add to Table {number}",
     "guestSource": "Guest Order",
     "waiterSource": "Waiter-entered Order",
-    "correctLine": "Correct line",
+    "correctLine": "Edit dish",
     "correctionReason": "Reason",
     "saveQuantity": "Save quantity",
     "removeLine": "Remove line",
@@ -618,7 +641,7 @@
     "accept": "Accept Order",
     "accepting": "Accepting…",
     "decisionError": "Could not update the Order. Try again.",
-    "decisions": "Order actions",
+    "decisions": "More actions",
     "decline": "Decline Order",
     "declined": "Order declined",
     "acceptedOrder": "Order accepted",
@@ -656,14 +679,25 @@
     "findTable": "Table number",
     "find": "Find Table",
     "noTableMatch": "No assigned Table matches that number.",
-    "tableWaiting": "Order waiting",
-    "tableBill": "Prepared Bill",
+    "tableWaiting": "New order",
+    "tableBill": "Bill ready",
     "tableInUse": "In service",
-    "noVisit": "No open Visit",
+    "noVisit": "No active orders",
     "unassignedTable": "Unassigned Table",
     "visitActions": "Bills and active Visits",
     "visitForTable": "Visit at Table {number}",
-    "acceptedOrders": "Accepted Orders"
+    "acceptedOrders": "Accepted Orders",
+    "reviewAtTable": "Review order · Table {number}",
+    "itemUnavailable": "Item unavailable",
+    "availabilityAtTable": "Items unavailable · Table {number}",
+    "soldOutScope": "Items marked sold out will also be hidden from this venue’s menu.",
+    "reviewNewOrders": "{count, plural, one {Review # new order} other {Review # new orders}}",
+    "moveTo": "Move to Table {number}",
+    "quickDraftRestored": "Your dish draft was restored.",
+    "quickSubtotal": "Dish subtotal",
+    "quickAddUnknown": "The dish may already have been added. Retry this entry to check.",
+    "retryAddOrder": "Retry adding to Table {number}",
+    "addingOrder": "Adding to Table {number}…"
   },
   "Floor": {
     "title": "Live floor",
@@ -803,9 +837,11 @@
     "ratingsSummary": "{count} responses · {great} Great · {okay} Okay · {needsWork} Needs work"
   },
   "Bills": {
+    "recordShort": "Record payment",
+    "recordedForTable": "Payment recorded · Table {number}",
     "paidQuestion": "Paid?",
-    "previousPartyPaid": "Previous party paid",
-    "sameParty": "Same party",
+    "previousPartyPaid": "Record previous party’s receipt",
+    "sameParty": "Reopen bill for the same guests",
     "heading": "Prepared Bills",
     "table": "Table {number}",
     "prepare": "Prepare bill",
@@ -827,6 +863,18 @@
     "actions": "Bill actions",
     "cancel": "Cancel",
     "recording": "Recording payment…",
-    "receiptAt": "Enter receipt for Table {number}"
+    "receiptAt": "Enter receipt for Table {number}",
+    "previousReceiptAt": "Previous party’s receipt · Table {number}",
+    "billTotalLabel": "Bill total",
+    "runningTotalLabel": "Running total",
+    "readyCount": "{count, plural, one {# bill ready} other {# bills ready}}",
+    "ordersWaiting": "Handle the waiting orders before closing this bill.",
+    "changed": "The bill changed. Close this form and review the current bill.",
+    "checking": "Checking whether payment was recorded…",
+    "unknown": "The payment status is unknown. Check again when the connection returns.",
+    "notRecorded": "No payment was recorded. Review your entries and try again.",
+    "checkStatus": "Check payment status",
+    "recorded": "Payment recorded",
+    "recordedDetails": "{amount} ETB · {method} · Receipt difference {difference} ETB"
   }
 }

@@ -6,6 +6,7 @@ import { getTranslations } from "next-intl/server";
 import { getLiveFloor, getMyAccess, getWaiterSession } from "@/core";
 import { requireStaff } from "@/lib/session";
 import { VenueFloor, VenueNavigation } from "../venue-navigation";
+import { WaiterAccess } from "../waiter-access";
 
 const venueCookie = "maasii-operation-venue";
 
@@ -16,7 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function OperationsHome({ searchParams }: PageProps<"/manage/operations">) {
   const actor = await requireStaff();
-  if (await getWaiterSession(actor)) redirect("/staff");
+  if (await getWaiterSession(actor)) return <WaiterAccess workspace="venue" />;
   const access = await getMyAccess(actor);
   const venues = [...new Map([
     ...access.venues.map(venue => [venue.id, venue] as const),

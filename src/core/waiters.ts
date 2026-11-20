@@ -272,12 +272,13 @@ type WaiterDevice = {
 
 export type WaiterSession =
   | { status: "locked" | "rejoin" }
-  | { status: "unlocked"; name: string; waiterId: string; venue: { id: string; name: string }; hasPush: boolean; dishes: ({ id: string } & Bilingual)[] };
+  | { status: "unlocked"; name: string; waiterId: string; venue: { id: string; name: string }; hasPush: boolean;
+      menu: { id: string; name: Bilingual; dishes: { id: string; name: Bilingual; priceSantim: number }[] }[] };
 
 /** Reads the enrolled device for this verified Auth session, before or after PIN unlock. */
 export async function getWaiterSession(
   actor: Actor,
-  input: { unlockToken?: string } = {},
+  input: { unlockToken?: string; includeMenu?: boolean } = {},
   { now = new Date() }: { now?: Date } = {},
 ): Promise<WaiterSession | null> {
   if (actor.kind !== "staff") return null;
@@ -301,10 +302,13 @@ export async function getWaiterSession(
         tokenHash(input.unlockToken) !== device.unlockHash) {
       return { status: "locked" };
     }
-    const venue = await findVenue(tx, device.venueId);
-    const published = await readPublishedMenu(tx, { venueLinkToken: venue.linkToken }, now);
-    const dishes = published?.menuSections.flatMap((section) => section.dishes.map((dish) => ({ id: dish.dishId, ...dish.name }))) ?? [];
-    return { status: "unlocked", name: device.name, waiterId: device.waiterId, venue: { id: device.venueId, name: device.venueName }, hasPush: device.hasPush, dishes };
+    const published = input.includeMenu
+      ? await readPublishedMenu(tx, { venueLinkToken: (await findVenue(tx, device.venueId)).linkToken }, now)
+      : undefined;
+    const menu = published?.menuSections.map(({ sectionId, name, dishes }) => ({
+      id: sectionId, name, dishes: dishes.map(({ dishId, name, priceSantim }) => ({ id: dishId, name, priceSantim })),
+    })) ?? [];
+    return { status: "unlocked", name: device.name, waiterId: device.waiterId, venue: { id: device.venueId, name: device.venueName }, hasPush: device.hasPush, menu };
   });
 }
 

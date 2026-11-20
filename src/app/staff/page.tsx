@@ -12,9 +12,10 @@ import { StaffEntry } from "@/ui/staff-header";
 import { signIn, unlock } from "./actions";
 import { MyTables } from "./my-tables";
 import { MenuReference } from "./menu-reference";
-import Link from "next/link";
 import { Notifications } from "./notifications";
 import { WaiterHeader } from "./waiter-header";
+import { WaiterFeed } from "./waiter-feed";
+import { WaiterNav } from "./waiter-nav";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("StaffWaiter");
@@ -25,17 +26,18 @@ export default async function WaiterPage({ searchParams }: PageProps<"/staff">) 
   const params = await searchParams;
   const showMenu = params.view === "menu";
   const showTables = params.view === "tables";
+  const current = showMenu ? "menu" : showTables ? "tables" : "queue";
   const number = typeof params.number === "string" && /^\d{1,9}$/.test(params.number) ? params.number : "";
   const table = z.uuid().safeParse(params.table);
   const actor = await getSessionActor();
-  const device = actor && await getWaiterSession(actor, { unlockToken: await waiterUnlockToken() });
+  const device = actor && await getWaiterSession(actor, { unlockToken: await waiterUnlockToken(), includeMenu: showMenu });
   const t = await getTranslations("StaffWaiter");
 
   if (device?.status === "locked") {
     return (
-      <StaffEntry>
+      <StaffEntry waiter>
         <h1 className="font-sans text-3xl">{t("unlockHeading")}</h1>
-        <ActionForm action={unlock} className="mt-6 space-y-4">
+        <ActionForm action={unlock} className="waiter-entry-form mt-6 space-y-4">
           {table.success && <input name="tableId" type="hidden" value={table.data} />}
           <PinField label={t("pin")} legacy />
           <SubmitButton>{t("unlock")}</SubmitButton>
@@ -47,9 +49,9 @@ export default async function WaiterPage({ searchParams }: PageProps<"/staff">) 
   if (device?.status !== "unlocked") {
     const errors = await getTranslations("StaffErrors");
     return (
-      <StaffEntry>
+      <StaffEntry waiter>
         <h1 className="font-sans text-3xl">{t("rejoinHeading")}</h1>
-        <ActionForm action={signIn} className="mt-6 space-y-4">
+        <ActionForm action={signIn} className="waiter-entry-form mt-6 space-y-4">
           {table.success && <input name="tableId" type="hidden" value={table.data} />}
           <Field label={t("phone")} name="phone" type="tel" autoComplete="username" maxLength={40} required />
           <PinField label={t("pin")} />
@@ -63,25 +65,22 @@ export default async function WaiterPage({ searchParams }: PageProps<"/staff">) 
 
   if (table.success) redirect(`/staff/tables/${table.data}`);
 
-  const [locale, { StaffOrders, StaffErrors, Bills }] = await Promise.all([getLocale(), getMessages()]);
+  const [locale, { StaffOrders, StaffErrors, StaffWaiter, Bills, Price }] = await Promise.all([getLocale(), getMessages()]);
 
   const push = orderPushConfig();
   const vapidKey = push?.waiterIds && !push.waiterIds.includes(device.waiterId) ? undefined : push?.publicKey;
 
   return (
-    <>
-      <WaiterHeader scope={`${device.venue.name} · ${device.name}`} />
-      <main id="workspace-content" tabIndex={-1} className="workspace-frame workspace-waiter">
-        <nav className="workspace-nav waiter-nav" aria-label={t("waiter")}>
-          <Link href="/staff" aria-current={!showMenu && !showTables ? "page" : undefined}>{t("queue")}</Link>
-          <Link href="/staff?view=tables" aria-current={showTables ? "page" : undefined}>{t("tables")}</Link>
-          <Link href="/staff?view=menu" aria-current={showMenu ? "page" : undefined}>{t("menu")}</Link>
-        </nav>
-        {showMenu ? <MenuReference dishes={device.dishes} locale={locale} title={t("menu")} search={t("searchMenu")} empty={t("noMatches")} /> :
-          <NextIntlClientProvider messages={{ StaffOrders, StaffErrors, Bills }}>
-            <MyTables tables={showTables} number={number} tools={<Notifications vapidKey={vapidKey} subscribed={device.hasPush} />} />
-          </NextIntlClientProvider>}
+    <NextIntlClientProvider messages={{ StaffOrders, StaffErrors, StaffWaiter, Bills, Price }}>
+    <WaiterFeed key={device.waiterId}>
+      <WaiterHeader scope={`${device.venue.name} · ${device.name}`} accountTools={
+        <Notifications vapidKey={vapidKey} subscribed={device.hasPush} />
+      } />
+      <main id="workspace-content" tabIndex={-1} className="workspace-frame workspace-waiter waiter-home">
+        {showMenu ? <MenuReference sections={device.menu} locale={locale} /> : <MyTables tables={showTables} key={current} number={number} />}
       </main>
-    </>
+      <WaiterNav current={current} />
+    </WaiterFeed>
+    </NextIntlClientProvider>
   );
 }

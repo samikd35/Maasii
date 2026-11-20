@@ -7,6 +7,8 @@ import { getMyTableOrders, MaasiiError } from "@/core";
 import { getSessionActor, waiterUnlockToken } from "@/lib/session";
 import { MyTables } from "../../my-tables";
 import { WaiterHeader } from "../../waiter-header";
+import { WaiterIcon } from "@/ui/waiter-icon";
+import { WaiterFeed } from "../../waiter-feed";
 
 export default async function TablePage({ params, searchParams }: PageProps<"/staff/tables/[tableId]">) {
   const { tableId } = await params;
@@ -23,16 +25,16 @@ export default async function TablePage({ params, searchParams }: PageProps<"/st
     throw error;
   });
   if (table.tableNumber === undefined) notFound();
-  const [{ StaffOrders, StaffErrors, Bills }, t] = await Promise.all([getMessages(), getTranslations("StaffWaiter")]);
+  const [{ StaffOrders, StaffErrors, Bills, Price }, t] = await Promise.all([getMessages(), getTranslations("StaffWaiter")]);
   return (
     <>
       <WaiterHeader scope={table.scope} />
       <main id="workspace-content" tabIndex={-1} className="workspace-frame workspace-waiter">
-        <Link href={`/staff${from === "tables" ? `?view=tables${query}` : ""}#table-link-${tableId}`} className="workspace-link">
-          {t(from === "tables" ? "backTables" : "backQueue")}
+        <Link href={`/staff${from === "tables" ? `?view=tables${query}` : ""}#table-link-${tableId}`} className="workspace-link waiter-back">
+          <WaiterIcon name="back" />{t(from === "tables" ? "backTables" : "backQueue")}
         </Link>
-        <NextIntlClientProvider messages={{ StaffOrders, StaffErrors, Bills }}>
-          <MyTables tableId={tableId} tableNumber={table.tableNumber} tableQuery={from === "tables" ? `?from=tables${query}` : ""} />
+        <NextIntlClientProvider messages={{ StaffOrders, StaffErrors, Bills, Price }}>
+          <WaiterFeed><MyTables tableId={tableId} tableNumber={table.tableNumber} tableQuery={from === "tables" ? `?from=tables${query}` : ""} /></WaiterFeed>
         </NextIntlClientProvider>
       </main>
     </>

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getWaiterQuickAdd, MaasiiError } from "@/core";
 import { getSessionActor, waiterUnlockToken } from "@/lib/session";
 import { WaiterHeader } from "../../../waiter-header";
+import { WaiterIcon } from "@/ui/waiter-icon";
 import { QuickAdd } from "./quick-add";
 
 export default async function QuickAddPage({ params, searchParams }: PageProps<"/staff/tables/[tableId]/quick-add">) {
@@ -26,13 +27,16 @@ export default async function QuickAddPage({ params, searchParams }: PageProps<"
   return (
     <>
       <WaiterHeader scope={menu.scope} />
-      <main id="workspace-content" tabIndex={-1} className="workspace-frame workspace-waiter">
-        <Link href={returnTo} className="workspace-link">
-          {t("backTable", { number: menu.table.number })}
+      <main id="workspace-content" tabIndex={-1} className="workspace-frame workspace-waiter waiter-quick-add">
+        <Link href={returnTo} className="workspace-link waiter-back">
+          <WaiterIcon name="back" />{t("backTable", { number: menu.table.number })}
         </Link>
-        <h1 className="font-sans text-3xl">{t("quickAdd")}</h1>
+        <div className="waiter-view-heading">
+          <h1>{t("quickAdd")}</h1>
+          <span className="waiter-status" data-tone="selection"><WaiterIcon name="tables" />{t("table", { number: menu.table.number })}</span>
+        </div>
         <NextIntlClientProvider messages={{ StaffOrders, StaffErrors, Price }}>
-          <QuickAdd table={menu.table} dishes={menu.dishes} recent={menu.recent} returnTo={returnTo} />
+          <QuickAdd table={menu.table} waiterId={menu.waiterId} visitId={menu.visitId} dishes={menu.dishes} recent={menu.recent} returnTo={returnTo} />
         </NextIntlClientProvider>
       </main>
     </>

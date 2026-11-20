@@ -10,6 +10,7 @@ import { ActionForm, SubmitButton } from "@/ui/staff-forms";
 import { addVenue } from "./actions";
 import { OwnerHome } from "./owner-home";
 import { RefreshFloor } from "./refresh-floor";
+import { WaiterAccess } from "./waiter-access";
 
 const brandCookie = "maasii-owner-brand";
 
@@ -20,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function ManageHome({ searchParams }: PageProps<"/manage">) {
   const actor = await requireStaff();
-  if (await getWaiterSession(actor)) redirect("/staff");
+  if (await getWaiterSession(actor)) return <WaiterAccess workspace="brand" />;
   const access = await getMyAccess(actor);
   if (!access.brands.length && access.venues.length && !access.isPlatformAdmin) redirect("/manage/operations");
   const query = await searchParams;
