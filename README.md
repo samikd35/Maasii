@@ -6,7 +6,14 @@ Read these first: [`GLOSSARY.md`](GLOSSARY.md) (use its terms in code, tests and
 
 ## Quick start
 
-You need Node 22.12 or later, pnpm 10 and Docker (running).
+You need Node 22.12 or later and pnpm 10. To run the app against hosted Supabase, set the following in the gitignored `.env.development.local` and run `pnpm install` followed by `pnpm dev`.
+
+- `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` from the hosted project.
+- `SUPABASE_SECRET_KEY`, `DATABASE_URL` (transaction pooler), and `SUPABASE_DB_CA` (PEM certificate) from the same project.
+
+Open [Bilo’s Lancha](http://localhost:3000/v/bilos-lancha) for the hosted Bilo’s demo. On localhost, leave `MAASII_SITE_URL` unset so Venue Links and invitation links use the local app’s origin. The development server reads `.env.development.local` ahead of `.env.local`.
+
+For an isolated local database and the automated test suites, start Docker and run:
 
 ```bash
 pnpm install
@@ -35,7 +42,7 @@ pnpm dev                                # then open http://localhost:3000/v/bilo
 
 `supabase/config.toml` turns on the CLI's stack mode (`[experimental] stack = true`) and sets no ports. Each checkout or git worktree therefore gets its own Postgres, Auth, REST, Realtime and Storage, on ports the CLI picks and keeps stable across stop and start. Studio, mail, analytics and edge functions are disabled to save memory.
 
-- **Never hard-code ports or keys.** `pnpm db:env` (run by `db:start` and `db:reset`) writes them to `.env.local`, which is gitignored like every `.env*` file. The app, the seed and both test suites read `.env.local`.
+- **Never hard-code ports or keys.** `pnpm db:env` (run by `db:start` and `db:reset`) writes them to the gitignored `.env.local`. The seed and both test suites read `.env.local`, and the dev server uses it when no development override is configured.
 - The stack belongs to the checkout's directory and branch. Switching branches in the same directory selects a different, empty stack: run `pnpm db:start && pnpm db:reset` again.
 - `pnpm supabase stack list` shows every local stack on the machine. `pnpm db:stop` frees memory and keeps data. `pnpm supabase stack destroy --yes` deletes this checkout's data.
 - The first `db:start` on a machine downloads images and can fail with `Owner response unavailable`. Run it again.
