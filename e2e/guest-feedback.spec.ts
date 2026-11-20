@@ -32,8 +32,8 @@ test("the private Reviews page reuses the paid Visit and keeps feedback on failu
   const { orders: [order] } = await getMyTableOrders(sam.actor, { unlockToken: sam.unlockToken });
   await acceptOrder(sam.actor, { orderId: order.id, unlockToken: sam.unlockToken });
   const target = { venueId, visitId: order.visitId, unlockToken: sam.unlockToken };
-  await prepareBill(sam.actor, target);
-  await confirmPayment(sam.actor, { ...target, paymentOptionId: null, receiptAmountSantim: 22_000 });
+  const billSnapshot = await prepareBill(sam.actor, target);
+  await confirmPayment(sam.actor, { ...target, billSnapshot, paymentOptionId: null, receiptAmountSantim: 22_000 });
 
   const outsider = await browser.newPage({ ...test.info().project.use, baseURL });
   try {

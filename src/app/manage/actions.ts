@@ -1,10 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import {
   addTables,
   createVenue,
   createWaiterJoinCode,
+  getMyAccess,
   inviteManager,
   removeWaiter,
   renumberTable,
@@ -12,12 +15,34 @@ import {
   WAITER_JOIN_MINUTES,
 } from "@/core";
 import { forForm, requireStaff, siteUrl, type FormState } from "@/lib/session";
+import { ownerBrandCookie } from "./owner-scope";
+import { accessibleVenues, operationVenueCookie } from "./venue-scope";
+
+export async function switchOwnerBrand(data: FormData) {
+  const brand = (await getMyAccess(await requireStaff())).brands.find(option => option.id === data.get("brandId"));
+  if (!brand) return;
+  const requested = String(data.get("section") ?? "");
+  const section = ["/venues", "/menu", "/insights", "/branding"].includes(requested) ? requested : "";
+  (await cookies()).set(ownerBrandCookie, brand.id, { path: "/manage", sameSite: "lax", httpOnly: true });
+  redirect(`/manage/brands/${brand.id}${section}`);
+}
+
+export async function switchOperationsVenue(data: FormData) {
+  const venues = accessibleVenues(await getMyAccess(await requireStaff()));
+  const venue = venues.find(option => option.id === data.get("venueId"));
+  if (!venue) return;
+  const requested = String(data.get("section") ?? "");
+  const paths = ["", "/floor", "/shifts", "/closing", "/menu", "/menu/edit", "/payment-options"];
+  const section = paths.includes(requested) || (requested === "/insights" && venue.role === "owner") ? requested : "/floor";
+  (await cookies()).set(operationVenueCookie, venue.id, { path: "/manage", sameSite: "lax", httpOnly: true });
+  redirect("/manage/venues/" + venue.id + section);
+}
 
 export async function addVenue(brandId: string, _state: FormState, formData: FormData): Promise<FormState> {
   const actor = await requireStaff();
   return forForm(async () => {
     const venue = await createVenue(actor, { brandId, name: String(formData.get("name") ?? "") });
-    revalidatePath("/manage");
+    revalidatePath(`/manage/brands/${brandId}`, "layout");
     return { done: { key: "venueAdded", values: { name: venue.name } } };
   });
 }
@@ -45,10 +70,11 @@ export async function renumber(venueId: string, tableId: string, _state: FormSta
   });
 }
 
-export async function setActive(venueId: string, tableId: string, active: boolean): Promise<void> {
-  const actor = await requireStaff();
-  await setTableActive(actor, { tableId, active });
-  revalidatePath(`/manage/venues/${venueId}`);
+export async function setActive(venueId: string, tableId: string, active: boolean): Promise<FormState> {
+  return forForm(async () => {
+    await setTableActive(await requireStaff(), { tableId, active });
+    revalidatePath(`/manage/venues/${venueId}`);
+  });
 }
 
 export async function inviteVenueManager(venueId: string, _state: FormState, formData: FormData): Promise<FormState> {
@@ -61,7 +87,7 @@ export async function inviteVenueManager(venueId: string, _state: FormState, for
     });
     revalidatePath(`/manage/venues/${venueId}`);
     return {
-      done: { key: "invitationReady" },
+      done: { key: "managerInvitationReady", values: { name: String(formData.get("name") ?? "").trim() } },
       link: new URL(`/invite/${invitation.token}`, await siteUrl()).toString(),
     };
   });

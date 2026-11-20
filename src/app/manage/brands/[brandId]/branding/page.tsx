@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations } from "next-intl/server";
 import { brandArtworkMimeTypes, getBranding, getBrandSocialLinks, MaasiiError, MAX_BRAND_ARTWORK_BYTES, socialLinkLimits } from "@/core";
 import { requireStaff } from "@/lib/session";
+import { WaiterIcon } from "@/ui/waiter-icon";
 import { BrandingForm } from "./branding-form";
 import { saveBranding, saveSocialLinks } from "./actions";
 import { SocialLinksForm } from "./social-links-form";
@@ -21,13 +22,16 @@ export default async function BrandingPage({ params }: PageProps<"/manage/brands
     throw error;
   });
   const [t, messages] = await Promise.all([getTranslations("StaffManage"), getMessages()]);
-  const { StaffBranding, StaffSocialLinks, StaffForms, StaffErrors, GuestMenu, Ordering, Price } = messages;
+  const { StaffBranding, StaffSocialLinks, StaffForms, StaffErrors, GuestMenu, Ordering, Price, OwnerWorkspace } = messages;
 
   return (
     <>
-      <p className="text-sm text-ink-muted">{brand.name}</p>
-      <h1 className="mt-1">{t("brandSettings")}</h1>
-      <NextIntlClientProvider messages={{ StaffBranding, StaffSocialLinks, StaffForms, StaffErrors, GuestMenu, Ordering, Price }}>
+      <div className="owner-page-head">
+        <h1>{t("brandSettings")}</h1>
+        <p>{OwnerWorkspace.appliesToVenues}</p>
+      </div>
+      <a className="workspace-link owner-settings-links" href="#social-links">{StaffSocialLinks.heading}<WaiterIcon name="down" /></a>
+      <NextIntlClientProvider messages={{ StaffBranding, StaffSocialLinks, StaffForms, StaffErrors, GuestMenu, Ordering, Price, OwnerWorkspace }}>
         <BrandingForm
           brand={brand}
           save={saveBranding.bind(null, brand.id)}

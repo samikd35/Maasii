@@ -12,6 +12,7 @@ test("a local Venue Menu flows through the homepage, Guest and Waiter Orders, pa
   const home = `/v/${s.venue.linkToken}`;
   const { url } = await createWaiterJoinCode(s.owner.actor, { venueId, siteUrl: baseURL! });
   await addPaymentOption(s.owner.actor, {
+    destinationReviewed: true,
     venueId, kind: "bank_transfer", provider: "Test Bank", recipientName: "Lancha Café",
     accountOrMerchantCode: "001234", displayOrder: 1,
   });
@@ -28,9 +29,9 @@ test("a local Venue Menu flows through the homepage, Guest and Waiter Orders, pa
     await manager.getByLabel("Email or phone").fill(hana.email);
     await manager.getByLabel("Password").fill(hana.password);
     await manager.getByRole("button", { name: "Sign in", exact: true }).click();
-    await expect(manager.getByRole("heading", { name: "Venue operations" })).toBeVisible();
+    await expect(manager.getByRole("heading", { name: "Live floor" })).toBeVisible();
     await manager.getByRole("link", { name: "Venue menu", exact: true }).click();
-    await manager.getByRole("link", { name: "Edit Venue Menu" }).click();
+    await manager.getByRole("link", { name: "Edit menu draft" }).click();
     const editor = manager.getByRole("region", { name: "Edit", exact: true });
     const dish = editor.locator("details").filter({ hasText: "Omelette" }).first();
     await dish.locator(":scope > summary").click();

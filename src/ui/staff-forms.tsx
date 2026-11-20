@@ -73,26 +73,33 @@ export function ActionForm({
   );
 }
 
-export function ConfirmationDialog({ dialog, title, cancel, children, onConfirm }: {
+export function ConfirmationDialog({ dialog, title, cancel, children, onConfirm, confirmLabel, onClose, scrollable }: {
   dialog: RefObject<HTMLDialogElement | null>; title: string; cancel: string; children: ReactNode; onConfirm: () => void;
+  confirmLabel?: string; onClose?: () => void; scrollable?: boolean;
 }) {
   const heading = useId();
-  return <dialog ref={dialog} className="workspace-dialog" aria-labelledby={heading}>
+  return <dialog ref={dialog} className={`workspace-dialog${scrollable ? " confirmation-review" : ""}`} aria-labelledby={heading} onClose={onClose}>
     <h2 id={heading} className="text-xl font-semibold">{title}?</h2>
-    <div className="my-4">{children}</div>
+    <div className="my-4 confirmation-body" tabIndex={scrollable ? 0 : undefined}>{children}</div>
     <div className="workspace-actions">
-      <button type="button" autoFocus className="workspace-button" onClick={() => dialog.current?.close()}>{cancel}</button>
-      <button type="button" className="workspace-button workspace-primary" onClick={onConfirm}>{title}</button>
+      <button type="button" ref={button => { button?.setAttribute("autofocus", ""); }}
+        className="workspace-button" onClick={() => dialog.current?.close()}>{cancel}</button>
+      <button type="button" className="workspace-button workspace-primary" onClick={onConfirm}>{confirmLabel ?? title}</button>
     </div>
   </dialog>;
 }
 
-export function SubmitButton({ children, variant = "primary" }: { children: ReactNode; variant?: "primary" | "secondary" | "quiet" | "destructive" }) {
+export function SubmitButton({ children, variant = "primary", name, value, disabled }: {
+  children: ReactNode; variant?: "primary" | "secondary" | "quiet" | "destructive";
+  name?: string; value?: string; disabled?: boolean;
+}) {
   const { pending } = useFormStatus();
   return (
     <button
       type="submit"
-      disabled={pending}
+      name={name}
+      value={value}
+      disabled={pending || disabled}
       aria-busy={pending}
       className={
         variant === "destructive"

@@ -21,7 +21,8 @@ test("an Owner previews and saves artwork and readable colours for every Venue",
   const guestHeading = guest.getByRole("heading", { name: "Our menu" });
   const guestHeader = guest.getByRole("banner");
 
-  await signIn(page, s.owner);
+  await signIn(page, s.owner, `/manage/brands/${s.brand.id}`);
+  await page.locator(".manager-identity-trigger").click();
   const brandingLink = page.getByRole("link", { name: "Brand settings", exact: true });
   await expect(brandingLink).toBeVisible();
   await brandingLink.click();
@@ -29,7 +30,9 @@ test("an Owner previews and saves artwork and readable colours for every Venue",
   const previewHeading = preview.getByRole("heading", { name: "Our menu" });
   const previewHeader = preview.locator("header");
 
+  await page.getByRole("button", { name: "Preview", exact: true }).click();
   const oldFont = await previewHeading.evaluate((heading) => getComputedStyle(heading).fontFamily);
+  await page.getByRole("button", { name: "Edit appearance" }).click();
   await page.getByLabel("Brand colour").fill("#ec6728");
   await page.getByLabel("Display font").selectOption("noto-serif-ethiopic");
   await page.getByLabel("Logo", { exact: true }).setInputFiles(artwork("logo.webp"));
@@ -38,6 +41,7 @@ test("an Owner previews and saves artwork and readable colours for every Venue",
   await expect(page.getByText("Your colour #EC6728")).toBeVisible();
   await expect(page.getByText(/^Readable shade #/)).toBeVisible();
   await expect(page.getByText(/darker shade for text and buttons/)).toBeVisible();
+  await page.getByRole("button", { name: "Preview", exact: true }).click();
   await expect(previewHeader).toHaveCSS("border-top-color", "rgb(236, 103, 40)");
   await expect(previewHeading).not.toHaveCSS("font-family", oldFont);
   await expect(preview.getByRole("heading", { name: "Macchiato" })).toBeVisible();
@@ -50,8 +54,10 @@ test("an Owner previews and saves artwork and readable colours for every Venue",
   await expect(guestHeader).not.toHaveCSS("border-top-color", "rgb(236, 103, 40)");
   await expect(guestHeader.getByRole("img")).toHaveCount(0);
 
+  await page.getByRole("button", { name: "Edit appearance" }).click();
   await page.getByRole("button", { name: "Save appearance" }).click();
   await expect(page.getByRole("status")).toHaveText("Branding saved at every venue.");
+  await page.getByRole("button", { name: "Preview", exact: true }).click();
 
   for (const venue of Object.values(s.venues)) {
     await guest.goto(`/v/${venue.linkToken}/menu`);
@@ -63,7 +69,7 @@ test("an Owner previews and saves artwork and readable colours for every Venue",
     await expect.poll(() => guest.locator('main img[alt=""]').first().evaluate(loadedImage)).toBeGreaterThan(0);
   }
 
-  await signIn(guest, s.managers.Hana, "/manage/operations");
+  await signIn(guest, s.managers.Hana, `/manage/venues/${s.venue.id}/floor`);
   await expect(guest.getByRole("link", { name: "Brand settings", exact: true })).toHaveCount(0);
   await guest.goto(page.url());
   await expect(guest.getByRole("heading", { name: "We couldn't find what you were looking for." })).toBeVisible();

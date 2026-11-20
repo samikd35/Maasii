@@ -1,0 +1,100 @@
+.owner-page-head { margin-block-end: 1rem; }
+.owner-page-head p { margin-block-start: .25rem; color: var(--waiter-muted); }
+.owner-frame main { min-inline-size: 0; }
+.owner-frame .manager-nav a { text-wrap: pretty; }
+
+@media (min-width: 22.501rem) and (min-height: 34rem) {
+  .owner-shell #brand-menu-editor > .editor-actions {
+    position: sticky;
+    top: calc(3.125rem + max(.375rem, env(safe-area-inset-top)) + .375rem);
+  }
+}
+
+@media (min-width: 60rem) {
+  .owner-frame { display: grid; grid-template-columns: 10.5rem minmax(0, 1fr); gap: 2rem; align-items: start; }
+  .owner-frame .owner-nav.workspace-nav {
+    position: sticky;
+    inset-block-start: 5rem;
+    display: grid;
+    grid-template-columns: 1fr;
+    margin-block-start: 1.25rem;
+    padding: 0;
+    border: 0;
+  }
+  .owner-frame .owner-nav a { justify-content: flex-start; text-align: start; }
+  .owner-frame .manager-content { padding-block: 1.25rem 2rem; }
+}
+
+.owner-attention { border-block-start: 3px solid var(--waiter-action); margin-block-end: 1.25rem; }
+:is(.owner-attention, .owner-finding) h2 {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+:is(.owner-attention, .owner-finding, .owner-add-venue) .waiter-icon,
+.owner-issue .waiter-icon, .owner-venue-link .waiter-icon { flex: none; }
+.owner-attention h2 .waiter-icon { color: var(--waiter-blue-ink); }
+.owner-attention-list > li { margin-block-start: .6rem; padding-block-start: .6rem; border-block-start: 1px solid var(--waiter-rule); }
+.owner-issue-links { display: flex; flex-wrap: wrap; gap: .375rem; margin-block-start: .4rem; }
+.owner-issue {
+  min-block-size: 44px;
+  justify-content: start;
+  padding-inline: .55rem;
+  text-decoration: none;
+}
+.owner-issue:hover { text-decoration: underline; text-underline-offset: .2em; }
+.owner-issue .waiter-icon { inline-size: 1rem; block-size: 1rem; }
+.owner-issue .waiter-icon:last-child { margin-inline-start: auto; }
+@media (max-width: 41.999rem) {
+  .owner-issue-links { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); }
+  .owner-issue { inline-size: 100%; }
+}
+
+.owner-venue-list { margin-block-start: .5rem; }
+.owner-venue-list > li { padding: 0; }
+.owner-venue-link {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .75rem;
+  min-block-size: 52px;
+  padding: .75rem;
+  border-radius: .65rem;
+  text-decoration: none;
+}
+.owner-venue-link > .waiter-icon { color: var(--waiter-blue-ink); }
+.owner-venue-link:hover { background: #f9faff; }
+.owner-venue-info { display: grid; gap: .25rem; }
+.owner-venue-info h3 { color: var(--waiter-blue-ink); }
+.owner-add-venue summary { width: fit-content; color: var(--waiter-blue-ink); }
+.owner-add-venue summary::-webkit-details-marker { display: none; }
+.owner-add-venue form { margin-block-start: .5rem; }
+.owner-add-venue label { min-inline-size: 0; }
+.owner-dashboard-lower { display: grid; gap: .75rem; align-items: start; }
+.owner-menu-status, .owner-finding { display: grid; gap: .375rem; justify-items: start; }
+.owner-menu-status .manager-row-heading { inline-size: 100%; }
+.owner-finding h2 .waiter-icon { color: var(--waiter-blue-ink); }
+.owner-finding-summary { font-weight: 660; }
+.owner-finding form { border-block-start: 1px solid var(--waiter-rule); padding-block-start: .65rem; margin-block-start: .25rem; }
+
+@media (min-width: 46rem) {
+  .owner-dashboard-lower { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+
+.owner-editor-tools { display: flex; flex-wrap: wrap; gap: .45rem; align-items: start; }
+.owner-editor-tools > details { flex: 0 1 auto; min-inline-size: 0; }
+.owner-editor-tools > details[open] { flex-basis: 100%; }
+.owner-editor-tools summary, .owner-editor-tools button { display: inline-flex; align-items: center; gap: .35rem; }
+#menu-edit-panel .owner-editor-tools > details { padding: 0 .75rem; border-radius: .65rem; }
+#menu-edit-panel .owner-editor-tools > details[open] { padding-block-end: .75rem; }
+.owner-editor-tools summary::-webkit-details-marker { display: none; }
+#brand-menu-editor :is(fieldset, section)[id] { scroll-margin-block-start: 7rem; }
+.owner-settings-links { gap: .4rem; margin-block-end: .35rem; }
+.owner-settings-switch { margin-block: 0; }
+@media (max-width: 44.999rem) {
+  .owner-appearance[data-mode="edit"] [data-appearance="preview"],
+  .owner-appearance[data-mode="preview"] [data-appearance="edit"] { display: none; }
+}
+@media (min-width: 45rem) {
+  .owner-settings-switch { display: none; }
+}

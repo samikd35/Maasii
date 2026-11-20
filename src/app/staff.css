@@ -158,32 +158,10 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea { 
   .order-row > :not(.order-accept, .order-actions:not([open])) { grid-column: 1 / -1; }
 }
 
-.floor-summary, .floor-attention > li {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: .5rem 1rem;
-}
-.floor-filters { margin-block-end: .75rem; }
-.floor-filters [aria-pressed="true"] { background: var(--color-ink); color: var(--color-paper); }
-.floor-attention { display: grid; gap: .5rem; }
 .floor-tables > li { padding-block: .5rem; }
 
 @media (min-width: 64rem) {
   .floor-layout { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.25fr); gap: 1.25rem; align-items: start; }
-}
-
-.workspace-context { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .25rem .75rem; }
-.venue-nav { border-block-end: 1px solid var(--color-rule); padding-block-end: .5rem; }
-.venue-nav a { font-size: .875rem; }
-.workspace-management > main { min-inline-size: 0; }
-.owner-nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.owner-nav a { text-align: center; line-height: 1.2; padding-inline: .375rem; }
-@media (min-width: 65rem) {
-  .workspace-management:has(.owner-nav) { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: 1.5rem; align-items: start; }
-  .owner-nav { grid-template-columns: 1fr; }
-  .owner-nav a { justify-content: flex-start; text-align: start; padding-inline: .8rem; }
 }
 
 .workspace-dialog {
@@ -197,6 +175,9 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea { 
   padding: 1.25rem;
 }
 .workspace-dialog::backdrop { background: #25282280; }
+.confirmation-review[open] { display: flex; flex-direction: column; }
+.confirmation-review > :is(h2, .workspace-actions) { flex: 0 0 auto; }
+.confirmation-review > .confirmation-body { min-block-size: 0; overflow: auto; overscroll-behavior: contain; }
 .receipt-values { display: grid; gap: .5rem 1rem; font-size: .875rem; margin-block: .75rem; }
 .receipt-values dt { color: var(--color-ink-muted); }
 .receipt-values dd { font-variant-numeric: tabular-nums; }

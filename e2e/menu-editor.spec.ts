@@ -14,7 +14,7 @@ async function signIn(page: Page, user: TestUser) {
   await page.getByLabel("Email or phone").fill(user.email);
   await page.getByLabel("Password").fill(user.password);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/manage$/);
+  await expect(page).toHaveURL(/\/manage\/brands\/[^/]+$/);
 }
 
 test("an Owner edits a Menu on mobile and previews it without guest writes", async ({ page }) => {
@@ -48,7 +48,7 @@ test("an Owner edits a Menu on mobile and previews it without guest writes", asy
 
   await page.getByRole("tab", { name: "Preview" }).click();
   const preview = page.getByRole("region", { name: "Guest preview" });
-  await expect(preview.getByText("Draft", { exact: true })).toBeVisible();
+  await expect(preview.getByText("Brand draft preview", { exact: true })).toBeVisible();
   await preview.getByRole("button", { name: "Garden Omelette" }).click();
   await expect(page.getByRole("dialog")).toHaveAccessibleName("Garden Omelette");
   await expect(page.getByRole("dialog").getByText("245.75")).toBeVisible();
@@ -95,7 +95,7 @@ test("desktop Owners arrange sections and dishes beside the live guest Menu", as
   await edit.getByRole("button", { name: "← All dishes" }).click();
   await edit.getByRole("button", { name: "Add section" }).click();
   const section = edit.locator(".editor-section").nth(2);
-  await section.getByText(/Section settings/).click();
+  await expect(section.getByLabel("Section name in Amharic")).toBeFocused();
   await section.getByLabel("Section name in English").fill("Pastries");
   await section.getByLabel("Section name in Amharic").fill("ፓስትሪዎች");
   await section.getByRole("button", { name: "Add dish" }).click();

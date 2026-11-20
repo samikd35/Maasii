@@ -43,7 +43,14 @@ const addInput = venueInput.extend({
   recipientName: details.shape.recipientName.default(null),
   accountOrMerchantCode: details.shape.accountOrMerchantCode.default(null),
   qrImage: qrImage.default(null),
+  destinationReviewed: z.literal(true).optional(),
 });
+
+export const paymentDestinationFields = ["kind", "provider", "recipientName", "accountOrMerchantCode", "qrImage"] as const;
+
+function requireDestinationReview() {
+  throw new MaasiiError("invalid_input", "Review and confirm the complete Payment Option destination.", "paymentDestinationReviewRequired");
+}
 
 export type PaymentOptionKind = (typeof paymentOptionKinds)[number];
 export type PaymentOption = z.output<typeof details> & {
@@ -139,6 +146,14 @@ export async function addPaymentOption(
   return inTransaction(actor, async (tx) => {
     const venue = await findVenue(tx, option.venueId);
     await requireBrandOwner(tx, actor, venue.brandId);
+    if (!option.destinationReviewed && (option.kind !== "cash" || option.accountOrMerchantCode || option.qrImage)) {
+      requireDestinationReview();
+    }
+    // Repeating the same confirmed add after an interrupted response should yield one active option.
+    await tx.query("select pg_advisory_xact_lock(hashtextextended($1::uuid::text, 4))", [venue.id]);
+    const existing = (await readVenuePaymentOptions(tx, venue.id, { activeOnly: true })).find(saved =>
+      saved.displayOrder === option.displayOrder && paymentDestinationFields.every(field => saved[field] === option[field]));
+    if (existing) return existing;
     await setPaymentChangeTime(tx, now);
     const { rows } = await tx.query<PaymentOptionRow>(
       `insert into app.payment_options
@@ -194,10 +209,7 @@ export async function listPaymentOptionChanges(
 const optionTarget = venueInput.extend({ paymentOptionId: z.uuid(), revision: z.uuid() });
 const updateInput = optionTarget.extend({
   changes: details.partial().extend({ active: z.boolean().optional() }),
-  accountChange: z.object({
-    before: details.shape.accountOrMerchantCode,
-    after: details.shape.accountOrMerchantCode,
-  }).optional(),
+  destinationReviewed: z.literal(true).optional(),
 });
 
 async function lockPaymentOption(tx: Tx, actor: Actor, target: z.output<typeof optionTarget>): Promise<PaymentOption> {
@@ -229,15 +241,8 @@ export async function updatePaymentOption(
     if (changed.length === 0) return before;
     const after = { ...before, ...Object.fromEntries(changed) };
     requirePaymentDestination(after);
-    if (before.accountOrMerchantCode !== after.accountOrMerchantCode &&
-        (data.accountChange?.before !== before.accountOrMerchantCode ||
-         data.accountChange?.after !== after.accountOrMerchantCode)) {
-      throw new MaasiiError(
-        "invalid_input",
-        "Confirm the account number or merchant code change.",
-        "paymentCodeConfirmationRequired",
-      );
-    }
+    if (!data.destinationReviewed && ((!before.active && after.active) ||
+      paymentDestinationFields.some(field => before[field] !== after[field]))) requireDestinationReview();
     await setPaymentChangeTime(tx, now);
     const { rows } = await tx.query<PaymentOptionRow>(
       `update app.payment_options

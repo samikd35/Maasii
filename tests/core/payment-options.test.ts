@@ -1,4 +1,5 @@
 import { expect, test } from "vitest";
+import QRCode from "qrcode";
 import { addPaymentOption, getGuestPaymentDetails, listPaymentOptionChanges, listPaymentOptions, publicActor, removePaymentOption, updatePaymentOption, type PaymentOption } from "@/core";
 import { scenario } from "../support/scenario";
 
@@ -9,6 +10,7 @@ const bankTransfer = {
   accountOrMerchantCode: "001234567",
   displayOrder: 20,
 } as const;
+const reviewedTransfer = { ...bankTransfer, destinationReviewed: true } as const;
 
 test("an Owner sets Payment Options per Venue and a Manager can read only their Venue's options", async () => {
   const s = await scenario().venue("Lancha").venue("Bole").manager("Hana").build();
@@ -16,7 +18,7 @@ test("an Owner sets Payment Options per Venue and a Manager can read only their 
   const lancha = { venueId: s.venue.id };
   const bole = { venueId: s.venues.Bole.id };
 
-  const transfer = await addPaymentOption(s.owner.actor, { ...lancha, ...bankTransfer });
+  const transfer = await addPaymentOption(s.owner.actor, { ...lancha, ...reviewedTransfer });
   await addPaymentOption(s.owner.actor, { ...bole, kind: "cash", displayOrder: 1 });
 
   expect(await listPaymentOptions(s.managers.Hana.actor, lancha)).toEqual([
@@ -36,10 +38,10 @@ test("a Venue Link exposes only current active public Payment details before any
   const target = { venueLinkToken: s.venue.linkToken };
   const venueId = s.venue.id;
   const owner = s.owner.actor;
-  const transfer = await addPaymentOption(owner, { venueId, ...bankTransfer });
+  const transfer = await addPaymentOption(owner, { venueId, ...reviewedTransfer });
   const cash = await addPaymentOption(owner, { venueId, kind: "cash", displayOrder: 1 });
   await addPaymentOption(owner, {
-    venueId: s.venues.Bole.id, ...bankTransfer, accountOrMerchantCode: "010101010",
+    venueId: s.venues.Bole.id, ...reviewedTransfer, accountOrMerchantCode: "010101010",
   });
 
   const details = await getGuestPaymentDetails(publicActor, target);
@@ -61,7 +63,7 @@ test("adding a Payment Option records its values, actor and time in the Owner's 
   const s = await scenario().manager("Hana").build();
   const venue = { venueId: s.venue.id };
   const now = new Date("2026-11-11T08:00:00Z");
-  const option = await addPaymentOption(s.owner.actor, { ...venue, ...bankTransfer }, { now });
+  const option = await addPaymentOption(s.owner.actor, { ...venue, ...reviewedTransfer }, { now });
 
   expect(await listPaymentOptionChanges(s.owner.actor, venue)).toEqual([
     expect.objectContaining({
@@ -84,7 +86,7 @@ test("the Owner can reorder and deactivate a Venue's Payment Option, with each c
   const s = await scenario().manager("Hana").build();
   const venue = { venueId: s.venue.id };
   const actor = s.owner.actor;
-  const transfer = await addPaymentOption(actor, { ...venue, ...bankTransfer });
+  const transfer = await addPaymentOption(actor, { ...venue, ...reviewedTransfer });
   const cash = await addPaymentOption(actor, { ...venue, kind: "cash", displayOrder: 10 });
   expect((await listPaymentOptions(actor, venue)).map((option) => option.kind)).toEqual(["cash", "bank_transfer"]);
 
@@ -103,28 +105,33 @@ test("the Owner can reorder and deactivate a Venue's Payment Option, with each c
   ]);
 });
 
-test("an Owner must confirm the exact account change against the current Payment Option", async () => {
+test("an Owner reviews payment destinations and can retry a reviewed creation without duplicating it", async () => {
   const s = await scenario().build();
   const actor = s.owner.actor;
-  const transfer = await addPaymentOption(actor, { venueId: s.venue.id, ...bankTransfer });
-  const change = { ...optionTarget(transfer), changes: { accountOrMerchantCode: "009876543" } };
-
-  await expect(updatePaymentOption(actor, change)).rejects.toMatchObject({ reason: "paymentCodeConfirmationRequired" });
-  await expect(updatePaymentOption(actor, {
-    ...change,
-    accountChange: { before: transfer.accountOrMerchantCode, after: "000000000" },
-  })).rejects.toMatchObject({ reason: "paymentCodeConfirmationRequired" });
-
-  const confirmation = { before: "001234567", after: "009876543" };
-  const updated = await updatePaymentOption(actor, { ...change, accountChange: confirmation });
-  expect(updated.accountOrMerchantCode).toBe("009876543");
-
-  await expect(updatePaymentOption(actor, { ...change, accountChange: confirmation })).rejects.toMatchObject({
+  const create = { venueId: s.venue.id, ...bankTransfer };
+  await expect(addPaymentOption(actor, create)).rejects.toMatchObject({ reason: "paymentDestinationReviewRequired" });
+  const approved = { ...create, destinationReviewed: true } as const;
+  const [transfer, retried] = await Promise.all([addPaymentOption(actor, approved), addPaymentOption(actor, approved)]);
+  expect(retried.id).toBe(transfer.id);
+  const qrImage = await QRCode.toDataURL("test-destination");
+  for (const changes of [{ provider: "New provider" }, { recipientName: "New recipient" },
+    { accountOrMerchantCode: "009876543" }, { qrImage }]) {
+    await expect(updatePaymentOption(actor, { ...optionTarget(transfer), changes }))
+      .rejects.toMatchObject({ reason: "paymentDestinationReviewRequired" });
+  }
+  const change = { ...optionTarget(transfer), changes: { qrImage }, destinationReviewed: true } as const;
+  const updated = await updatePaymentOption(actor, change);
+  expect(updated.qrImage).toBe(qrImage);
+  expect(updated.accountOrMerchantCode).toBe(transfer.accountOrMerchantCode);
+  await expect(updatePaymentOption(actor, change)).rejects.toMatchObject({
     reason: "paymentOptionChanged",
   });
-  expect(await listPaymentOptions(actor, { venueId: s.venue.id })).toEqual([updated]);
-  expect((await listPaymentOptionChanges(actor, { venueId: s.venue.id })).map((entry) => entry.after?.accountOrMerchantCode))
-    .toEqual(["009876543", "001234567"]);
+  const inactive = await updatePaymentOption(actor, { ...optionTarget(updated), changes: { active: false } });
+  await expect(updatePaymentOption(actor, { ...optionTarget(inactive), changes: { active: true } }))
+    .rejects.toMatchObject({ reason: "paymentDestinationReviewRequired" });
+  const active = await updatePaymentOption(actor, { ...optionTarget(inactive), changes: { active: true }, destinationReviewed: true });
+  expect(await listPaymentOptions(actor, { venueId: s.venue.id })).toEqual([active]);
+  expect(await listPaymentOptionChanges(actor, { venueId: s.venue.id })).toHaveLength(4);
 });
 
 test("removing a Payment Option leaves its last values in the Owner's change log", async () => {

@@ -484,7 +484,7 @@ export function MyTables({ tableId, tableNumber, tables = false, number = "", ta
           </section>}
         </>
       )}
-      {feed && receipt && <ReceiptEntry receipt={receipt} focused refresh={refresh} onClose={closeReceipt} onRecorded={record => {
+      {feed && receipt && <ReceiptEntry receipt={receipt} refresh={refresh} onClose={closeReceipt} onRecorded={record => {
         setRecorded({ tableNumber: receipt.tableNumber, record });
         closeReceipt();
       }} />}

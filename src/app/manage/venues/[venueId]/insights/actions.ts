@@ -17,6 +17,7 @@ export async function saveServiceSettings(venueId: string, _state: FormState, fo
     await updateVenueService(actor, {
       venueId, periods, hours: { opensAt: String(formData.get("opensAt")), closesAt: String(formData.get("closesAt")) },
     });
-    revalidatePath(`/manage/venues/${venueId}/insights`);
+    revalidatePath(`/manage/venues/${venueId}`, "layout");
+    return { done: { key: "serviceSettingsSaved" } };
   });
 }

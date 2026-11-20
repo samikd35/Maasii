@@ -1,7 +1,8 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import {
-  uploadDishVideo, getMenuDraft, importMenuPhotos, publishMenuDraft, saveMenuDraft, suggestMenuTranslations, uploadDishPhoto, type MenuDraftContent,
+  uploadDishVideo, getMenuDraft, importMenuPhotos, publishMenuDraft, reviewBrandMenuDraft, saveMenuDraft, suggestMenuTranslations, uploadDishPhoto, type MenuDraftContent,
 } from "@/core";
 import { forForm, requireStaff } from "@/lib/session";
 
@@ -10,15 +11,27 @@ export async function persistMenuDraft(
   revision: string | null,
   menu: MenuDraftContent,
   publish: boolean,
+  impactStamp?: string,
 ) {
   const actor = await requireStaff();
   const input = { brandId, revision, menu };
   const result = await forForm(async () => {
-    if (publish) await publishMenuDraft(actor, input);
+    if (publish) {
+      if (!impactStamp) return { error: "menuVenueImpactChanged" };
+      await publishMenuDraft(actor, { brandId, revision, impactStamp });
+    }
     else await saveMenuDraft(actor, input);
   });
   if (result?.error) return { error: result.error };
+  revalidatePath(`/manage/brands/${brandId}`, "page");
   return { draft: await getMenuDraft(actor, { brandId }) };
+}
+
+export async function reviewBrandPublish(brandId: string, revision: string | null) {
+  const actor = await requireStaff();
+  let impact: Awaited<ReturnType<typeof reviewBrandMenuDraft>> | undefined;
+  const result = await forForm(async () => { impact = await reviewBrandMenuDraft(actor, { brandId, revision }); });
+  return { impact, error: result?.error };
 }
 
 export async function prepareDishPhoto(brandId: string, form: FormData) {

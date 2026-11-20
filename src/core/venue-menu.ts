@@ -76,6 +76,7 @@ async function changeVenueDish(
     if (soldOut === null) {
       const venue = await findVenue(tx, venueId);
       await requireBrandOwner(tx, actor, venue.brandId);
+      await tx.query("select pg_advisory_xact_lock_shared(hashtextextended($1::uuid::text, 2))", [venue.brandId]);
     }
     if (soldOut !== null) {
       const venue = await findVenue(tx, venueId);

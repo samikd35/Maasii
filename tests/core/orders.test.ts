@@ -351,6 +351,7 @@ test.each([22_000, 21_989])("Payment Confirmation closes the Visit and preserves
   const venue = { venueLinkToken };
   const paymentOption = (provider: string, displayOrder: number, targetVenue = venueId) => addPaymentOption(s.owner.actor, {
     venueId: targetVenue, kind: "bank_transfer", provider, recipientName: "Lancha", accountOrMerchantCode: "1937", displayOrder,
+    destinationReviewed: true,
   });
   const bank = await paymentOption("Bank", 2);
   const firstOption = await paymentOption("First option", 1);
@@ -372,11 +373,11 @@ test.each([22_000, 21_989])("Payment Confirmation closes the Visit and preserves
   await acceptOrder(sam.actor, { orderId: order.id, unlockToken: sam.unlockToken });
   await declineOrder(sam.actor, { orderId: declined.id, unlockToken: sam.unlockToken });
   expect((await getGuestVisit(first, venue))?.paymentOptions).toEqual([]);
-  await prepareBill(sam.actor, target);
+  const billSnapshot = await prepareBill(sam.actor, target);
   await expect(getBillPaymentStatus(sam.actor, target)).resolves.toMatchObject({ status: "prepared", totalSantim: 22_000 });
   await expect(getBillPaymentStatus(sam.actor, { venueId, visitId: order.visitId })).rejects.toMatchObject({ code: "not_allowed" });
   expect((await getGuestVisit(first, venue))?.paymentOptions.map(({ id }) => id)).toEqual([firstOption.id, bank.id]);
-  const input = { ...target, paymentOptionId: receiptAmountSantim === 22_000 ? null : bank.id, receiptAmountSantim };
+  const input = { ...target, billSnapshot, paymentOptionId: receiptAmountSantim === 22_000 ? null : bank.id, receiptAmountSantim };
   await expect(confirmPayment(sam.actor, { ...input, paymentOptionId: otherVenue.id })).rejects.toMatchObject({ code: "invalid_input" });
   await expect(confirmPayment(sam.actor, { ...input, paymentOptionId: inactive.id })).rejects.toMatchObject({ code: "invalid_input" });
   const [paid, replay] = await Promise.all([
@@ -424,7 +425,7 @@ test.each(["previous party paid", "same party"] as const)("a Waiter resolves %s 
   await acceptOrder(sam.actor, { orderId: originalOrder.id, ...unlock });
   const target = { venueId, visitId: originalOrder.visitId, ...unlock };
   const preparedAt = new Date();
-  await prepareBill(sam.actor, target, { now: preparedAt });
+  const billSnapshot = await prepareBill(sam.actor, target, { now: preparedAt });
   const due = new Date(preparedAt.getTime() + 20 * 60_000);
   await flagUnconfirmedBills(systemActor, { venueId, now: new Date(due.getTime() - 1) });
   expect(await getPreparedBills(s.owner.actor, { venueId })).toMatchObject([{ reminder: false }]);
@@ -442,7 +443,7 @@ test.each(["previous party paid", "same party"] as const)("a Waiter resolves %s 
   expect((await getMyTableOrders(sam.actor, unlock, { now: due })).orders).toContainEqual(pending);
 
   if (resolution === "previous party paid") {
-    await confirmPayment(sam.actor, { ...target, paymentOptionId: null, receiptAmountSantim: 22_000 }, { now: due });
+    await confirmPayment(sam.actor, { ...target, billSnapshot, paymentOptionId: null, receiptAmountSantim: 22_000 }, { now: due });
     expect(await getGuestVisit(original, venue)).toMatchObject({ closedAt: due, bill: { totalSantim: 22_000 } });
     expect((await getGuestVisit(next, venue))?.id).not.toBe(originalOrder.visitId);
     expect((await getGuestVisit(next, venue))?.orders).toEqual([expect.objectContaining({ id: pending.id, partyPending: false })]);

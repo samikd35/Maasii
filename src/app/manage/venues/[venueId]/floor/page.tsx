@@ -10,12 +10,13 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t("title")} · Maasii` };
 }
 
-export default async function FloorPage({ params }: PageProps<"/manage/venues/[venueId]/floor">) {
+export default async function FloorPage({ params, searchParams }: PageProps<"/manage/venues/[venueId]/floor">) {
   const { venueId } = await params;
   const floor = await getLiveFloor(await requireStaff(), { venueId }).catch(error => {
     if (error instanceof MaasiiError) notFound();
     throw error;
   });
   const t = await getTranslations("Floor");
-  return <><h1 className="mb-3">{t("title")}</h1><VenueFloor venueId={venueId} floor={floor} /></>;
+  const { focus } = await searchParams;
+  return <><h1 className="mb-3">{t("title")}</h1><VenueFloor venueId={venueId} floor={floor} focus={typeof focus === "string" ? focus : undefined} /></>;
 }

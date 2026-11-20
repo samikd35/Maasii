@@ -14,6 +14,8 @@ const billTarget = z.object({
   unlockToken: z.string().optional(),
 });
 
+export const preparedBillFollowupMinutes = 20;
+
 export type Bill = {
   lines: Order["lines"];
   totalSantim: number;
@@ -122,7 +124,9 @@ export async function prepareBill(actor: Actor, input: z.input<typeof billTarget
     const visit = await authorizedBill(tx, actor, target, now);
     if (visit.closedAt) throw new MaasiiError("invalid_input", "The Visit is closed.");
     await requireDecidedOrders(tx, visit.id);
-    if (visit.preparedAt) return;
+    if (visit.preparedAt) {
+      return { preparedAt: visit.preparedAt.toISOString(), totalSantim: Number(visit.totalSantim) };
+    }
     const rows = await readBillOrders(tx, [visit.id]);
     const { lines, totalSantim } = billFromOrders(rows, visit);
     if (!rows.length) throw new MaasiiError("invalid_input", "The Bill needs an Accepted Order.");
@@ -131,6 +135,7 @@ export async function prepareBill(actor: Actor, input: z.input<typeof billTarget
       "update app.visits set bill_prepared_at = $2, bill_lines = $3, bill_total_santim = $4 where id = $1",
       [visit.id, visit.at, JSON.stringify(lines), totalSantim],
     );
+    return { preparedAt: visit.at.toISOString(), totalSantim };
   });
 }
 
@@ -216,9 +221,9 @@ export async function confirmPayment(
       if (prior) return prior;
       throw new MaasiiError("invalid_input", "The Visit is closed.", "billChanged");
     }
-    if (!visit.preparedAt || (billSnapshot && (
+    if (!visit.preparedAt || !billSnapshot ||
       billSnapshot.preparedAt !== visit.preparedAt.toISOString() || billSnapshot.totalSantim !== Number(visit.totalSantim)
-    ))) {
+    ) {
       throw new MaasiiError("invalid_input", "Review the current Bill before confirming payment.", "billChanged");
     }
     await requireDecidedOrders(tx, visit.id);
@@ -322,12 +327,16 @@ export async function getClosingReport(actor: Actor, input: { venueId: string; d
     const { rows: [day] } = await tx.query<{ date: string }>(
       "select coalesce($1::date, ($2::timestamptz at time zone 'Africa/Addis_Ababa')::date)::text as date", [date ?? null, now],
     );
-    const { rows: open } = await tx.query<BillVisit & { openedAt: Date; tableNumber: number; waiterName: string | null }>(
+    const { rows: open } = await tx.query<BillVisit & {
+      openedAt: Date; tableNumber: number; waiterName: string | null; waiting: number; partyPending: boolean;
+    }>(
       `select ${billVisitFields}, opened_at as "openedAt",
         (select number from app.tables where id = visits.table_id) as "tableNumber",
         (select m.name from app.table_assignments a join app.memberships m on m.id = a.waiter_id
           where a.table_id = visits.table_id and a.started_at <= $2 and (a.ended_at is null or a.ended_at > $2)
-          order by a.started_at desc limit 1) as "waiterName"
+          order by a.started_at desc limit 1) as "waiterName",
+        (select count(*)::int from app.orders where visit_id = visits.id and state = 'sent' and not party_pending) as waiting,
+        exists (select 1 from app.orders where visit_id = visits.id and state = 'sent' and party_pending) as "partyPending"
        from app.visits where venue_id = $1 and closed_at is null order by opened_at, id`, [venueId, now],
     );
     const { rows: adjustments } = await tx.query<{
@@ -346,13 +355,18 @@ export async function getClosingReport(actor: Actor, input: { venueId: string; d
        )) order by id`,
       [venueId, open.map(({ id }) => id), day.date],
     );
-    const orders = await readBillOrders(tx, open.map(({ id }) => id));
-    const visits = open.map((visit) => ({
-      id: visit.id, tableId: visit.tableId, preparedAt: visit.preparedAt, tableNumber: visit.tableNumber, waiterName: visit.waiterName,
-      minutesOpen: Math.max(0, Math.floor((now.getTime() - visit.openedAt.getTime()) / 60_000)),
-      ...billFromOrders(orders.filter(({ visitId }) => visitId === visit.id), visit),
-      adjustments: adjustments.filter(({ visitId }) => visitId === visit.id),
-    }));
+    const orders = Map.groupBy(await readBillOrders(tx, open.map(({ id }) => id)), order => order.visitId);
+    const visits = open.map((visit) => {
+      const accepted = orders.get(visit.id) ?? [];
+      return {
+        id: visit.id, tableId: visit.tableId, preparedAt: visit.preparedAt, tableNumber: visit.tableNumber, waiterName: visit.waiterName,
+        overdue: visit.preparedAt !== null && now.getTime() - visit.preparedAt.getTime() >= preparedBillFollowupMinutes * 60_000,
+        waiting: visit.waiting, partyPending: visit.partyPending, hasAccepted: accepted.length > 0,
+        minutesOpen: Math.max(0, Math.floor((now.getTime() - visit.openedAt.getTime()) / 60_000)),
+        ...billFromOrders(accepted, visit),
+        adjustments: adjustments.filter(({ visitId }) => visitId === visit.id),
+      };
+    });
     const { rows } = await tx.query<ConfirmationRow & { tableNumber: number }>(
       `select ${confirmationFields},
          (select t.number from app.visits v join app.tables t on t.id = v.table_id where v.id = payment_confirmations.visit_id) as "tableNumber"

@@ -24,6 +24,7 @@ test("management corrections, daily reconciliation and carry-over use the same V
   });
   const order = await send();
   const target = { venueId, visitId: order.visitId };
+  expect((await getClosingReport(manager, { venueId })).visits[0]).toMatchObject({ waiting: 1, hasAccepted: false });
   await acceptOrder(sam.actor, { orderId: order.id, unlockToken: sam.unlockToken });
 
   const remove = { ...target, kind: "remove_line" as const, orderId: order.id, lineIndex: 0, reason: "Returned to the kitchen" };
@@ -32,7 +33,7 @@ test("management corrections, daily reconciliation and carry-over use the same V
   await adjustVisitBill(manager, remove);
   expect(await getGuestVisit(guest, venue)).toMatchObject({ totalSantim: 19_000 });
 
-  await prepareBill(manager, target);
+  const originalBill = await prepareBill(manager, target);
   await adjustVisitBill(manager, { ...target, kind: "discount", amountSantim: 1_000, reason: "Service recovery" });
   expect(await getGuestVisit(guest, venue)).toMatchObject({
     bill: { totalSantim: 18_000, lines: [{ dishId: s.dishId("Chechebsa") }] },
@@ -50,7 +51,11 @@ test("management corrections, daily reconciliation and carry-over use the same V
   await startShift(manager, { venueId, assignments: [{ tableId: table.id, waiterId: hana.waiterId }] });
   expect((await getMyTableOrders(hana.actor, { unlockToken: hana.unlockToken })).orders)
     .toMatchObject([{ id: order.id, carriedFrom: "Sam" }]);
-  await confirmPayment(manager, { ...target, paymentOptionId: null, receiptAmountSantim: 17_500 });
+  const payment = { ...target, paymentOptionId: null, receiptAmountSantim: 17_500 };
+  await expect(confirmPayment(manager, payment)).rejects.toMatchObject({ reason: "billChanged" });
+  await expect(confirmPayment(manager, { ...payment, billSnapshot: originalBill })).rejects.toMatchObject({ reason: "billChanged" });
+  const billSnapshot = await prepareBill(manager, target);
+  await confirmPayment(manager, { ...payment, billSnapshot });
   expect(await getClosingReport(manager, { venueId })).toMatchObject({
     visits: [], payments: [{ visitId: order.visitId, receiptAmountSantim: 17_500, differenceSantim: -500 }],
     totals: { receiptSantim: 17_500, billSantim: 18_000, differenceSantim: -500 },

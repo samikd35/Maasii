@@ -9,8 +9,9 @@ import { LanguageSwitch } from "./language-switch";
 import { WaiterIcon } from "./waiter-icon";
 
 /** The top bar of every management and platform admin screen. */
-export function StaffHeader({ home, label, workspace, title, accountTools, accountHint, className = "", children }: {
-  home: string; label: string; workspace?: boolean; title?: ReactNode; accountTools?: ReactNode; accountHint?: ReactNode; className?: string; children?: ReactNode;
+export function StaffHeader({ home, label, workspace, title, identity, accountTools, accountHint, className = "", children }: {
+  home: string; label: string; workspace?: boolean; title?: ReactNode; identity?: ReactNode;
+  accountTools?: ReactNode; accountHint?: ReactNode; className?: string; children?: ReactNode;
 }) {
   const t = useTranslations("Staff");
   const accountId = useId();
@@ -26,9 +27,9 @@ export function StaffHeader({ home, label, workspace, title, accountTools, accou
       {workspace && <a href="#workspace-content" className="workspace-skip">{t("skip")}</a>}
       <div className={workspace ? "workspace-header" : "mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-x-3 px-5 py-1"}>
         <div className="min-w-0">
-          <Link href={home} className="workspace-wordmark inline-flex min-h-11 flex-wrap items-center gap-x-2 font-display text-xl font-semibold">
+          {identity ?? <Link href={home} className="workspace-wordmark inline-flex min-h-11 flex-wrap items-center gap-x-2 font-display text-xl font-semibold">
             {title ?? <>Maasii <span className="text-sm font-normal text-ink-muted">{label}</span></>}
-          </Link>
+          </Link>}
         </div>
         {workspace ? <div className="workspace-account">
           {children}
@@ -38,8 +39,8 @@ export function StaffHeader({ home, label, workspace, title, accountTools, accou
               <span className="waiter-account-label"><span>{t("account")}</span>{accountHint}</span>
             </button>
             <div id={accountId} popover="auto" className="workspace-account-panel waiter-account-popover">{account}</div>
-          </> : <details>
-            <summary className="workspace-summary">{t("account")}</summary>
+          </> : <details name={identity ? "venue-header-actions" : undefined}>
+            <summary className="workspace-summary">{identity && <WaiterIcon name="account" />}{t("account")}</summary>
             <div className="workspace-account-panel">{account}</div>
           </details>}
         </div> : <div className="flex items-center gap-1">{account}</div>}

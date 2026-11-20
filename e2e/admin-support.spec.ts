@@ -21,6 +21,7 @@ test("the admin can open a Brand for support without getting Brand edit controls
   const s = await scenario().brand(brandName).venue("Bole", { tables: 2 })
     .manager("Hana").waiter("Sam").publishedMenu().build();
   await addPaymentOption(s.owner.actor, {
+    destinationReviewed: true,
     venueId: s.venue.id, kind: "bank_transfer", provider: "Support Bank",
     recipientName: "Saba House", accountOrMerchantCode: "0012345", displayOrder: 1,
   });

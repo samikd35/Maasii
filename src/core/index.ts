@@ -84,6 +84,7 @@ export {
   MAX_MENU_IMPORT_PHOTOS,
   publishMenu,
   publishMenuDraft,
+  reviewBrandMenuDraft,
   saveMenuDraft,
   suggestMenuTranslations,
   uploadDishPhoto,
@@ -101,6 +102,7 @@ export {
 export type { MenuDraftModel } from "./menu-ai";
 export {
   addPaymentOption,
+  paymentDestinationFields,
   getGuestPaymentDetails,
   listPaymentOptionChanges,
   listPaymentOptions,
@@ -123,7 +125,7 @@ export { getGuestReviewForm, getWaiterRatings, submitGuestReview, type GuestRevi
 
 export { changeGuestTable, getMoveHistory, moveOrder, moveVisit } from "./moves";
 export { getLiveFloor } from "./floor";
-export { getVenueInsights, updateVenueService, type ServicePeriod } from "./insights";
+export { getVenueInsights, getVenueServiceSettings, updateVenueService, type ServicePeriod } from "./insights";
 
 export { addWaiterOrder, correctWaiterOrderLine, getOrderCorrections, getWaiterQuickAdd } from "./waiter-orders";
 export { getOwnerVenueSchedule, getOwnerVenuesInService, getWeeklyFinding, selectWeeklyFinding, weeklyThresholds } from "./weekly-finding";

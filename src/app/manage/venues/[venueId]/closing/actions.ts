@@ -13,6 +13,7 @@ export async function removeLine(venueId: string, visitId: string, _state: FormS
       venueId, visitId, kind: "remove_line", orderId, lineIndex: Number(lineIndex), reason: String(formData.get("reason") ?? ""),
     });
     revalidatePath(`/manage/venues/${venueId}/closing`);
+    return { done: { key: "billAdjusted" } };
   });
 }
 
@@ -23,6 +24,7 @@ export async function saveDiscount(venueId: string, visitId: string, _state: For
     if (amountSantim === null) return { error: "invalid_input" };
     await adjustVisitBill(actor, { venueId, visitId, kind: "discount", amountSantim, reason: String(formData.get("reason") ?? "") });
     revalidatePath(`/manage/venues/${venueId}/closing`);
+    return { done: { key: "billAdjusted" } };
   });
 }
 

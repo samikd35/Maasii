@@ -1,4 +1,4 @@
-body:has(.waiter-header, .waiter-entry) {
+body:has(.waiter-header, .waiter-entry, .manager-shell) {
   --waiter-canvas: #f4f6fc;
   --waiter-surface: #fff;
   --waiter-ink: #17233e;

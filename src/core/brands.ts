@@ -167,12 +167,16 @@ export async function createVenue(
     const brand = await tx.query<{ name: string }>("select name from app.brands where id = $1", [brandId]);
     if (brand.rowCount === 0) throw new MaasiiError("not_found", "Brand not found.");
 
-    const { rows } = await tx.query<Venue>(
-      `insert into app.venues (brand_id, name, link_token) values ($1, $2, $3)
-       returning id, brand_id as "brandId", name, link_token as "linkToken"`,
-      [brandId, name, linkToken ?? newLinkToken(brand.rows[0].name, name)],
-    );
-    return rows[0];
+    for (let attempt = 0; attempt < (linkToken === undefined ? 4 : 1); attempt++) {
+      const { rows: [venue] } = await tx.query<Venue>(
+        `insert into app.venues (brand_id, name, link_token) values ($1, $2, $3)
+         on conflict (link_token) do nothing
+         returning id, brand_id as "brandId", name, link_token as "linkToken"`,
+        [brandId, name, linkToken ?? newLinkToken(brand.rows[0].name, name)],
+      );
+      if (venue) return venue;
+    }
+    throw new MaasiiError("invalid_input", "Couldn't create a unique Venue Link. Try again.");
   });
 }
 

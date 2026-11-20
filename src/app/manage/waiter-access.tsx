@@ -2,10 +2,14 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { signOut } from "@/lib/sign-out";
 import { SubmitButton } from "@/ui/staff-forms";
+import { StaffHeader } from "@/ui/staff-header";
 
 export async function WaiterAccess({ workspace }: { workspace: "brand" | "venue" }) {
-  const t = await getTranslations("StaffWorkspaceAccess");
+  const [t, staff] = await Promise.all([getTranslations("StaffWorkspaceAccess"), getTranslations("Staff")]);
   return (
+    <>
+    <StaffHeader home="/manage" label={staff("manage")} workspace />
+    <main id="workspace-content" tabIndex={-1} className="workspace-frame py-4">
     <div className="workspace-panel max-w-lg">
       <h1>{t("heading")}</h1>
       <p className="mt-2 text-ink-muted">{t(workspace === "brand" ? "brandRequiresOwner" : "venueRequiresManagerOrOwner")}</p>
@@ -16,5 +20,7 @@ export async function WaiterAccess({ workspace }: { workspace: "brand" | "venue"
         <Link href="/staff" className="workspace-link">{t("backToWaiter")}</Link>
       </div>
     </div>
+    </main>
+    </>
   );
 }

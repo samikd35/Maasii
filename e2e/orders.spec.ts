@@ -47,6 +47,7 @@ test("a guest chooses a Table, the assigned Waiter sees the Order live and the g
   const { waiter, context, url, s } = await service(browser, baseURL!, test.info().project.use);
   try {
     await addPaymentOption(s.owner.actor, {
+      destinationReviewed: true,
       venueId: s.venue.id, kind: "bank_transfer", provider: "Test Bank", recipientName: "Lancha Café",
       accountOrMerchantCode: "001234", qrImage: await QRCode.toDataURL("test-payment-destination"), displayOrder: 1,
     });
@@ -370,28 +371,31 @@ test("an Owner adjusts a live Bill and reconciles the typed receipt at closing",
     await owner.getByLabel("Email or phone").fill(s.owner.email);
     await owner.getByLabel("Password").fill(s.owner.password);
     await owner.getByRole("button", { name: "Sign in", exact: true }).click();
-    await owner.getByRole("link", { name: "Lancha", exact: true }).click();
+    await owner.getByRole("link", { name: "Open operations for Lancha", exact: true }).click();
     await owner.getByRole("link", { name: "Closing", exact: true }).click();
     const visits = owner.getByRole("region", { name: "Open Visits" });
     await visits.getByText("Visit actions", { exact: true }).click();
     await visits.getByText("Adjust Bill", { exact: true }).click();
-    const discount = visits.locator("form").filter({ has: owner.getByLabel("Discount amount (ETB)") });
+    const adjust = owner.getByRole("dialog", { name: "Adjust Bill · Table 1" });
+    const discount = adjust.locator("form").filter({ has: owner.getByLabel("Discount amount (ETB)") });
     await discount.getByLabel("Discount amount (ETB)").fill("20");
     await discount.getByLabel("Reason").fill("Service recovery");
     await discount.getByRole("button", { name: "Save discount" }).click();
     await expect(sheet.getByRole("region", { name: "Accepted running total" }).getByTestId("price")).toHaveText("200 ETB");
-    await expect(visits.getByText("Discount: 20 ETB · Service recovery")).toBeVisible();
+    await expect(adjust.getByText("Discount: 20 ETB · Service recovery")).toBeVisible();
+    await adjust.getByRole("button", { name: "Cancel" }).click();
 
     await visits.getByRole("button", { name: "Prepare bill" }).click();
     await visits.getByRole("button", { name: "Enter receipt" }).click();
-    await visits.getByLabel("Method").selectOption({ label: "Cash" });
-    const amount = visits.getByLabel("Official Receipt amount (ETB)");
+    const receipt = owner.getByRole("dialog", { name: "Enter receipt for Table 1" });
+    await receipt.getByLabel("Method", { exact: true }).selectOption({ label: "Cash" });
+    const amount = receipt.getByLabel("Official Receipt amount (ETB)");
     await expect(amount).toHaveValue("");
     await amount.fill("199");
-    await visits.getByRole("button", { name: "Record Payment Confirmation" }).click();
+    await receipt.getByRole("button", { name: "Record payment", exact: true }).click();
     await expect(sheet.getByText("Bill paid", { exact: true })).toBeVisible();
     await expect(visits.getByText("There are no open Visits.")).toBeVisible();
-    await owner.getByRole("link", { name: "Daily Payment Confirmations" }).click();
+    await owner.getByRole("link", { name: "Receipts", exact: true }).click();
     await expect(owner.getByRole("region", { name: "Daily Payment Confirmations" }).getByText("-1 ETB", { exact: true }).first()).toBeVisible();
     await owner.getByText("Adjustments on closed Visits").click();
     await expect(owner.getByText("Discount: 20 ETB · Service recovery")).toBeVisible();

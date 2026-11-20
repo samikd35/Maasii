@@ -11,14 +11,14 @@ async function signIn(page: Page, user: TestUser) {
   await page.getByLabel("Email or phone").fill(user.email);
   await page.getByLabel("Password").fill(user.password);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/manage(?:\/operations)?$/);
+  await expect(page).toHaveURL(/\/manage\/(?:brands\/[^/]+|venues\/[^/]+\/floor)$/);
 }
 
-test("an Owner reviews an account change, and a stale comparison cannot overwrite another edit", async ({ page, browser }) => {
+test("an Owner reviews destination changes, and a stale review cannot overwrite another edit", async ({ page, browser }) => {
   const s = await scenario().venue("Lancha").manager("Hana").build();
   await signIn(page, s.owner);
-  await page.getByRole("link", { name: "Lancha", exact: true }).click();
-  await page.getByRole("link", { name: "Payment Options" }).click();
+  await page.goto(`/manage/venues/${s.venue.id}/payment-options`);
+  await expect(page.getByRole("link", { name: "Setup", exact: true })).toHaveAttribute("aria-current", "location");
 
   const add = page.getByRole("region", { name: "Add a Payment Option" });
   await add.getByLabel("Provider").fill("Test Bank");
@@ -29,37 +29,52 @@ test("an Owner reviews an account change, and a stale comparison cannot overwrit
     mimeType: "image/png",
     buffer: await QRCode.toBuffer("https://example.test/pay"),
   });
-  await add.getByRole("button", { name: "Add Payment Option" }).click();
+  const review = page.getByRole("dialog", { name: "Review Payment Option?" });
+  await add.getByRole("button", { name: "Review changes" }).click();
+  await expect(review).toContainText("Guests at Lancha");
+  expect(await listPaymentOptions(s.owner.actor, { venueId: s.venue.id })).toHaveLength(0);
+  await review.getByRole("button", { name: "Add Payment Option" }).click();
 
   const row = page.getByRole("article", { name: "Test Bank" });
-  await expect(row.getByRole("img", { name: "Payment QR image" })).toBeVisible();
+  await expect(row.getByText("Active", { exact: true })).toBeVisible();
   await row.getByText("Edit Payment Option", { exact: true }).click();
 
   const account = row.getByLabel("Account number or merchant code");
-  const comparison = row.getByRole("group", { name: "Confirm account change" });
-  const confirm = comparison.getByRole("checkbox", { name: "I confirm this change" });
-  const save = row.getByRole("button", { name: "Save Payment Option" });
+  const openReview = row.getByRole("button", { name: "Review changes" });
+  const save = review.getByRole("button", { name: "Save Payment Option" });
+  const [before] = await listPaymentOptions(s.owner.actor, { venueId: s.venue.id });
+  await row.getByLabel("QR image (optional)", { exact: true }).setInputFiles({
+    name: "replacement.png", mimeType: "image/png", buffer: await QRCode.toBuffer("https://example.test/replacement"),
+  });
+  await openReview.click();
+  await expect(review.getByRole("img", { name: "Payment QR image" })).toHaveCount(2);
+  await expect(review.getByRole("heading", { name: "After", exact: true })).toBeInViewport();
+  await expect(review.getByRole("img", { name: "Payment QR image" }).last()).toHaveAttribute("src", /^blob:/);
+  await expect.poll(() => review.getByRole("img", { name: "Payment QR image" }).last().evaluate(img => (img as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  await review.getByRole("button", { name: "Cancel" }).click();
+  expect((await listPaymentOptions(s.owner.actor, { venueId: s.venue.id }))[0].qrImage).toBe(before.qrImage);
+  await openReview.click();
+  await save.click();
+  await expect.poll(async () => (await listPaymentOptions(s.owner.actor, { venueId: s.venue.id }))[0].qrImage)
+    .not.toBe(before.qrImage);
+  await expect(account).toHaveValue("0012345");
   await account.fill("0098765");
-  await expect(comparison.getByText("0012345", { exact: true })).toBeVisible();
-  await expect(comparison.getByText("0098765", { exact: true })).toBeVisible();
+  await openReview.click();
+  await expect(review.getByText("Changed fields · Account number or merchant code", { exact: true })).toBeVisible();
+  await expect(review.getByText("0012345", { exact: true })).toBeVisible();
+  await expect(review.getByText("0098765", { exact: true })).toBeVisible();
   await save.click();
-  await expect(confirm).not.toBeChecked();
-  expect((await listPaymentOptions(s.owner.actor, { venueId: s.venue.id }))[0].accountOrMerchantCode).toBe("0012345");
-
-  await confirm.check();
-  await save.click();
-  await expect(comparison).toBeHidden();
   await expect(row.getByText("0098765", { exact: true })).toBeVisible();
 
   await account.fill("0055555");
-  await confirm.check();
+  await openReview.click();
   const [current] = await listPaymentOptions(s.owner.actor, { venueId: s.venue.id });
   await updatePaymentOption(s.owner.actor, {
     venueId: current.venueId,
     paymentOptionId: current.id,
     revision: current.revision,
     changes: { accountOrMerchantCode: "0044444" },
-    accountChange: { before: "0098765", after: "0044444" },
+    destinationReviewed: true,
   });
 
   await save.click();
@@ -85,6 +100,10 @@ test("an Owner reviews an account change, and a stale comparison cannot overwrit
   await row.getByRole("button", { name: "Deactivate", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Deactivate", exact: true }).click();
   await expect(row.getByText("Inactive", { exact: true })).toBeVisible();
+  await row.getByRole("button", { name: "Reactivate", exact: true }).click();
+  await expect(review.getByText("0044444", { exact: true })).toHaveCount(2);
+  await review.getByRole("button", { name: "Reactivate", exact: true }).click();
+  await expect(row.getByText("Active", { exact: true })).toBeVisible();
   await row.getByRole("button", { name: "Remove Payment Option" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Remove Payment Option" }).click();
   await expect(row).toHaveCount(0);
@@ -103,6 +122,7 @@ test("a guest can find and copy current payment details before ordering, without
     accountOrMerchantCode: "0012345",
     qrImage: await QRCode.toDataURL("https://example.test/pay"),
     displayOrder: 1,
+    destinationReviewed: true,
   });
   const venuePath = `/v/${s.venue.linkToken}`;
   const response = await page.goto(`${venuePath}/payment`);

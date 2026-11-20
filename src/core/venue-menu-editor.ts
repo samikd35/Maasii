@@ -49,18 +49,18 @@ async function editorState(tx: Tx, venueId: string) {
   const legacy = venue.published ? [] : (await tx.query<{ dish_id: string; price_santim: number }>(
     "select dish_id, price_santim from app.venue_dish_settings where venue_id = $1 and price_santim is not null", [venueId],
   )).rows;
-  const changes = venue.draft ?? venue.published ?? {
+  const published = venue.published ?? {
     edits: Object.fromEntries(legacy.map(({ dish_id, price_santim }) => [dish_id, { priceSantim: price_santim }])),
     additions: [], removed: [],
   };
-  return { venue, base, changes, revision: `${venue.version ?? "-"}:${venue.draftId ?? venue.publishedId ?? "-"}` };
+  return { venue, base, published, changes: venue.draft ?? published, revision: `${venue.version ?? "-"}:${venue.draftId ?? venue.publishedId ?? "-"}` };
 }
 
 export async function getVenueMenuDraft(actor: Actor, input: { venueId: string }, { now = new Date() } = {}) {
   const { venueId } = parseInput(target, input);
   return inTransaction(actor, async (tx) => {
     await requireVenueManager(tx, actor, venueId);
-    const { venue, base, changes, revision } = await editorState(tx, venueId);
+    const { venue, base, published, changes, revision } = await editorState(tx, venueId);
     const draft: MenuDraft = {
       brand: venue.brand,
       venueName: venue.name,
@@ -70,7 +70,8 @@ export async function getVenueMenuDraft(actor: Actor, input: { venueId: string }
       lastPublishedAt: venue.publishedAt,
       fastingDay: await isFastingDay(tx, now),
     };
-    return { draft, inherited: base, missing: Object.keys(changes.edits).filter((id) => !base.some((s) => s.dishes.some((d) => d.dishId === id))).length };
+    return { draft, inherited: base, published: venue.draft ? mergeVenueMenu(base, published) : draft.menu,
+      missing: Object.keys(changes.edits).filter((id) => !base.some((s) => s.dishes.some((d) => d.dishId === id))).length };
   });
 }
 

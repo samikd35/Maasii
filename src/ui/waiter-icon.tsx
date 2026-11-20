@@ -16,6 +16,12 @@ const paths = {
   plus: "M12 5v14M5 12h14",
   undo: "M3 5v6h6m-6 0 5-5a7 7 0 1 1 2 12",
   more: "M5 12h.01M12 12h.01M19 12h.01",
+  overview: "m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Zm6 11v-7h6v7",
+  brand: "M4 10v11h16V10M3 10l2-6h14l2 6M3 10c0 3 4 4 5 1 1 3 7 3 8 0 1 3 5 2 5-1m-11 11v-5h4v5",
+  trend: "M3 3v18h18M6 16l5-5 4 3 5-7m-5 0h5v5",
+  calendar: "M7 2v4m10-4v4M3 5h18v16H3zM3 10h18",
+  setup: "M4 6h16M4 12h16M4 18h16M8 4v4m8 2v4m-6 2v4",
+  qr: "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h4v4h-3m-4 0v-3",
 } as const;
 
 export function WaiterIcon({ name }: { name: keyof typeof paths }) {

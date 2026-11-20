@@ -1,18 +1,23 @@
 import Link from "next/link";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { getWeeklyFinding, type Actor } from "@/core";
+import { WaiterIcon } from "@/ui/waiter-icon";
 
-export async function OwnerHome({ actor, brandId, venues, selected }: {
+export async function OwnerHome({ actor, brandId, venues, selected, showPicker = false }: {
   actor: Actor;
   brandId: string;
   venues: { id: string; name: string }[];
   selected?: string;
+  showPicker?: boolean;
 }) {
   const now = new Date();
-  const venue = venues.find(({ id }) => id === selected) ?? venues[0];
-  const [{ week, finding }, locale, format, insights, t] = await Promise.all([
-    getWeeklyFinding(actor, { venueId: venue.id }, { now }), getLocale(), getFormatter(), getTranslations("Insights"), getTranslations("WeeklyFinding"),
+  const requested = venues.find(({ id }) => id === selected);
+  const [findings, locale, format, insights, t] = await Promise.all([
+    Promise.all((requested ? [requested] : venues).map(async venue => ({
+      venue, ...await getWeeklyFinding(actor, { venueId: venue.id }, { now }),
+    }))), getLocale(), getFormatter(), getTranslations("Insights"), getTranslations("WeeklyFinding"),
   ]);
+  const { venue, week, finding } = findings.find(entry => entry.finding.kind !== "insufficient") ?? findings[0];
   const start = new Date(`${week}T00:00:00Z`);
   const end = new Date(start.getTime() + 6 * 86_400_000);
   const range = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "Africa/Addis_Ababa" }).formatRange(start, end);
@@ -42,25 +47,23 @@ export async function OwnerHome({ actor, brandId, venues, selected }: {
     summary = t("collectingForVenue", { venue: venue.name });
   }
   return (
-    <section id="weekly-finding" aria-labelledby="owner-home" className="workspace-panel space-y-2">
-      <h2 id="owner-home">{t("title")}</h2>
-      {venues.length > 1 && (
-        <form action="/manage#weekly-finding" className="workspace-actions items-end">
-          <input type="hidden" name="brand" value={brandId} />
+    <section id="weekly-finding" aria-labelledby="owner-home" className="workspace-panel owner-finding">
+      <h2 id="owner-home"><WaiterIcon name="trend" />{t("title")}</h2>
+      <p className="manager-muted">{venue.name} · {range}</p>
+      <p className="owner-finding-summary">{summary}</p>
+      {finding.kind !== "insufficient" ? (
+        <Link href={`/manage/venues/${venue.id}/insights?${evidence}#finding-evidence`} className="workspace-link">{t("evidence")}<WaiterIcon name="next" /></Link>
+      ) : <Link className="workspace-link" href={`/manage/venues/${venue.id}/insights`}>{insights("title")}</Link>}
+      {showPicker && venues.length > 1 && (
+        <form action={`/manage/brands/${brandId}/insights#weekly-finding`} className="workspace-actions items-end">
           <label className="text-sm font-medium">{t("venue")}
-            <select name="findingVenue" className="workspace-input" defaultValue={venue.id}>
+            <select key={venue.id} name="findingVenue" className="workspace-input" defaultValue={venue.id}>
               {venues.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
             </select>
           </label>
           <button className="workspace-button" type="submit">{t("show")}</button>
         </form>
       )}
-      <p className="text-sm text-ink-muted">{range}</p>
-      <p>{summary}</p>
-      {finding.kind !== "insufficient" && (
-        <Link href={`/manage/venues/${venue.id}/insights?${evidence}#finding-evidence`} className="workspace-link">{t("evidence")}</Link>
-      )}
-      {finding.kind === "insufficient" && <Link className="workspace-link" href={`/manage/venues/${venue.id}/insights`}>{insights("title")}</Link>}
     </section>
   );
 }

@@ -33,8 +33,8 @@ test("paid guests can review independently and only management sees ten or more 
     await acceptOrder(sam.actor, { orderId: entry.id, unlockToken: sam.unlockToken });
   }
   expect(await getGuestReviewForm(people[0], venue)).toBeNull();
-  await prepareBill(sam.actor, target);
-  await confirmPayment(sam.actor, { ...target, paymentOptionId: null, receiptAmountSantim: 22_000 * orders.length });
+  const billSnapshot = await prepareBill(sam.actor, target);
+  await confirmPayment(sam.actor, { ...target, billSnapshot, paymentOptionId: null, receiptAmountSantim: 22_000 * orders.length });
 
   expect(await getGuestReviewForm(outsider, venue)).toBeNull();
   expect(await getGuestReviewForm(people[0], venue)).toMatchObject({

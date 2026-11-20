@@ -10,7 +10,7 @@ async function signIn(page: Page, user: TestUser) {
   await page.getByLabel("Email or phone").fill(user.email);
   await page.getByLabel("Password").fill(user.password);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/manage(?:\/operations)?$/);
+  await expect(page).toHaveURL(/\/manage\/(?:brands\/[^/]+|venues\/[^/]+\/floor)$/);
 }
 
 test("a Manager previews and publishes local dish changes without changing another Venue", async ({ page, browser }) => {
@@ -18,7 +18,7 @@ test("a Manager previews and publishes local dish changes without changing anoth
   const guest = await browser.newPage({ ...test.info().project.use });
   await signIn(page, s.managers.Hana);
   await page.getByRole("link", { name: "Venue menu" }).click();
-  await page.getByRole("link", { name: "Edit Venue Menu" }).click();
+  await page.getByRole("link", { name: "Edit menu draft" }).click();
 
   const dish = page.locator("details").filter({ has: page.getByText("Omelette", { exact: true }) }).first();
   await dish.locator(":scope > summary").click();
@@ -34,7 +34,10 @@ test("a Manager previews and publishes local dish changes without changing anoth
   const guestDish = guest.getByRole("listitem").filter({ has: guest.getByRole("heading", { name: "Omelette", exact: true }) });
   await guest.goto(url);
   await expect(guestDish.getByTestId("price")).toContainText("220");
-  await publishDraft(page);
+  await page.getByRole("button", { name: "Review and publish", exact: true }).click();
+  const publish = page.getByRole("dialog", { name: "Publish to Lancha?" });
+  await expect(publish.getByText("220 ETB → 249.75 ETB", { exact: false })).toBeVisible();
+  await publish.getByRole("button", { name: "Publish to Lancha", exact: true }).click();
   await expect(page.getByText("Menu published.")).toBeVisible();
   await guest.reload();
   await expect(guestDish.getByTestId("price")).toContainText("249.75");
@@ -61,7 +64,7 @@ test("a Manager publishes a photographed local dish and archives and restores it
   const guest = await browser.newPage({ ...test.info().project.use });
   await signIn(page, s.managers.Hana);
   await page.getByRole("link", { name: "Venue menu" }).click();
-  await page.getByRole("link", { name: "Edit Venue Menu" }).click();
+  await page.getByRole("link", { name: "Edit menu draft" }).click();
   const edit = page.getByRole("region", { name: "Edit" });
   await edit.getByRole("button", { name: "Add dish", exact: true }).first().click();
   await edit.getByLabel("Dish name in English", { exact: true }).filter({ visible: true }).fill("Lancha cake");

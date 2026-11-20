@@ -18,8 +18,7 @@ test("the Manager's floor refreshes live and switches from a phone list to a roo
   await page.getByLabel("Email or phone").fill(manager.email);
   await page.getByLabel("Password").fill(manager.password);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await page.getByRole("link", { name: "Lancha" }).click();
-  await page.getByRole("link", { name: "Live floor" }).click();
+  await expect(page).toHaveURL(new RegExp(venueId + "/floor$"));
   await expect(page.getByText("No open Tables.")).toBeVisible();
   await expect(page.getByRole("link", { name: "Assign Waiter" })).toHaveAttribute("href", new RegExp(tables[2].id));
 
@@ -34,7 +33,7 @@ test("the Manager's floor refreshes live and switches from a phone list to a roo
   expect((await getLiveFloor(manager.actor, { venueId })).tables).toHaveLength(2);
   const tiles = page.locator(".floor-tables > li");
   await expect(tiles).toHaveCount(2, { timeout: 12_000 });
-  await expect(tiles.nth(0).getByText(/^Order waiting ·/)).toBeVisible();
+  await expect(tiles.nth(0).getByText("Order waiting", { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Needs attention" }).getByText(/1 Order waiting/)).toHaveCount(2);
   const list = page.locator(".floor-tables");
   await expect(list).toHaveCSS("display", "flex");

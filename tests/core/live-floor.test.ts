@@ -23,9 +23,10 @@ test("the floor shows overdue Orders and Bills, unassigned Tables, and Receipt D
   const paid = await send(2, 0);
   for (const order of [prepared, paid]) {
     await acceptOrder(waiter.actor, { orderId: order.id, unlockToken: waiter.unlockToken }, minutes(0));
-    await prepareBill(manager, { venueId, visitId: order.visitId }, minutes(1));
   }
-  await confirmPayment(manager, { venueId, visitId: paid.visitId, paymentOptionId: null, receiptAmountSantim: 21_000 }, minutes(18));
+  await prepareBill(manager, { venueId, visitId: prepared.visitId }, minutes(1));
+  const billSnapshot = await prepareBill(manager, { venueId, visitId: paid.visitId }, minutes(1));
+  await confirmPayment(manager, { venueId, visitId: paid.visitId, billSnapshot, paymentOptionId: null, receiptAmountSantim: 21_000 }, minutes(18));
 
   const early = await getLiveFloor(manager, { venueId }, minutes(20));
   expect(early.exceptions.map(({ kind }) => kind)).toEqual(["unassigned", "difference"]);

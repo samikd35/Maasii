@@ -38,6 +38,22 @@ async function ownerVenue(tx: Tx, actor: Actor, venueId: string) {
   return venue;
 }
 
+async function readServiceSettings(tx: Tx, venueId: string): Promise<Settings | null> {
+  const { rows: [settings] } = await tx.query<Settings>(
+    `select jsonb_build_object('opensAt', to_char(opens_at, 'HH24:MI'), 'closesAt', to_char(closes_at, 'HH24:MI')) as hours, periods
+     from app.venue_service_settings where venue_id = $1`, [venueId],
+  );
+  return settings ?? null;
+}
+
+export async function getVenueServiceSettings(actor: Actor, input: z.input<typeof venueTarget>) {
+  const { venueId } = parseInput(venueTarget, input);
+  return inTransaction(actor, async (tx) => {
+    await ownerVenue(tx, actor, venueId);
+    return readServiceSettings(tx, venueId);
+  });
+}
+
 export async function updateVenueService(actor: Actor, input: z.input<typeof settingsInput>) {
   const { venueId, hours, periods } = parseInput(settingsInput, input);
   if (hours.opensAt === hours.closesAt) throw new MaasiiError("invalid_input", "Opening and closing times must differ.", "serviceHours");
@@ -101,10 +117,7 @@ export async function getVenueInsights(actor: Actor, input: z.input<typeof insig
   const { venueId, week } = parseInput(insightInput, input);
   return inTransaction(actor, async (tx) => {
     const venue = await ownerVenue(tx, actor, venueId);
-    const { rows: [settings] } = await tx.query<Settings>(
-      `select jsonb_build_object('opensAt', to_char(opens_at, 'HH24:MI'), 'closesAt', to_char(closes_at, 'HH24:MI')) as hours, periods
-       from app.venue_service_settings where venue_id = $1`, [venueId],
-    );
+    const settings = await readServiceSettings(tx, venueId);
     const { rows: [calendar] } = await tx.query<{ week: string; previousWeek: string }>(
       `select monday::date::text as week, (monday::date - 7)::text as "previousWeek"
        from date_trunc('week', coalesce($1::date::timestamp, $2::timestamptz at time zone 'Africa/Addis_Ababa')) monday`,
@@ -159,7 +172,7 @@ export async function getVenueInsights(actor: Actor, input: z.input<typeof insig
         previousReview: dishReviews(dishRatings.filter(({ current }) => !current)),
       };
     });
-    return { venueId, venueName: venue.name, ...calendar, settings: settings ?? null, dishes, orders,
+    return { venueId, venueName: venue.name, brandId: venue.brandId, ...calendar, settings, dishes, orders,
       visitReviews: reviews.filter(({ kind }) => kind === "visit"), dishReviewEvidence: reviews.filter(({ kind }) => kind === "dish"),
     };
   });

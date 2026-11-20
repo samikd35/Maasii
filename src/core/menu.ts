@@ -1,4 +1,5 @@
 import { validateDishVideos } from "./dish-videos";
+import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { z } from "zod";
 import { requireBrandOwner } from "./access";
@@ -447,6 +448,76 @@ export async function getMenuDraft(
 }
 
 const draftEditInput = z.object({ brandId: z.uuid(), revision: z.uuid().nullable(), menu: draftMenuInput.optional() });
+const draftPublishInput = draftEditInput.extend({ impactStamp: z.string().regex(/^[0-9a-f]{64}$/).optional() });
+
+type MenuSection = MenuDraftContent["sections"][number];
+type MenuDish = MenuSection["dishes"][number];
+
+function compareMenus(before: MenuSection[], after: MenuSection[]) {
+  const oldDishes = new Map(before.flatMap(section => section.dishes.map(dish => [dish.dishId, dish] as const)));
+  const nextDishes = new Map(after.flatMap(section => section.dishes.map(dish => [dish.dishId, dish] as const)));
+  const layout = (sections: MenuSection[]) => sections.map(({ sectionId, name, dishes }) => ({
+    sectionId, name, dishes: dishes.map(dish => dish.dishId),
+  }));
+  const summary = (dish: MenuDish | undefined) => dish && { name: dish.name, priceSantim: dish.priceSantim };
+  return {
+    layoutChanged: !isDeepStrictEqual(layout(before), layout(after)),
+    dishes: [...new Set([...nextDishes.keys(), ...oldDishes.keys()])].flatMap(id => {
+      const previous = oldDishes.get(id);
+      const next = nextDishes.get(id);
+      return isDeepStrictEqual(previous, next) ? [] : [{ id, before: summary(previous), after: summary(next) }];
+    }),
+  };
+}
+
+async function brandMenuImpact(tx: Tx, context: MenuDraftContext, before: MenuDraftContent, after: MenuDraftContent) {
+  const { rows } = await tx.query<{
+    id: string; name: string; published: VenueMenuChanges | null; prices: VenueMenuChanges["edits"] | null;
+  }>(
+    `select v.id, v.name,
+       (select changes from app.venue_menu_revisions where venue_id = v.id order by id desc limit 1) as published,
+       (select jsonb_object_agg(dish_id, jsonb_build_object('priceSantim', price_santim))
+        from app.venue_dish_settings where venue_id = v.id and price_santim is not null) as prices
+     from app.venues v where v.brand_id = $1 order by v.name, v.id`, [context.brand.id],
+  );
+  const brand = compareMenus(before.sections, after.sections);
+  const venues = rows.map(({ id, name, published, prices }) => {
+    const overrides = published ?? { edits: prices ?? {}, additions: [], removed: [] };
+    const from = mergeVenueMenu(before.sections, overrides).sections;
+    const to = mergeVenueMenu(after.sections, overrides).sections;
+    const impact = compareMenus(from, to);
+    const effective = new Map(to.flatMap(section => section.dishes.map(dish => [dish.dishId, dish] as const)));
+    const changed = new Set(impact.dishes.map(dish => dish.id));
+    const kept = brand.dishes.flatMap<{ id: string; name: Bilingual; priceSantim?: number }>(({ id, before, after }) => {
+      const local = effective.get(id);
+      const price = overrides.edits[id]?.priceSantim;
+      if (before && after && before.priceSantim !== after.priceSantim && local && price !== undefined) {
+        return [{ id, name: local.name, priceSantim: local.priceSantim }];
+      }
+      if (!changed.has(id) && (overrides.edits[id] || overrides.removed.includes(id))) {
+        return [{ id, name: (after ?? before)!.name }];
+      }
+      return [];
+    });
+    return { id, name, ...impact, kept };
+  });
+  const impact = { brand, venues };
+  const stamp = createHash("sha256").update(JSON.stringify([context.draftRevision, rows, impact])).digest("hex");
+  return { ...impact, stamp };
+}
+
+export async function reviewBrandMenuDraft(actor: Actor, input: { brandId: string; revision: string | null }) {
+  const { brandId, revision } = parseInput(draftEditInput, input);
+  return inTransaction(actor, async tx => {
+    await lockBrand(tx, actor, brandId);
+    const context = await readDraftContext(tx, brandId);
+    checkDraftRevision(context, revision);
+    const draft = savedDraft(context);
+    if (!draft) throw menuDraftChanged();
+    parseInput(menuInput, draft, "menuDraftInvalid");
+    return brandMenuImpact(tx, context, await readBrandMenu(tx, context), draft);
+  });
+}
 
 export function menuDraftChanged() {
   return new MaasiiError("invalid_input", "The Menu changed since it was opened. Reload it to see the latest changes.", "menuDraftChanged");
@@ -565,16 +636,23 @@ function checkArchive({ sections, archivedDishes }: MenuDraftContent) {
 /** Publishes the saved draft, or publishes the editor's current edits in the same transaction. */
 export async function publishMenuDraft(
   actor: Actor,
-  input: { brandId: string; revision: string | null; menu?: DraftMenuInput },
+  input: { brandId: string; revision: string | null; menu?: DraftMenuInput; impactStamp?: string },
   { now = new Date() }: { now?: Date } = {},
 ): Promise<PublishedMenuVersion> {
-  const { brandId, revision, menu } = parseInput(draftEditInput, input);
+  const { brandId, revision, menu, impactStamp } = parseInput(draftPublishInput, input);
   return inTransaction(actor, async (tx) => {
     await lockBrand(tx, actor, brandId);
     const context = await readDraftContext(tx, brandId);
     checkDraftRevision(context, revision);
     const existing = savedDraft(context);
     const content = menu ?? existing ?? await readBrandMenu(tx, context);
+    if (impactStamp) {
+      if (!existing || menu) throw menuDraftChanged();
+      const impact = await brandMenuImpact(tx, context, await readBrandMenu(tx, context), existing);
+      if (impact.stamp !== impactStamp) {
+        throw new MaasiiError("invalid_input", "Review updated Venue changes before publishing.", "menuVenueImpactChanged");
+      }
+    }
     if (content.sections.some((section) => section.imported || section.suggestedName || section.dishes.some(
       (dish) => dish.imported || dish.suggestedName || dish.suggestedDescription,
     ))) {

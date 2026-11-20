@@ -9,6 +9,7 @@ import { GuestDishRow, GuestMenuHeader } from "@/ui/guest-menu-parts";
 import { DraftSlipContents, draftSlipClass } from "@/ui/draft-slip";
 import { brandThemeStyle, displayFontClasses } from "@/ui/guest-theme";
 import { ActionForm, SubmitButton } from "@/ui/staff-forms";
+import { WaiterIcon } from "@/ui/waiter-icon";
 
 type Artwork = { file: File; url: string | null };
 
@@ -19,7 +20,9 @@ export function BrandingForm({ brand, save, accept, maxFileBytes }: {
   maxFileBytes: number;
 }) {
   const t = useTranslations("StaffBranding");
+  const owner = useTranslations("OwnerWorkspace");
   const menuText = useTranslations("GuestMenu");
+  const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [colour, setColour] = useState(brand.colour);
   const [font, setFont] = useState(brand.displayFont);
   const [logo, setLogo] = useArtwork();
@@ -49,7 +52,13 @@ export function BrandingForm({ brand, save, accept, maxFileBytes }: {
   }
 
   return (
-    <div className="owner-summary workspace-section">
+    <div id="appearance" className="owner-appearance" data-mode={mode}>
+      <div className="manager-switches owner-settings-switch" role="group" aria-label={t("appearance")}>
+        <button type="button" aria-pressed={mode === "edit"} onClick={() => setMode("edit")}>{owner("editAppearance")}</button>
+        <button type="button" aria-pressed={mode === "preview"} onClick={() => setMode("preview")}>{owner("previewAppearance")}</button>
+      </div>
+      <div className="owner-summary mt-2">
+      <div data-appearance="edit">
       <ActionForm action={submit} className="workspace-panel space-y-4" aria-labelledby="appearance-title">
           <h2 id="appearance-title">{t("appearance")}</h2>
           <div>
@@ -92,12 +101,12 @@ export function BrandingForm({ brand, save, accept, maxFileBytes }: {
           </label>
         <div className="workspace-actions">
           <SubmitButton>{t("save")}</SubmitButton>
-          <a href="#brand-preview" className="workspace-link">{t("preview")}</a>
         </div>
       </ActionForm>
+      </div>
 
-        <section className="workspace-panel" aria-labelledby="brand-preview">
-          <h2 id="brand-preview" className="mb-2 text-sm font-semibold">{t("preview")}</h2>
+        <section className="workspace-panel" aria-labelledby="brand-preview" data-appearance="preview">
+          <h2 id="brand-preview" className="mb-2 text-sm font-semibold flex items-center gap-2"><WaiterIcon name="menu" />{t("preview")}</h2>
           <div
             className={`overflow-hidden rounded-lg border border-rule bg-paper font-sans ${displayFontClasses[font]}`}
             style={brandThemeStyle(theme)}
@@ -117,6 +126,7 @@ export function BrandingForm({ brand, save, accept, maxFileBytes }: {
             </div>
           </div>
         </section>
+      </div>
     </div>
   );
 }

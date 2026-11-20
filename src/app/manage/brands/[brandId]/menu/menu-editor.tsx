@@ -5,13 +5,14 @@ import { useEffect, useRef, useState, useTransition, type FormEvent } from "reac
 import type { Bilingual, GuestMenu, Language, MenuDraft, MenuDraftContent } from "@/core";
 import { localizeMenuSections } from "@/core/browser";
 import type { Messages } from "@/i18n/messages";
-import { Price } from "@/ui/price";
+import { formatBirr, Price } from "@/ui/price";
 import { Field } from "@/ui/field";
 import { GuestMenuView } from "@/ui/guest-menu-view";
 import { languageButtonClass } from "@/ui/language-switch";
 import { ConfirmationDialog } from "@/ui/staff-forms";
+import { WaiterIcon } from "@/ui/waiter-icon";
 import { Ordering } from "@/app/v/[token]/ordering";
-import { persistMenuDraft, prepareDishPhoto, prepareDishVideo, requestMenuAssistance } from "./actions";
+import { persistMenuDraft, prepareDishPhoto, prepareDishVideo, requestMenuAssistance, reviewBrandPublish } from "./actions";
 
 type Section = MenuDraftContent["sections"][number];
 type Dish = Section["dishes"][number];
@@ -19,6 +20,8 @@ type OptionGroup = Dish["optionGroups"][number];
 type ArchivedDish = MenuDraftContent["archivedDishes"][number];
 type Artwork = { accept: string; maxFileBytes: number };
 type GuestMessages = Pick<Messages, "GuestMenu" | "LanguageSwitch" | "Ordering" | "Price">;
+type BrandImpact = NonNullable<Awaited<ReturnType<typeof reviewBrandPublish>>["impact"]>;
+type DishChange = BrandImpact["brand"]["dishes"][number];
 
 const emptyText = { en: "", am: "" };
 const editorButton = "min-h-11 min-w-11 rounded-xl border border-ink/30 px-3 text-sm font-medium disabled:opacity-45";
@@ -48,6 +51,16 @@ function move<T>(items: T[], index: number, step: number) {
   return reordered;
 }
 
+function dishChanges(published: MenuDraftContent, draft: MenuDraftContent) {
+  const previous = new Map(published.sections.flatMap(section => section.dishes.map(dish => [dish.dishId, dish] as const)));
+  const next = new Map(draft.sections.flatMap(section => section.dishes.map(dish => [dish.dishId, dish] as const)));
+  return [...new Set([...next.keys(), ...previous.keys()])].flatMap(id => {
+    const before = previous.get(id);
+    const after = next.get(id);
+    return JSON.stringify(before) === JSON.stringify(after) ? [] : [{ id, before, after }];
+  });
+}
+
 export function MenuEditor({
   initialDraft,
   recoveryKey,
@@ -65,6 +78,7 @@ export function MenuEditor({
   maxImportPhotos: number;
   venue?: {
     inherited: Section[];
+    published: MenuDraftContent;
     missing: number;
     persist: (revision: string | null, menu: MenuDraftContent, publish: boolean, inherit: string[]) =>
       Promise<{ draft?: MenuDraft; error?: keyof Messages["StaffErrors"] }>;
@@ -75,6 +89,8 @@ export function MenuEditor({
   const t = useTranslations("MenuEditor");
   const errors = useTranslations("StaffErrors");
   const locale = useLocale();
+  const [published, setPublished] = useState(venue?.published);
+  const [impact, setImpact] = useState<BrandImpact>();
   const [query, setQuery] = useState("");
   const [recovery, setRecovery] = useState<{ menu: MenuDraftContent; revision: string | null; inherit: string[] }>();
   const [recoveryUnavailable, setRecoveryUnavailable] = useState(false);
@@ -300,11 +316,12 @@ export function MenuEditor({
       try {
         const result = await (venue
           ? venue.persist(saved.revision, menu, publish, inherit)
-          : persistMenuDraft(saved.brand.id, saved.revision, menu, publish));
+          : persistMenuDraft(saved.brand.id, saved.revision, menu, publish, publish ? impact?.stamp : undefined));
         if (result.draft) {
           setSaved(result.draft);
           setMenu(result.draft.menu);
           setInherit([]);
+          if (publish && venue) setPublished(result.draft.menu);
           setStatus(publish ? "published" : "saved");
           if (leaveAfterSave.current) leave();
         } else {
@@ -316,6 +333,40 @@ export function MenuEditor({
       }
     });
   }
+
+  function reviewPublish() {
+    if (venue) {
+      publishDialog.current?.showModal();
+      return;
+    }
+    setError(undefined);
+    startTransition(async () => {
+      try {
+        const result = await reviewBrandPublish(saved.brand.id, saved.revision);
+        if (result.impact) {
+          setImpact(result.impact);
+          publishDialog.current?.showModal();
+        } else setError(result.error ?? "invalid_input");
+      } catch {
+        setError("menuRequestFailed");
+      }
+    });
+  }
+
+  function addSection() {
+    const sectionId = crypto.randomUUID();
+    setQuery("");
+    changeSections([...menu.sections, { sectionId, name: emptyText, dishes: [] }]);
+    requestAnimationFrame(() => {
+      const section = document.getElementById("menu-section-" + sectionId);
+      const settings = section?.querySelector("details");
+      if (settings) settings.open = true;
+      section?.querySelector("input")?.focus();
+    });
+  }
+
+  const search = query.trim().toLocaleLowerCase(locale);
+  const matches = (dish: Dish) => `${dish.name.am} ${dish.name.en} ${dish.description.am} ${dish.description.en}`.toLocaleLowerCase(locale).includes(search);
 
   const previewSections = localizeMenuSections(menu.sections
     .filter((section) => named(section.name))
@@ -336,6 +387,7 @@ export function MenuEditor({
     timeZone: "Africa/Addis_Ababa",
   }).format(saved.lastPublishedAt);
   const publishTitle = venue ? t("publishVenue", { venue: saved.venueName ?? saved.brand.name }) : t("publishBrand");
+  const changes = published && saved.hasUnpublishedChanges ? dishChanges(published, saved.menu) : [];
 
   return (
     <div id="brand-menu-editor">
@@ -347,11 +399,37 @@ export function MenuEditor({
           <button type="button" className={editorButton} onClick={stay}>{t("stay")}</button>
         </div>
       </dialog>
-      <ConfirmationDialog dialog={publishDialog} title={publishTitle} cancel={t("cancelPublish")} onConfirm={() => {
+      <ConfirmationDialog dialog={publishDialog} title={publishTitle} cancel={t("cancelPublish")} scrollable onConfirm={() => {
         publishDialog.current?.close();
         if (!dirty && !pending && !needsReview && saved.hasUnpublishedChanges) persist(true);
       }}>
         {venue ? t("publishVenueHelp", { venue: saved.venueName ?? saved.brand.name }) : t("publishBrandHelp", { brand: saved.brand.name })}
+        {venue && (changes.length > 0 ? <div className="manager-publish-changes">
+          <h3>{t("publishChanges")}</h3><PublishDishList changes={changes} />
+        </div> : <p className="mt-3 manager-muted">{t("publishDetails")}</p>)}
+        {!venue && impact && <div className="manager-publish-changes">
+          <section aria-label={t("brandDefaults")}>
+            <h3>{t("brandDefaults")}</h3>
+            {impact.brand.layoutChanged && <p className="manager-muted">{t("layoutChanged")}</p>}
+            <PublishDishList changes={impact.brand.dishes} />
+          </section>
+          <h3 className="mt-4">{t("venueImpact")}</h3>
+          {impact.venues.length ? impact.venues.map(({ id, name, dishes, kept, layoutChanged }) => (
+            <section key={id} aria-label={name} className="workspace-panel mt-2">
+              <h4 className="font-semibold">{name}</h4>
+              {layoutChanged && <p className="manager-muted">{t("layoutChanged")}</p>}
+              {dishes.length > 0 ? <PublishDishList changes={dishes} /> : !layoutChanged &&
+                <p className="manager-muted">{t("noVenueImpact")}</p>}
+              {kept.length > 0 && <ul className="mt-2 text-sm">
+                {kept.map(dish => <li key={dish.id}>
+                  {dish.priceSantim === undefined
+                    ? t("keepsVenueDetails", { dish: dish.name[locale] || named(dish.name) })
+                    : t("keepsVenuePrice", { dish: dish.name[locale] || named(dish.name), price: formatBirr(dish.priceSantim) })}
+                </li>)}
+              </ul>}
+            </section>
+          )) : <p className="manager-muted mt-2">{t("noImpactVenues")}</p>}
+        </div>}
       </ConfirmationDialog>
       {recovery && <section className="maasii-card mb-4" role="status"><h2 className="font-semibold">{t("recoveryFound")}</h2>
         <p>{t(recovery.revision === saved.revision ? "recoveryHelp" : "recoveryConflict")}</p>
@@ -368,7 +446,7 @@ export function MenuEditor({
           <p className="text-sm font-semibold">{t(dirty ? "unsavedChanges" : saved.hasUnpublishedChanges ? "draftPrivate" : "upToDate")}</p>
           {!dirty && saved.hasUnpublishedChanges ? (
             <button type="button" disabled={pending || needsReview} className="workspace-button workspace-primary"
-              onClick={() => publishDialog.current?.showModal()}>{t("reviewPublish")}</button>
+              onClick={reviewPublish}>{t("reviewPublish")}</button>
           ) : (
             <button type="submit" form="menu-editor-fields" value="save" disabled={!dirty || pending} className="workspace-button workspace-primary">{t("save")}</button>
           )}
@@ -417,7 +495,7 @@ export function MenuEditor({
         </div>
 
       <div className="mt-5 grid items-start gap-8 lg:grid-cols-2">
-        <div id="menu-edit-panel" role="tabpanel" aria-labelledby="menu-edit-tab" className={tab === "edit" ? "" : "hidden lg:block"}>
+        <div id="menu-edit-panel" role="tabpanel" aria-labelledby="menu-edit-tab" className={tab === "edit" ? "min-w-0" : "hidden min-w-0 lg:block"}>
           <section aria-label={t("edit")}>
             <label hidden={!!openedDish} className="mb-5 block"><span className="text-sm font-semibold">{t("findDish")}</span><input type="search" value={query} onChange={e => setQuery(e.target.value)} className="mt-2 min-h-12 w-full rounded-xl border border-ink/30 bg-white px-4" /></label>
             <form id="menu-editor-fields" onSubmit={submit} onInvalid={(event) => {
@@ -435,7 +513,13 @@ export function MenuEditor({
                   const previous = openedDish; setOpenedDish(undefined);
                   requestAnimationFrame(() => document.getElementById(`edit-${previous}`)?.focus());
                 }}>{t("backToDishes")}</button>}
-                <div hidden={!!openedDish} className="editor-maintenance">
+                <div hidden={!!openedDish} className="manager-menu-tools">
+                {!search && menu.sections.length > 1 && <nav className="manager-section-jumps" aria-label={t("jumpToSection")}>
+                  {menu.sections.map((section, index) => <a key={section.sectionId} className="workspace-button" href={"#menu-section-" + section.sectionId}>
+                    {section.name[locale] || named(section.name) || t("section", { number: index + 1 })}
+                  </a>)}
+                </nav>}
+                <div className={venue ? "" : "owner-editor-tools"}>
                 {!venue && <details className="maasii-card"><summary className="min-h-11 font-semibold">{t("importPhotos")}</summary>
                   <p id="menu-import-help" className="text-sm text-ink-muted">{t("importHelp", { count: maxImportPhotos })}</p>
                   <Field ref={importInput} label={t("menuPhotos")} type="file" accept={artwork.accept} multiple
@@ -444,15 +528,18 @@ export function MenuEditor({
                     {t("importPhotos")}
                   </button>
                 </details>}
-                <button type="button" className={editorButton} onClick={() => changeSections([
-                  ...menu.sections,
-                  { sectionId: crypto.randomUUID(), name: emptyText, dishes: [] },
-                ])}>
+                <button type="button" className={editorButton} onClick={addSection}>
+                  <WaiterIcon name="plus" />
                   {t("addSection")}
                 </button>
                 </div>
+                </div>
+                {search && !openedDish && !menu.sections.some(section => section.dishes.some(matches)) &&
+                  <p className="manager-empty" role="status">{t("noDishMatches")}</p>}
                 {menu.sections.map((section, sectionIndex) => (
-                  <fieldset key={section.sectionId} hidden={!!openedDish && !section.dishes.some(dish => dish.dishId === openedDish)} className="editor-section min-w-0">
+                  <fieldset key={section.sectionId} id={"menu-section-" + section.sectionId} tabIndex={-1}
+                    hidden={openedDish ? !section.dishes.some(dish => dish.dishId === openedDish) : !!search && !section.dishes.some(matches)}
+                    className="editor-section min-w-0">
                     <legend className="text-lg font-semibold">{section.name[locale] || named(section.name) || t("section", { number: sectionIndex + 1 })}</legend>
                     <details hidden={!!openedDish} className="editor-maintenance"><summary className="min-h-11 font-semibold">{t("sectionSettings")}</summary>
                     <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -486,7 +573,7 @@ export function MenuEditor({
                     </details>
                     <div className="mt-4 space-y-3">
                       {section.dishes.map((dish, dishIndex) => (
-                        <div key={dish.dishId} hidden={(!!openedDish && openedDish !== dish.dishId) || (!openedDish && !!query && !`${dish.name.am} ${dish.name.en} ${dish.description.am} ${dish.description.en}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()))}>
+                        <div key={dish.dishId} hidden={openedDish ? openedDish !== dish.dishId : !matches(dish)}>
                         <DishFields
                           dish={dish}
                           priceReset={priceReset[dish.dishId]}
@@ -556,12 +643,12 @@ export function MenuEditor({
         </div>
         <div id="menu-preview-panel" role="tabpanel" aria-labelledby="menu-preview-tab" className={tab === "preview" ? "min-w-0" : "hidden min-w-0 lg:block"}>
           <section aria-label={t("previewLabel")} className="overflow-clip rounded-xl border border-rule bg-paper lg:sticky lg:top-0 lg:max-h-dvh lg:overflow-y-auto">
-            <p className="border-b border-rule bg-paper-deep px-5 py-2 text-sm font-semibold">{t("draft")}</p>
+            <p className="border-b border-rule bg-paper-deep px-5 py-2 text-sm font-semibold">{t(venue ? "draft" : "brandDraftPreview")}</p>
             <NextIntlClientProvider locale={previewLanguage} messages={guestMessages[previewLanguage]}>
               <div lang={previewLanguage}>
                 <GuestMenuView
                   brand={saved.brand}
-                  venueName={saved.venueName}
+                  venueName={venue ? saved.venueName : null}
                   theme={theme}
                   sections={previewSections}
                   fastingDishes={saved.fastingDay ? previewDishes.filter((dish) => dish.fasting) : []}
@@ -577,6 +664,25 @@ export function MenuEditor({
       </div>
     </div>
   );
+}
+
+function PublishDishList({ changes }: { changes: DishChange[] }) {
+  const t = useTranslations("MenuEditor");
+  const locale = useLocale();
+  if (!changes.length) return null;
+  return <ul className="manager-list">
+    {changes.map(({ id, before, after }) => {
+      const dish = after ?? before!;
+      return <li key={id}>
+        <strong>{dish.name[locale] || named(dish.name)}</strong>
+        <p className="manager-muted">{t(!before ? "addedDish" : !after ? "removedDish" : "updatedDish")}
+          {before && after && before.priceSantim !== after.priceSantim && <> · {t("priceChangeSummary", {
+            previous: formatBirr(before.priceSantim), current: formatBirr(after.priceSantim),
+          })}</>}
+        </p>
+      </li>;
+    })}
+  </ul>;
 }
 
 function MoveButtons({ index, count, onMove }: { index: number; count: number; onMove: (step: number) => void }) {
@@ -664,7 +770,7 @@ function DishFields({ dish, open, onOpen, scope, priceReset, index, count, accep
           {dish.imported && <small className="block text-amber-900">{t("imported")}</small>}
           {missingTranslation(dish) && <small className="block text-amber-900">{t("missingTranslation")}</small>}
         </span>
-        <Price santim={dish.priceSantim} />
+        <span className="editor-dish-trailing"><Price santim={dish.priceSantim} />{!open && <WaiterIcon name="next" />}</span>
       </summary>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {dishLanguages.map((language) => (

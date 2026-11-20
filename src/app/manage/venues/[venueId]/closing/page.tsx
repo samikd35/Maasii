@@ -7,158 +7,213 @@ import { getClosingReport, MaasiiError } from "@/core";
 import { requireStaff } from "@/lib/session";
 import { formatBirr } from "@/ui/price";
 import { ActionForm, SubmitButton } from "@/ui/staff-forms";
-import { ClosingBillControls } from "./bill-controls";
+import { WaiterIcon } from "@/ui/waiter-icon";
+import { ClosingBillControls, ClosingReceipts, ClosingTask } from "./bill-controls";
 import { closeUnpaid, removeLine, saveDiscount } from "./actions";
 
-const field = "mt-1 block min-h-11 w-full rounded-xl border border-ink/30 bg-white px-3 text-base";
 const unpaid = ["walked_out", "on_the_house", "entered_by_mistake"] as const;
+type Visit = Awaited<ReturnType<typeof getClosingReport>>["visits"][number];
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Closing");
-  return { title: `${t("title")} · Maasii` };
+  return { title: t("title") + " · Maasii" };
 }
 
 export default async function ClosingPage({ params, searchParams }: PageProps<"/manage/venues/[venueId]/closing">) {
   const { venueId } = await params;
-  const { date, tab } = await searchParams;
+  const { date, tab, filter } = await searchParams;
   const payments = tab === "payments" || (tab !== "visits" && typeof date === "string");
-  const actor = await requireStaff();
-  const report = await getClosingReport(actor, { venueId, date: typeof date === "string" ? date : undefined }).catch((error) => {
+  const differencesOnly = filter === "differences";
+  const report = await getClosingReport(await requireStaff(), { venueId, date: typeof date === "string" ? date : undefined }).catch(error => {
     if (error instanceof MaasiiError) notFound();
     throw error;
   });
-  const [t, bills, locale, format, { Bills }] = await Promise.all([getTranslations("Closing"), getTranslations("Bills"), getLocale(), getFormatter(), getMessages()]);
-  const other = locale === "am" ? "en" : "am";
-  const localTime = (time: Date) => format.dateTime(time, { hour: "numeric", minute: "numeric", timeZone: "Africa/Addis_Ababa" });
-  const root = `/manage/venues/${venueId}/closing`;
-  const amounts = (receiptSantim: number, billSantim: number, differenceSantim: number) => <dl className="receipt-values">
-    <div><dt>{t("billAmount")}</dt><dd>{formatBirr(billSantim)} ETB</dd></div>
+  const [t, bills, format, { Bills, Closing }] = await Promise.all([
+    getTranslations("Closing"), getTranslations("Bills"), getFormatter(), getMessages(),
+  ]);
+  const time = (value: Date) => format.dateTime(value, { hour: "numeric", minute: "numeric", timeZone: "Africa/Addis_Ababa" });
+  const root = "/manage/venues/" + venueId + "/closing";
+  const differences = report.payments.filter(payment => payment.differenceSantim !== 0);
+  const visiblePayments = differencesOnly ? differences : report.payments;
+  const day = root + "?tab=payments&date=" + report.date;
+  const ready = report.visits.filter(visit => visit.preparedAt && !visit.waiting)
+    .sort((a, b) => a.preparedAt!.getTime() - b.preparedAt!.getTime());
+  const groups = ([
+    { title: "readyForReceipt", short: "readyJump", visits: ready, icon: "receipt" },
+    { title: "ordersToReview", short: "waitingJump", visits: report.visits.filter(visit => visit.waiting), icon: "queue" },
+    { title: "otherOpen", short: "inService", visits: report.visits.filter(visit => !visit.waiting && !visit.preparedAt), icon: "tables" },
+  ] as const).filter(group => group.visits.length);
+
+  const amounts = (receiptSantim: number, billSantim: number, differenceSantim: number) => <dl className="receipt-values manager-amounts">
     <div><dt>{t("receiptAmount")}</dt><dd>{formatBirr(receiptSantim)} ETB</dd></div>
-    <div><dt>{t("differenceAmount")}</dt><dd className={differenceSantim ? "font-semibold text-amber-900" : undefined}>
+    <div><dt>{t("billAmount")}</dt><dd>{formatBirr(billSantim)} ETB</dd></div>
+    <div><dt>{t("differenceAmount")}</dt><dd className={differenceSantim ? "manager-difference" : undefined}>
       {differenceSantim > 0 ? "+" : ""}{formatBirr(differenceSantim)} ETB
     </dd></div>
   </dl>;
 
-  return (
-    <>
-      <h1 className="mb-3">{t("title")}</h1>
-      <nav className="workspace-nav" aria-label={t("title")}>
-        <Link href={root} aria-current={!payments ? "page" : undefined}>{t("open")}</Link>
-        <Link href={`${root}?tab=payments`} aria-current={payments ? "page" : undefined}>{t("payments")}</Link>
-      </nav>
-      {!payments && <section aria-labelledby="open-visits" className="workspace-panel workspace-section">
-        <h2 id="open-visits" className="text-xl font-semibold">{t("open")}</h2>
-        {report.visits.length === 0 && <p className="py-3 text-ink-muted">{t("noneOpen")}</p>}
-        <ul className="divide-y divide-rule">
-          {report.visits.map((visit) => (
-            <li key={visit.id} id={`visit-${visit.id}`} className="space-y-3 py-4">
-              <h3 className="font-sans text-2xl">{bills("table", { number: visit.tableNumber })}</h3>
-              <p className="text-sm">{t("age", { minutes: visit.minutesOpen })} · {visit.waiterName ?? t("noWaiter")}
-                {!visit.preparedAt && ` · ${bills("runningTotal", { amount: formatBirr(visit.totalSantim) })}`}</p>
-              {(visit.preparedAt || visit.lines.length > 0) && (
-                <NextIntlClientProvider messages={{ Bills }}>
-                  <ClosingBillControls venueId={venueId} visitId={visit.id} methods={report.methods} tableNumber={visit.tableNumber}
-                    bill={visit.preparedAt ? { visitId: visit.id, tableId: visit.tableId, totalSantim: visit.totalSantim, reminder: false } : undefined} />
-                </NextIntlClientProvider>
-              )}
-              <details>
-                <summary className="workspace-summary">{t("visitActions")}</summary>
-              <details>
-                <summary className="min-h-11 cursor-pointer py-3 font-semibold">{t("adjust")}</summary>
-                {visit.lines.length > 0 && (
-                  <ActionForm action={removeLine.bind(null, venueId, visit.id)} className="mb-3 space-y-2">
-                    <label className="block text-sm font-medium">
-                      {t("line")}
-                      <select name="line" className={field}>
-                        {visit.lines.map((line) => (
-                          <option key={`${line.orderId}:${line.lineIndex}`} value={`${line.orderId}:${line.lineIndex}`}>
-                            {line.quantity} × {line.name[locale] || line.name[other]} · {formatBirr(line.unitPriceSantim * line.quantity)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <ReasonField label={t("reason")} />
-                    <SubmitButton variant="quiet">{t("removeLine")}</SubmitButton>
-                  </ActionForm>
-                )}
-                <ActionForm action={saveDiscount.bind(null, venueId, visit.id)} className="mb-3 space-y-2">
-                  <label className="block text-sm font-medium">
-                    {t("discountAmount")}
-                    <input name="amount" className={field} inputMode="decimal" required defaultValue={visit.discountSantim / 100} />
-                  </label>
-                  <ReasonField label={t("reason")} />
-                  <SubmitButton variant="quiet">{t("discount")}</SubmitButton>
-                </ActionForm>
-                {visit.adjustments.length > 0 && (
-                  <>
-                    <h4 className="font-semibold">{t("history")}</h4>
-                    <ul className="divide-y divide-rule">
-                      {visit.adjustments.map((change) => (
-                        <li key={change.id} className="py-2 text-sm">
-                          <p>{change.kind === "discount" ? t("discountValue", { amount: formatBirr(Number(change.amountSantim)) }) : t("lineRemoved")} · {change.reason}</p>
-                          <p className="text-ink-muted">{change.changedByName ?? change.changedBy} · {localTime(change.changedAt)}</p>
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-              </details>
-              <details>
-                <summary className="min-h-11 cursor-pointer py-3 font-semibold">{t("closeUnpaid")}</summary>
-                <ActionForm action={closeUnpaid.bind(null, venueId, visit.id)} className="space-y-2"
-                  confirmLabel={t("closeUnpaid")} confirmMessage={t("unpaidConsequence", { table: visit.tableNumber })}>
-                  <label className="block text-sm font-medium">
-                    {t("reason")}
-                    <select name="reason" className={field} required defaultValue="">
-                      <option value="" disabled>{t("chooseReason")}</option>
-                      {unpaid.map((reason) => <option key={reason} value={reason}>{t(reason)}</option>)}
-                    </select>
-                  </label>
-                  <SubmitButton variant="destructive">{t("closeUnpaid")}</SubmitButton>
-                </ActionForm>
-              </details>
-              </details>
-            </li>
-          ))}
-        </ul>
-      </section>}
-      {payments && <section aria-labelledby="daily-payments" className="workspace-panel workspace-section">
-        <h2 id="daily-payments" className="text-xl font-semibold">{t("payments")}</h2>
-        <form className="my-3 flex flex-wrap items-end gap-2">
-          <input type="hidden" name="tab" value="payments" />
-          <label className="text-sm font-medium">{t("date")} <input type="date" name="date" className={field} defaultValue={report.date} required /></label>
-          <button className="min-h-11 rounded-xl border border-rule px-3 text-sm font-semibold">{t("showDate")}</button>
-        </form>
-        {report.payments.length === 0 && <p className="py-3 text-ink-muted">{t("nonePaid")}</p>}
-        <ul className="divide-y divide-rule">
-          {report.payments.map((payment) => (
-            <li key={payment.visitId} id={`payment-${payment.visitId}`} className="py-3">
-              <p className="font-semibold">{bills("table", { number: payment.tableNumber })} · {payment.method.provider ?? bills(payment.method.kind)} · {localTime(payment.confirmedAt)}</p>
-              {amounts(payment.receiptAmountSantim, payment.billTotalSantim, payment.differenceSantim)}
-            </li>
-          ))}
-        </ul>
-        <p className="border-t border-rule py-3 font-semibold">{t("dayTotal")}</p>
-        {amounts(report.totals.receiptSantim, report.totals.billSantim, report.totals.differenceSantim)}
-      </section>}
-      {payments && report.closedAdjustments.length > 0 && (
-        <details className="mt-4">
-          <summary className="min-h-11 cursor-pointer py-3 font-semibold">{t("closedHistory")}</summary>
-          <ul className="divide-y divide-rule">
-            {report.closedAdjustments.map((change) => (
-              <li key={change.id} className="py-2 text-sm">
-                <p className="font-semibold">{bills("table", { number: change.tableNumber })}</p>
-                <p>{change.kind === "discount" ? t("discountValue", { amount: formatBirr(Number(change.amountSantim)) }) : t("lineRemoved")} · {change.reason}</p>
-                <p className="text-ink-muted">{change.changedByName ?? change.changedBy} · {localTime(change.changedAt)}</p>
-              </li>
-            ))}
-          </ul>
+  return <>
+    <h1>{t("title")}</h1>
+    <nav className="manager-switches" aria-label={t("title")}>
+      <Link href={root} aria-current={!payments ? "page" : undefined}>
+        <WaiterIcon name="tables" />{t("shortOpen")}
+      </Link>
+      <Link href={day} aria-current={payments ? "page" : undefined}>
+        <WaiterIcon name="receipt" />{t("shortPayments")}
+      </Link>
+    </nav>
+    {!payments && <section aria-labelledby="open-visits">
+      <div className="manager-section-heading">
+        <h2 id="open-visits">{t("open")}</h2>
+      </div>
+      {groups.length > 1 && <nav className="manager-switches" aria-label={t("open")}>
+        {groups.map(({ title, short, visits, icon }) => <a className="workspace-button" key={title} href={"#" + title}>
+          <WaiterIcon name={icon} />{t(short)} <span className="manager-count">{visits.length}</span>
+        </a>)}
+      </nav>}
+      <NextIntlClientProvider messages={{ Bills, Closing }}>
+        <ClosingReceipts root={root}>
+          {report.visits.length === 0 && <p className="manager-empty">{t("noneOpen")}</p>}
+          {groups.map(({ title, visits }) => <section key={title} className="manager-close-group" aria-labelledby={title}>
+            <h3 id={title} tabIndex={-1}>{t(title)} <span className="manager-count">{visits.length}</span></h3>
+            <ul className="manager-list">
+              {visits.map(visit => <VisitRow key={visit.id} visit={visit} venueId={venueId} methods={report.methods} />)}
+            </ul>
+          </section>)}
+        </ClosingReceipts>
+      </NextIntlClientProvider>
+    </section>}
+    {payments && <section aria-labelledby="daily-payments">
+      <div className="manager-section-heading"><h2 id="daily-payments">{t("payments")}</h2></div>
+      <div className="manager-report-head workspace-panel">
+        <div className="manager-report-total">
+          <p className="font-semibold"><time dateTime={report.date}>{format.dateTime(new Date(report.date + "T00:00:00Z"), { dateStyle: "long", timeZone: "UTC" })}</time></p>
+          {amounts(report.totals.receiptSantim, report.totals.billSantim, report.totals.differenceSantim)}
+          {differences.length > 0 && <span className="manager-chip" data-tone="waiting">
+            <WaiterIcon name="alert" />{t("receiptCount", { count: differences.length })}
+          </span>}
+        </div>
+        <details>
+          <summary className="workspace-button manager-disclosure"><WaiterIcon name="calendar" />{t("changeDate")}</summary>
+          <form className="manager-actions mt-2" aria-label={t("changeDate")}>
+            <input type="hidden" name="tab" value="payments" />
+            {differencesOnly && <input type="hidden" name="filter" value="differences" />}
+            <label className="text-sm font-medium">{t("date")}<input type="date" name="date" className="workspace-input" defaultValue={report.date} required /></label>
+            <button className="workspace-button workspace-primary">{t("showDate")}</button>
+          </form>
         </details>
-      )}
-    </>
-  );
+      </div>
+      <nav className="manager-switches" aria-label={t("receiptFilter")}>
+        <Link href={day} aria-current={!differencesOnly ? "page" : undefined}>{t("allReceipts")}</Link>
+        <Link href={day + "&filter=differences"} aria-current={differencesOnly ? "page" : undefined}>{t("differencesOnly")}</Link>
+      </nav>
+      {!visiblePayments.length && <p className="manager-empty">{t(differencesOnly ? "noDifferences" : "nonePaid")}</p>}
+      {!!visiblePayments.length && <ul className="manager-list">
+        {visiblePayments.map(payment => <li key={payment.visitId} id={"payment-" + payment.visitId} className="manager-receipt-row">
+          <div>
+            <h3>{bills("table", { number: payment.tableNumber })}</h3>
+            <p className="manager-muted">{payment.method.provider ?? bills(payment.method.kind)} · {time(payment.confirmedAt)}</p>
+          </div>
+          {amounts(payment.receiptAmountSantim, payment.billTotalSantim, payment.differenceSantim)}
+        </li>)}
+      </ul>}
+      {report.closedAdjustments.length > 0 && <details className="workspace-panel mt-4">
+        <summary className="workspace-summary">{t("closedHistory")}</summary>
+        <ul className="divide-y divide-rule">
+          {report.closedAdjustments.map(change => <li key={change.id} className="py-2 text-sm">
+            <p className="font-semibold">{bills("table", { number: change.tableNumber })}</p>
+            <p>{change.kind === "discount" ? t("discountValue", { amount: formatBirr(Number(change.amountSantim)) }) : t("lineRemoved")} · {change.reason}</p>
+            <p className="manager-muted">{change.changedByName ?? change.changedBy} · {time(change.changedAt)}</p>
+          </li>)}
+        </ul>
+      </details>}
+    </section>}
+  </>;
+}
+
+async function VisitRow({ visit, venueId, methods }: {
+  visit: Visit; venueId: string; methods: Awaited<ReturnType<typeof getClosingReport>>["methods"];
+}) {
+  const [t, bills, locale, format] = await Promise.all([getTranslations("Closing"), getTranslations("Bills"), getLocale(), getFormatter()]);
+  const other = locale === "am" ? "en" : "am";
+  const table = bills("table", { number: visit.tableNumber });
+  const floor = "/manage/venues/" + venueId + "/floor#floor-visit-" + visit.id;
+  return <li id={"visit-" + visit.id} className="manager-visit-row">
+    <div className="manager-row-heading">
+      <div>
+        <h3>{table}</h3>
+        <p className="manager-muted">{t("age", { minutes: visit.minutesOpen })} · {visit.waiterName ?? t("noWaiter")}</p>
+      </div>
+      <div className="manager-visit-total">
+        <span>{t(visit.preparedAt ? "billAmount" : "runningTotal")}</span>
+        <strong>{formatBirr(visit.totalSantim)} ETB</strong>
+      </div>
+    </div>
+    <div className="manager-actions">
+      {!!visit.waiting && <span className="manager-chip" data-tone="waiting"><WaiterIcon name="clock" />{t("waitingCount", { count: visit.waiting })}</span>}
+      {visit.preparedAt && <span className="manager-chip" data-tone={visit.overdue ? "waiting" : "bill"}>
+        <WaiterIcon name="receipt" />{t(visit.overdue ? "overdue" : "billReady")}
+      </span>}
+      {visit.partyPending && <span className="manager-chip" data-tone="waiting"><WaiterIcon name="account" />{t("newParty")}</span>}
+      {!visit.waiting && !visit.preparedAt && <span className="manager-chip" data-tone="live">{t("inService")}</span>}
+    </div>
+    {visit.waiting > 0 ?
+      <Link href={floor} className="workspace-button workspace-primary"><WaiterIcon name="queue" />{t("reviewWaiting")}</Link>
+      : (visit.preparedAt || visit.hasAccepted) && <ClosingBillControls venueId={venueId} visitId={visit.id} tableNumber={visit.tableNumber}
+        methods={methods} partyPending={visit.partyPending} bill={visit.preparedAt ? {
+          visitId: visit.id, tableId: visit.tableId, preparedAt: visit.preparedAt.toISOString(), totalSantim: visit.totalSantim, reminder: false,
+        } : undefined} />}
+    <details className="manager-row-more">
+      <summary className="workspace-summary"><WaiterIcon name="more" />{t("visitActions")}</summary>
+      <div className="manager-actions">
+        <ClosingTask label={t("adjust")} title={t("adjustFor", { number: visit.tableNumber })}>
+          <div className="waiter-receipt-total"><WaiterIcon name="receipt" />{bills("total", { amount: formatBirr(visit.totalSantim) })}</div>
+          {visit.lines.length > 0 && <ActionForm action={removeLine.bind(null, venueId, visit.id)} className="manager-task-form">
+            <label>{t("line")}
+              <select name="line" className="workspace-input">
+                {visit.lines.map(line => <option key={line.orderId + ":" + line.lineIndex} value={line.orderId + ":" + line.lineIndex}>
+                  {line.quantity} × {line.name[locale] || line.name[other]} · {formatBirr(line.unitPriceSantim * line.quantity)} ETB
+                </option>)}
+              </select>
+            </label>
+            <ReasonField label={t("reason")} />
+            <SubmitButton variant="secondary">{t("removeLine")}</SubmitButton>
+          </ActionForm>}
+          <ActionForm action={saveDiscount.bind(null, venueId, visit.id)} className="manager-task-form">
+            <label>{t("discountAmount")}
+              <input name="amount" key={visit.discountSantim} className="workspace-input" inputMode="decimal" required defaultValue={visit.discountSantim / 100} />
+            </label>
+            <ReasonField label={t("reason")} />
+            <SubmitButton>{t("discount")}</SubmitButton>
+          </ActionForm>
+          {!!visit.adjustments.length && <section className="workspace-panel mt-3">
+            <h3>{t("history")}</h3>
+            <ul className="divide-y divide-rule">
+              {visit.adjustments.map(change => <li key={change.id} className="py-2 text-sm">
+                <p>{change.kind === "discount" ? t("discountValue", { amount: formatBirr(Number(change.amountSantim)) }) : t("lineRemoved")} · {change.reason}</p>
+                <p className="manager-muted">{change.changedByName ?? change.changedBy} · {format.dateTime(change.changedAt, { timeStyle: "short", timeZone: "Africa/Addis_Ababa" })}</p>
+              </li>)}
+            </ul>
+          </section>}
+        </ClosingTask>
+        <ClosingTask destructive label={t("closeUnpaid")} title={t("unpaidFor", { number: visit.tableNumber })}>
+          <p>{t("unpaidConsequence", { table: visit.tableNumber })}</p>
+          {!!visit.waiting && <p className="manager-notice" data-tone="waiting"><WaiterIcon name="alert" />{t("pendingUnpaid")}</p>}
+          <ActionForm action={closeUnpaid.bind(null, venueId, visit.id)} className="manager-task-form">
+            <label>{t("reason")}
+              <select name="reason" className="workspace-input" required defaultValue="">
+                <option value="" disabled>{t("chooseReason")}</option>
+                {unpaid.map(reason => <option key={reason} value={reason}>{t(reason)}</option>)}
+              </select>
+            </label>
+            <SubmitButton variant="destructive">{t("closeUnpaid")}</SubmitButton>
+          </ActionForm>
+        </ClosingTask>
+      </div>
+    </details>
+  </li>;
 }
 
 function ReasonField({ label }: { label: string }) {
-  return <label className="block text-sm font-medium">{label}<input name="reason" className={field} maxLength={300} required /></label>;
+  return <label>{label}<input name="reason" className="workspace-input" maxLength={300} required /></label>;
 }

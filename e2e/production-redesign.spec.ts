@@ -11,7 +11,7 @@ async function signIn(page: Page, user: TestUser, brandId: string) {
   await page.getByLabel("Email or phone").fill(user.email);
   await page.getByLabel("Password").fill(user.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL(/\/manage$/);
+  await expect(page).toHaveURL(`/manage/brands/${brandId}`);
   await page.goto(`/manage/brands/${brandId}/menu`);
 }
 
@@ -104,7 +104,7 @@ test("editor guards navigation, offers explicit tab recovery and retains edits o
   await page.goBack();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.getByRole("button", { name: "Keep editing", exact: true }).click();
-  await page.getByRole("link", { name: "Maasii Owner" }).click();
+  await page.getByRole("link", { name: "Overview", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.getByRole("button", { name: "Keep editing", exact: true }).click();
   await expect(edit.getByLabel("Dish name in English").first()).toHaveValue("Garden Omelette");
@@ -167,11 +167,29 @@ test("redesigned guest and management surfaces fit all target widths and enlarge
   expect(enlarged.x + enlarged.width).toBeLessThanOrEqual(300);
   await page.screenshot({ path: test.info().outputPath("menu-amharic-enlarged.png"), fullPage: true });
   await signIn(page, s.owner, s.brand.id);
-  for (const route of ["/manage", "/manage/operations", `/manage/brands/${s.brand.id}/branding`, `/manage/brands/${s.brand.id}/menu`, `/manage/venues/${s.venue.id}`, `/manage/venues/${s.venue.id}/floor`, `/manage/venues/${s.venue.id}/shifts`, `/manage/venues/${s.venue.id}/menu`, `/manage/venues/${s.venue.id}/menu/edit`, `/manage/venues/${s.venue.id}/closing`, `/manage/venues/${s.venue.id}/insights`, `/manage/venues/${s.venue.id}/payment-options`]) {
+  const brand = `/manage/brands/${s.brand.id}`;
+  const venue = `/manage/venues/${s.venue.id}`;
+  const ownerRoutes = [brand, brand + "/venues", brand + "/insights", brand + "/branding", brand + "/menu"];
+  for (const route of [...ownerRoutes, venue, venue + "/floor", venue + "/shifts", venue + "/menu", venue + "/menu/edit",
+    venue + "/closing", venue + "/insights", venue + "/payment-options"]) {
     await page.goto(route);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth), route).toBeLessThanOrEqual(320);
     await page.screenshot({ path: test.info().outputPath(`${route.replaceAll("/", "-")}.png`), fullPage: true });
+  }
+  await page.getByText("Account", { exact: true }).click();
+  await page.getByRole("button", { name: "አማ", exact: true }).click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "am");
+  for (const route of [...ownerRoutes, venue, venue + "/insights", venue + "/payment-options"]) {
+    await page.goto(route);
+    await page.addStyleTag({ content: "html {font-size:200%}" });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth), route).toBeLessThanOrEqual(320);
+    expect(await page.locator(".manager-nav a").evaluateAll(links => links.every(link => {
+      const label = link.lastElementChild!;
+      const bounds = label.getBoundingClientRect();
+      const target = link.getBoundingClientRect();
+      return bounds.left >= target.left && bounds.right <= target.right && label.scrollWidth <= label.clientWidth;
+    })), route).toBe(true);
   }
 });
 
@@ -245,9 +263,9 @@ test("editor explains denied recovery storage and saves in-memory edits before l
   await edit.getByText("Omelette", { exact: true }).click();
   await edit.getByLabel("Dish name in English").first().fill("Saved before leaving");
   await expect(page.getByText(/cannot store a recovery copy/)).toBeVisible();
-  await page.getByRole("link", { name: "Maasii Owner" }).click();
+  await page.getByRole("link", { name: "Overview", exact: true }).click();
   await page.getByRole("button", { name: "Save and leave", exact: true }).click();
-  await expect(page).toHaveURL(/\/manage$/);
+  await expect(page).toHaveURL(`/manage/brands/${s.brand.id}`);
   const saved = await getMenuDraft(s.owner.actor, { brandId: s.brand.id });
   expect(saved.menu.sections[0].dishes[0].name.en).toBe("Saved before leaving");
 });
@@ -339,9 +357,9 @@ test("operations and Owner guidance reflect configured running service", async (
     await guest.getByRole("button", { name: "Send to Table 1", exact: true }).click();
     await expect(guest.getByRole("dialog").getByText("Sent", { exact: true })).toBeVisible();
     await page.reload();
-    await page.getByRole("link", { name: "Open Table 1", exact: true }).click();
-    await expect(page).toHaveURL(/\/operations#floor-visit-/);
-    await expect(page.getByRole("region", { name: "Open Tables" }).getByText("1 × Omelette")).toBeVisible();
+    await page.getByText("Open Table 1", { exact: true }).click();
+    await expect(page).toHaveURL(/\/floor$/);
+    await expect(page.getByRole("region", { name: "Needs attention" }).getByText("1 × Omelette")).toBeVisible();
   } finally {
     await guest.close();
   }

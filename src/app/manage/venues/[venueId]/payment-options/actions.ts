@@ -15,8 +15,8 @@ type OptionTarget = { venueId: string; paymentOptionId: string; revision: string
 
 export async function savePaymentOption(
   venueId: string,
-  existing: (Omit<OptionTarget, "venueId"> & { accountOrMerchantCode: string | null }) | null,
-  _state: FormState,
+  existing: Omit<OptionTarget, "venueId"> | null,
+  reviewed: boolean,
   formData: FormData,
 ): Promise<FormState> {
   const actor = await requireStaff();
@@ -40,28 +40,26 @@ export async function savePaymentOption(
       displayOrder: Number(formData.get("displayOrder")),
       qrImage,
     };
+    const destinationReviewed = reviewed === true ? true as const : undefined;
     if (existing) {
-      const confirmed = formData.get("confirmAccountCode");
       await updatePaymentOption(actor, {
         ...existing,
         venueId,
         changes: fields,
-        accountChange: typeof confirmed === "string"
-          ? { before: existing.accountOrMerchantCode, after: confirmed }
-          : undefined,
+        destinationReviewed,
       });
     } else {
-      await addPaymentOption(actor, { venueId, ...fields });
+      await addPaymentOption(actor, { venueId, ...fields, destinationReviewed });
     }
     revalidatePath(`/manage/venues/${venueId}/payment-options`);
     return { done: { key: "paymentOptionSaved" } };
   });
 }
 
-export async function changeActive(target: OptionTarget, active: boolean): Promise<FormState> {
+export async function changeActive(target: OptionTarget, active: boolean, reviewed: boolean): Promise<FormState> {
   const actor = await requireStaff();
   return forForm(async () => {
-    await updatePaymentOption(actor, { ...target, changes: { active } });
+    await updatePaymentOption(actor, { ...target, changes: { active }, destinationReviewed: reviewed === true ? true : undefined });
     revalidatePath(`/manage/venues/${target.venueId}/payment-options`);
     return { done: { key: "paymentOptionSaved" } };
   });

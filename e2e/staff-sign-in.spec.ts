@@ -81,14 +81,14 @@ test("an Owner creates a Venue, sets up its Tables, downloads its Venue Link and
   const managerPhone = uniquePhone();
 
   await signIn(page, s.owner.email, s.owner.password);
-  await expect(page.getByRole("link", { name: "Lancha", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open operations for Lancha", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Venues", exact: true }).click();
   await page.locator("summary").filter({ hasText: /^Add venue$/ }).click();
   await page.getByLabel("Venue name").fill("Bole");
   await page.getByRole("button", { name: "Add venue" }).click();
-  await page.getByRole("link", { name: "Bole", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Bole", level: 1 })).toBeVisible();
+  await page.getByRole("link", { name: "Set up Bole", exact: true }).click();
+  await expect(page.locator(".manager-identity-trigger")).toContainText("Bole");
 
-  await page.locator("summary").filter({ hasText: "Tables" }).click();
   const tables = page.getByRole("region", { name: "Tables" });
   await tables.getByLabel("From table").fill("1");
   await tables.getByLabel("To table").fill("4");
@@ -103,12 +103,12 @@ test("an Owner creates a Venue, sets up its Tables, downloads its Venue Link and
 
   const two = tables.getByRole("listitem").filter({ hasText: "Table 2" });
   await two.getByRole("button", { name: "Deactivate" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Deactivate" }).click();
   await expect(two).toContainText("Not in use");
   await two.getByRole("button", { name: "Reactivate" }).click();
   await expect(two).not.toContainText("Not in use");
 
-  await page.locator("summary").filter({ hasText: "Venue Link" }).click();
-  const venueLink = page.getByRole("region", { name: "Venue Link" });
+  const venueLink = page.getByRole("region", { name: "Guest QR" });
   const linkInput = venueLink.getByLabel("Venue Link", { exact: true });
   await expect(linkInput).toHaveValue(/\/v\/bilos-pastry-bole-[a-z0-9]{4}$/);
   const [linkDownload] = await Promise.all([
@@ -129,22 +129,21 @@ test("an Owner creates a Venue, sets up its Tables, downloads its Venue Link and
   const managers = page.getByRole("region", { name: "Managers" });
   await managers.getByLabel("Name").fill("Hana");
   await managers.getByLabel("Email or phone").fill(managerPhone);
-  await managers.getByRole("button", { name: "Invite manager" }).click();
+  await managers.getByRole("button", { name: "Create manager invite link" }).click();
   const link = await managers.getByLabel("Invitation link").inputValue();
 
   const hana = await acceptOnNewPhone(browser, link, "hana-at-bole-2026");
-  await hana.getByRole("link", { name: /Bole/ }).click();
-  await expect(hana.getByRole("heading", { name: "Bole", level: 1 })).toBeVisible();
-  await hana.locator("summary").filter({ hasText: "Tables" }).click();
+  await hana.locator(".manager-identity-trigger").click();
+  await hana.getByRole("link", { name: "Venue setup", exact: true }).click();
+  await expect(hana.locator(".manager-identity-trigger")).toContainText("Bole");
   const managerTables = hana.getByRole("region", { name: "Tables" });
   await expect(managerTables.getByRole("listitem")).toHaveCount(4);
   await managerTables.getByLabel("From table").fill("5");
   await managerTables.getByRole("button", { name: "Add tables" }).click();
   await expect(managerTables.getByRole("listitem")).toHaveCount(5);
-  await hana.locator("summary").filter({ hasText: "Venue Link" }).click();
   await expect(hana.getByRole("link", { name: "Download Venue Link" })).toBeVisible();
   await expect(hana.getByRole("link", { name: "Download QR image" })).toBeVisible();
-  await expect(hana.getByRole("button", { name: "Invite manager" })).toHaveCount(0);
+  await expect(hana.getByRole("button", { name: "Create manager invite link" })).toHaveCount(0);
   await hana.goto("/manage");
   await expect(hana.getByRole("link", { name: /Lancha/ })).toHaveCount(0);
 });
@@ -160,7 +159,7 @@ test("a Manager signs in with a local phone number and a password, and signs out
   await expect(page.getByRole("alert").filter({ hasText: "That email, phone or password is not right." })).toBeVisible();
 
   await signIn(page, localPhone, TEST_PASSWORD);
-  await expect(page.getByRole("link", { name: /Lancha/ })).toBeVisible();
+  await expect(page.locator(".manager-identity-trigger")).toContainText("Lancha");
   await page.getByText("Account", { exact: true }).click();
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page).toHaveURL(/\/sign-in$/);
@@ -172,11 +171,11 @@ test("a Manager cannot open another venue's page", async ({ page }) => {
   const s = await scenario().venue("Lancha").venue("Bole").manager("Hana", { venue: "Bole" }).build();
 
   await signIn(page, s.managers.Hana.email, s.managers.Hana.password);
-  await expect(page).toHaveURL(/\/manage\/operations$/);
+  await expect(page).toHaveURL(new RegExp(s.venues.Bole.id + "/floor$"));
   const operations = page.getByRole("navigation", { name: "Bole operations" });
   await expect(operations.getByRole("link", { name: "Shifts" })).toBeVisible();
   await expect(operations.getByRole("link", { name: "Venue menu" })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Bole/ })).toBeVisible();
+  await expect(page.locator(".manager-identity-trigger")).toContainText("Bole");
   const response = await page.goto(`/manage/venues/${s.venues.Lancha.id}`);
   expect(response?.status()).toBe(404);
   const qr = await page.request.get(`/manage/venues/${s.venues.Lancha.id}/qr`);
@@ -194,16 +193,21 @@ test("an Owner who manages another Brand's Venue can switch between both roles",
   await signIn(page, owned.owner.email, owned.owner.password);
   await expect(page.getByRole("heading", { name: "Owned Brand" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Other Brand" })).toHaveCount(0);
-  await page.getByRole("link", { name: "Venue operations", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Venue operations" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Bole", exact: true })).toBeVisible();
-  await page.getByRole("combobox", { name: "Venue", exact: true }).selectOption({ label: "Lancha · Owned Brand" });
-  await page.getByRole("button", { name: "Switch Venue", exact: true }).click();
-  await page.getByRole("link", { name: "Lancha", exact: true }).click();
+  await page.locator(".manager-identity-trigger").click();
+  await page.getByRole("link", { name: /Bole.*Other Brand/ }).click();
+  await expect(page.getByRole("heading", { name: "Live floor" })).toBeVisible();
+  await expect(page.locator(".manager-identity-trigger")).toContainText("Bole");
+  await page.getByRole("link", { name: "Shifts", exact: true }).click();
+  await page.locator(".manager-identity-trigger").click();
+  await page.getByRole("button", { name: /Lancha.*Owned Brand/ }).click();
+  await expect(page).toHaveURL(new RegExp(owned.venue.id + "/shifts$"));
+  await page.locator(".manager-identity-trigger").click();
+  await page.getByRole("link", { name: "Venue setup", exact: true }).click();
   await expect(page.getByRole("region", { name: "Waiters" })).toBeVisible();
   await page.goto("/manage/operations");
-  await expect(page.getByRole("link", { name: "Lancha", exact: true })).toBeVisible();
-  await page.getByRole("link", { name: "Overview", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(owned.venue.id + "/floor$"));
+  await page.locator(".manager-identity-trigger").click();
+  await page.getByRole("link", { name: "Owner overview", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Owned Brand" })).toBeVisible();
 });
 
@@ -215,13 +219,13 @@ test("every management screen fits a phone, with touch targets of at least 44 by
 
   const screens: { who: { email: string; password: string }; paths: string[] }[] = [
     { who: { email: "", password: "" }, paths: ["/sign-in", `/invite/${token}`] },
-    { who: s.owner, paths: ["/manage", `/manage/venues/${s.venue.id}`] },
+    { who: s.owner, paths: [`/manage/brands/${s.brand.id}`, `/manage/venues/${s.venue.id}`] },
     { who: admin, paths: ["/admin", `/admin/brands/${s.brand.id}`] },
   ];
   for (const { who, paths } of screens) {
     if (who.email) {
       await signIn(page, who.email, who.password);
-      await expect(page).toHaveURL(/\/manage$/);
+      await expect(page).toHaveURL(/\/manage(?:\/brands\/[^/]+)?$/);
       await page.getByText("Account", { exact: true }).click();
       await page.getByRole("button", { name: "አማ", exact: true }).click();
       await expect(page.locator("html")).toHaveAttribute("lang", "am");
@@ -258,9 +262,9 @@ test("every management screen fits a phone, with touch targets of at least 44 by
 test("a Manager enrolls a Waiter by QR and removes their access on two phones", async ({ page, browser }) => {
   const s = await scenario().venue("Lancha").manager("Hana").publishedMenu().build();
   await signIn(page, s.managers.Hana.email, s.managers.Hana.password);
-  await page.getByRole("link", { name: /Lancha/ }).click();
+  await page.locator(".manager-identity-trigger").click();
+  await page.getByRole("link", { name: "Venue setup", exact: true }).click();
   const waiters = page.getByRole("region", { name: "Waiters" });
-  await page.locator("summary").filter({ hasText: "Venue Link" }).click();
   const qr = waiters.getByRole("img", { name: "Waiter join QR" });
   const showQr = waiters.getByRole("button", { name: "Show join QR" });
   await showQr.click();

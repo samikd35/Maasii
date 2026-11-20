@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { requireVenueManager } from "./access";
 import type { Actor } from "./actor";
-import { billFromOrders, type BillVisit } from "./bills";
+import { billFromOrders, preparedBillFollowupMinutes, type BillVisit } from "./bills";
 import { inTransaction } from "./db";
 import type { Order } from "./orders";
 import { findRunningShift } from "./shifts";
@@ -78,7 +78,7 @@ export async function getLiveFloor(actor: Actor, input: { venueId: string }, { n
       if (oldestSentMinutes !== null && oldestSentMinutes >= 2) {
         exceptions.push({ kind: "sent", tableNumber: row.number, id: row.visitId, minutes: oldestSentMinutes });
       }
-      if (row.preparedAt && age(row.preparedAt) >= 20) {
+      if (row.preparedAt && age(row.preparedAt) >= preparedBillFollowupMinutes) {
         exceptions.push({ kind: "prepared", tableNumber: row.number, id: row.visitId, minutes: age(row.preparedAt) });
       }
       const status = row.preparedAt ? "prepared" : oldest ? "sent" : "inService";

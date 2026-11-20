@@ -41,7 +41,7 @@ export function SocialLinksForm({ links, limits, save }: {
   }
 
   return (
-    <div className="mt-10 border-t border-rule pt-5">
+    <section id="social-links" className="workspace-panel workspace-section" aria-labelledby={id}>
       <h2 id={id} className="font-sans text-2xl">{t("heading")}</h2>
       <p className="mt-1 text-sm text-ink-muted">{t("brandHelp")}</p>
       <ActionForm action={submit} aria-labelledby={id} className="mt-4 space-y-4">
@@ -78,6 +78,6 @@ export function SocialLinksForm({ links, limits, save }: {
           <SubmitButton>{t("save")}</SubmitButton>
         </div>
       </ActionForm>
-    </div>
+    </section>
   );
 }
